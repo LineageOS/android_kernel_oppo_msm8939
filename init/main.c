@@ -822,7 +822,6 @@ static int __ref kernel_init(void *unused)
 	kernel_init_freeable();
 	/* need to finish all async __init code before freeing the memory */
 	async_synchronize_full();
-	free_initmem();
 	mark_rodata_ro();
 	system_state = SYSTEM_RUNNING;
 	numa_default_policy();
@@ -915,4 +914,32 @@ static noinline void __init kernel_init_freeable(void)
 
 	/* rootfs is available now, try loading default modules */
 	load_default_modules();
+}
+
+extern initcall_t __deferred_initcall_start[], __deferred_initcall_end[];
+
+/* call deferred init routines */
+void do_deferred_initcalls(bool init)
+{
+	initcall_t *call;
+	static int already_run = 0;
+
+	if (already_run) {
+		pr_info("do_deferred_initcalls() has already run\n");
+		return;
+	}
+
+	if (init) {
+		pr_info("Running do_deferred_initcalls()\n");
+		for (call = __deferred_initcall_start;
+		     call < __deferred_initcall_end; call++)
+			do_one_initcall(*call);
+	} else
+		pr_info("Skipping do_deferred_initcalls()\n");
+
+	flush_scheduled_work();
+
+	free_initmem();
+
+	already_run = 1;
 }

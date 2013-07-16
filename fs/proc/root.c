@@ -155,6 +155,35 @@ static struct file_system_type proc_fs_type = {
 	.fs_flags	= FS_USERNS_MOUNT,
 };
 
+extern void do_deferred_initcalls(bool init);
+
+static ssize_t deferred_initcalls_write_proc(struct file *file,
+		const char __user *buffer, size_t count, loff_t *ppos)
+{
+	static int deferred_initcalls_done = 0;
+	int ret = 0;
+	char buf[2];
+
+	if (count > 2)
+		return count;
+
+	if (copy_from_user(buf, buffer, count)) {
+		return -EFAULT;
+	}
+	sscanf(buf, "%d", &ret);
+
+	if (!deferred_initcalls_done) {
+		do_deferred_initcalls(ret == 1 ? true : false);
+		deferred_initcalls_done = 1;
+	}
+
+	return count;
+}
+
+static const struct file_operations deferred_initcalls_fops = {
+	.write = deferred_initcalls_write_proc,
+};
+
 void __init proc_root_init(void)
 {
 	int err;
@@ -165,6 +194,8 @@ void __init proc_root_init(void)
 		return;
 
 	proc_self_init();
+
+	proc_create("deferred_initcalls", 0, NULL, &deferred_initcalls_fops);
 	proc_symlink("mounts", NULL, "self/mounts");
 
 	proc_net_init();
