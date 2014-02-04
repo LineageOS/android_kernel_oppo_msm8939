@@ -21,6 +21,9 @@
 #include <linux/leds.h>
 #include <linux/qpnp/pwm.h>
 #include <linux/err.h>
+#if defined(CONFIG_MACH_OPPO) && defined(CONFIG_BACKLIGHT_LM3630)
+#include <soc/oppo/oppo_project.h>
+#endif
 
 #include "mdss_dsi.h"
 #include "mdss_livedisplay.h"
@@ -37,6 +40,10 @@
 #define DEFAULT_MDP_TRANSFER_TIME 14000
 
 DEFINE_LED_TRIGGER(bl_led_trigger);
+
+#if defined(CONFIG_MACH_OPPO) && defined(CONFIG_BACKLIGHT_LM3630)
+extern int lm3630_bank_a_update_status(u32 bl_level);
+#endif
 
 void mdss_dsi_panel_pwm_cfg(struct mdss_dsi_ctrl_pdata *ctrl)
 {
@@ -596,6 +603,10 @@ static void mdss_dsi_panel_bl_ctrl(struct mdss_panel_data *pdata,
 			__func__);
 		break;
 	}
+#if defined(CONFIG_MACH_OPPO) && defined(CONFIG_BACKLIGHT_LM3630)
+	if (is_project(OPPO_15109))
+		lm3630_bank_a_update_status(bl_level);
+#endif
 }
 
 static int mdss_dsi_panel_on(struct mdss_panel_data *pdata)
