@@ -2487,6 +2487,12 @@ static ssize_t ocfs2_file_splice_write(struct pipe_inode_info *pipe,
 			out->f_path.dentry->d_name.len,
 			out->f_path.dentry->d_name.name, len);
 
+	ret = generic_write_checks(out, ppos, &len, 0);
+	if (ret)
+		return ret;
+	sd.total_len = len;
+	sd.pos = *ppos;
+
 	pipe_lock(pipe);
 
 	splice_from_pipe_begin(&sd);
