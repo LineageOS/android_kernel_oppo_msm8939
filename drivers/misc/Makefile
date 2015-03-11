@@ -74,4 +74,5 @@ obj-y += remote/
 # ifdef VENDOR_EDIT //Jianfeng.Qiu@BSP.Driver, 2014/09/11, Add for breath led
 obj-$(CONFIG_SN3193_SLED)  += shineled/
 # endif
+obj-$(CONFIG_UID_CPUTIME) += uid_cputime.o
 
