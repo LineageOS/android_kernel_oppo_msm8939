@@ -52,6 +52,10 @@ enum pon_restart_reason {
 	PON_RESTART_REASON_RECOVERY	= 0x01,
 	PON_RESTART_REASON_BOOTLOADER	= 0x02,
 	PON_RESTART_REASON_RTC		= 0x03,
+#ifdef VENDOR_EDIT
+/* Added by tong.han@Bsp.group.Tp add for silence mode(using hard-reset reg check),2016-06-02*/
+	PON_RESTART_REASON_SILENCE  = 0x04,
+#endif /*VENDOR_EDIT*/
 };
 
 #ifdef CONFIG_QPNP_POWER_ON

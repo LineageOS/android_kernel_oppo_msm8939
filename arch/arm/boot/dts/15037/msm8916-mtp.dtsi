@@ -1,0 +1,788 @@
+/* Copyright (c) 2014, The Linux Foundation. All rights reserved.
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 and
+ * only version 2 as published by the Free Software Foundation.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ */
+
+#include "msm8916.dtsi"
+#include "msm8916-pinctrl.dtsi"
+#include "msm8916-camera-sensor-mtp.dtsi"
+
+/ {
+	aliases {
+		serial0 = &blsp1_uart2;
+	};
+};
+
+&soc {
+	i2c@78b9000 { /* BLSP1 QUP5 */
+		synaptics15009@20 {/*tong.han add for TP */
+			compatible = "synaptics-s3203";
+			reg = <0x20>;
+			interrupt-parent = <&msm_gpio>;
+			interrupts = <13 0x2008>;
+			synaptics,irq-gpio = <&msm_gpio 13 0x2008>;
+			synaptics,id1-gpio = <&msm_gpio 109 0x00>;
+			synaptics,id2-gpio = <&msm_gpio 114 0x00>;
+			synaptics,id3-gpio = <&msm_gpio 119 0x00>;
+			//synaptics,reset-gpio = <&pm8916_gpios 2 0x00>;
+			
+			pinctrl-names = "default","tp_id_pull_up","tp_id_pull_down";
+			pinctrl-0 = <&ts_int_active   &tp_gpio_id1_pullup   &tp_gpio_id2_pullup   &tp_gpio_id3_pullup>;
+			pinctrl-1 = <&tp_gpio_id1_pullup   &tp_gpio_id2_pullup   &tp_gpio_id3_pullup>;
+			pinctrl-2 = <&tp_gpio_id1_pulldown &tp_gpio_id2_pulldown &tp_gpio_id3_pulldown>;			
+			
+			synaptics,max-num-support = <10>;
+			synaptics,max-x-point = <10>;
+			synaptics,button-map= <120 170 1070>;//width-height-y.position 
+			synaptics,tx-rx-num = <13 23>;
+			synaptics,display-coords = <540 960>;
+			synaptics,panel-coords = <1100 1770>;//max_x,max_y of display area--Not include virtual keys!
+			vdd_2v8-supply = <&pm8916_l17>;
+			vcc_i2c_1v8-supply = <&pm8916_l6>;
+			synaptics,black-gesture-enabled;
+//			synaptics,glove-mode-enabled;
+			synaptics,i2c-pull-up;
+			synaptics,power-down;
+			synaptics,disable-gpios;
+		};
+		ti_lm3630_bl@38 {
+			compatible = "lm3630_bl";
+			reg = <0x38>;
+			ti,bank-a-ctrl = <0x05>;
+			ti,init-brt-led1 = <200>;
+			ti,init-brt-led2 = <200>;
+			ti,max-brt-led1 = <255>;
+			ti,max-brt-led2 = <255>;
+			ti,pwm-active = <0>;
+			ti,pwm-ctrl = <0>;
+			ti,pwm-period = <255>;
+			bl_i2c_1v8-supply = <&pm8916_l6>;
+			ti,bl-enable-gpio = <&msm_gpio 69 0x00>;
+		};
+	};
+
+	gen-vkeys {
+		compatible = "qcom,gen-vkeys";
+		label = "synaptics_rmi4_i2c";
+		qcom,disp-maxx = <1079>;
+		qcom,disp-maxy = <1919>;
+		qcom,panel-maxx = <1079>;
+		qcom,panel-maxy = <2084>;
+		qcom,key-codes = <158 139 172 217>;
+	};
+
+	i2c@78ba000 { /* BLSP1 QUP6 */
+		nfc-nci@e {
+			compatible = "qcom,nfc-nci";
+			reg = <0x0e>;
+			qcom,irq-gpio = <&msm_gpio 21 0x00>;
+			qcom,dis-gpio = <&msm_gpio 20 0x00>;
+			qcom,clk-src = "BBCLK2";
+			qcom,clk-en-gpio = <&msm_gpio 0 0x00>;
+			interrupt-parent = <&msm_gpio>;
+			interrupts = <21 0>;
+			interrupt-names = "nfc_irq";
+			pinctrl-names = "nfc_active","nfc_suspend";
+			pinctrl-0 = <&nfc_int_active &nfc_disable_active>;
+			pinctrl-1 = <&nfc_int_suspend &nfc_disable_suspend>;
+			qcom,clk-gpio = <&pm8916_gpios 2 0>;
+			clocks = <&clock_rpm clk_bb_clk2_pin>;
+			clock-names = "ref_clk";
+		};
+                /* OPPO 2015-03-11 zhangping@Audio.Driver Add begin for ts4621 */
+                //#ifdef VENDOR_EDIT
+    	        ts4621@60 {
+    	                  status = "okay";
+                          compatible = "st,ts4621";
+                          reg = <0x60>;
+                };
+               //#endif
+               /* OPPO 2015-03-11 zhangping@Audio.Driver Add end */
+	};
+	
+	/*Fuchun.Liao@Mobile.BSP.CHG 2014-07-31 add to config BSL1 QUP4 for smb358-charger*/
+	i2c@78b8000 {	/* BLSP1 QUP4 */
+		bq24196_otg_supply:	qcom_bq24196@6b {
+			compatible = "ti,bq24196-charger";
+			reg = <0x6b>;
+			vcc_i2c_opcharger-supply = <&pm8916_l5>;
+			qcom,irq-gpio = <&msm_gpio 62 0x00>;
+			qcom,usbin-switch-gpio = <&pm8916_gpios 4 0>;
+			qcom,batt-id-gpio = <&msm_gpio 49 0x00>;
+			qcom,disable-apsd;
+			qcom,using-pmic-therm;
+			//qcom,bms-controlled-charging;
+			qcom,charger-inhibit-disabled;
+			qcom,bms-psy-name = "bms";
+			qcom,chg-vadc = <&pm8916_vadc>;
+			qcom,chg-adc_tm = <&pm8916_adc_tm>;
+			/*
+			qcom,iterm-ma = <100>;
+			qcom,recharge-mv = <200>;
+			qcom,fast-charger-project-sign= <0>;	
+			qcom,input-current-max-ma = <2000>;
+			qcom,fastchg-current-max-ma = <2000>;
+			qcom,float-voltage-mv = <4350>;
+
+			qcom,hot_bat_decidegc = <550>;
+
+			qcom,warm_bat_decidegc = <450>;
+			qcom,temp_warm_vfloat_mv = <4100>;
+			qcom,temp_warm_fastchg_current_ma = <600>;
+			
+			qcom,normal_bat_decidegc = <200>;
+			qcom,temp_little_cool_vfloat_mv = <4320>;
+			qcom,temp_little_cool_fastchg_current_ma = <1000>;	
+
+			qcom,little_cool_bat_decidegc = <100>;
+			qcom,temp_cool_vfloat_mv = <4200>;
+			qcom,temp_cool_fastchg_current_ma = <600>;	
+
+			qcom,cool_bat_decidegc = <0>;
+			qcom,temp_cold_vfloat_mv = <4000>;
+			qcom,temp_cold_fastchg_current_ma = <300>;
+			
+			qcom,cold_bat_decidegc = <100>;
+			qcom,bat_present_decidegc = <200>;			
+			qcom,non_standard_vfloat_mv = <4000>;
+			qcom,non_standard_fastchg_current_ma = <512>;
+			*/
+			qcom,iterm-ma = <100>;									/*Charge termination current*/
+			qcom,recharge-mv = <200>;									/* The minimum voltage drop for recharger*/
+			qcom,fast-charger-project-sign= <0>;						/* fastcharger project sign*/	
+			qcom,fastchg-current-max-ma = <1000>;						/*Maximum fast charging current.*/
+			qcom,input-current-max-ma = <1000>;						/*Maximum input current.*/
+			qcom,float-voltage-mv = <4320>;							/* from constant current charging to constant voltage chargeing for voltage threshold*/
+
+			qcom,hot_bat_decidegc = <530>;							/* hot battery temperature in decidegC = 53*/
+			qcom,temp_hot_vfloat_mv = <4100>;							/* hot battery temperature cutoff voltage =4.1V (45~55)*/
+			qcom,temp_hot_fastchg_current_ma = <600>;					/* hot battery temperature fast current   =0.75A (45~55)*/
+
+			qcom,warm_bat_decidegc = <430>;							/* Warm battery temperature in decidegC= 43*/
+			qcom,temp_warm_vfloat_mv = <4320>;						/* warn battery temperature cutoff voltage =4.1V (5~45)*/
+			qcom,temp_warm_fastchg_current_ma = <1000>;				/* warn battery temperature fast current   =0.75A (5~45)*/
+
+			qcom,pre_normal_bat_decidegc = <220>;						/* pre_cool battery temperature in decidegC= 22*/	
+			qcom,temp_pre_normal_vfloat_mv = <4320>;						/* warn battery temperature cutoff voltage =4.1V (5~45)*/
+			qcom,temp_pre_normal_fastchg_current_ma = <1000>;			/* warn battery temperature fast current   =0.75A (5~45)*/
+
+			qcom,pre_cool_bat_decidegc = <120>;						/* pre_cool battery temperature in decidegC= 12*/	
+			qcom,temp_pre_cool_vfloat_mv = <4200>;					/* pre_cool battery temperature cutoff voltage =4.2V (0~5)*/
+			qcom,temp_pre_cool_fastchg_current_ma = <600>;			/* pre_cool battery temperature fast current   =0.75A (0~5)*/
+
+			qcom,cool_bat_decidegc = <0>;								/* cool battery temperature in decidegC= 0*/
+			qcom,temp_cool_vfloat_mv = <4000>;						/* cool battery temperature cutoff voltage =4.0V (-10~0) */
+			qcom,temp_cool_fastchg_current_ma = <256>;				/* cool battery temperature fast current   =0.25A(-10~0)*/
+
+			qcom,cold_bat_decidegc = <30>;							/* cold battery temperature in decidegC= -3*/
+			qcom,bat_present_decidegc = <200>;						/* battery decidegc temperature in decidegC= -20*/
+			qcom,non_standard_vfloat_mv = <4000>;
+			qcom,non_standard_fastchg_current_ma = <512>;
+
+			regulator-name = "bq24196_otg_vreg";
+		};
+
+		//#ifdef VENDOR_EDIT Tong.han@BSP.Driver.TP, 2014-09-22, Add for RGB breath-led
+	        sn3193_led@68 {
+	                status = "okay";
+	                compatible = "sn3193,issi-rgb";
+	                reg = <0x68>;
+	     		vcc_i2c_sn3193-supply = <&pm8916_l5>;			/*Power source required to pull up i2c bus*/
+	                sn3193,sdb-gpio = <&msm_gpio 2 0x00>;
+	        };
+	        //#endif	
+	};
+	/*Fuchun.Liao add end*/ 
+
+	i2c@78b6000 { /* BLSP1 QUP2 */
+		mpu6050@68 { /* Gyroscope and accelerometer sensor combo */
+			compatible = "invn,mpu6050";
+			reg = <0x68>;
+			pinctrl-names = "mpu_default","mpu_sleep";
+			pinctrl-0 = <&mpu6050_default>;
+			pinctrl-1 = <&mpu6050_sleep>;
+			interrupt-parent = <&msm_gpio>;
+			interrupts = <115 0x2>;
+			vdd-supply = <&pm8916_l17>;
+			vlogic-supply = <&pm8916_l16>;
+			vi2c-supply = <&pm8916_l6>;
+			invn,gpio-int = <&msm_gpio 115 0x2>;
+			invn,place = "Portrait Down Back Side";
+		};
+
+		avago@39 { /* Ambient light and proximity sensor */
+			compatible = "avago,apds9900";
+			reg = <0x39>;
+			pinctrl-names = "default","sleep";
+			pinctrl-0 = <&apds99xx_default>;
+			pinctrl-1 = <&apds99xx_sleep>;
+			interrupt-parent = <&msm_gpio>;
+			interrupts = <113 0x2002>;
+			vdd-supply = <&pm8916_l17>;
+			vio-supply = <&pm8916_l6>;
+			avago,irq-gpio = <&msm_gpio 113 0x2002>;
+			avago,ps-threshold = <600>;
+			avago,ps-hysteresis-threshold = <500>;
+			avago,ps-pulse = <8>;
+			avago,ps-pgain = <0>;
+			avago,als-B = <223>;
+			avago,als-C = <70>;
+			avago,als-D = <142>;
+			avago,ga-value = <48>;
+		};
+
+
+		/* LiuPing@Phone.BSP.Sensor, 2014/07/19, add for alsps:stk3x1x */
+		stk@48 {
+			compatible = "stk,stk3x1x";
+			reg = <0x48>;
+			interrupt-parent = <&msm_gpio>;
+			interrupts = <9 0x2>;
+			vdd-supply = <&pm8916_l17>;
+			vio-supply = <&pm8916_l6>;
+			stk,irq-gpio = <&msm_gpio 9 0x02>;
+			stk,transmittance = <340>;
+			stk,state-reg = <0x00>;
+			stk,psctrl-reg = <0x31>;
+			stk,alsctrl-reg = <0x3a>;
+			stk,ledctrl-reg = <0x3F>;
+			stk,wait-reg = <0x10>;
+			stk,ps-thdh = <1400>;
+			stk,ps-thdl = <1300>;
+			//stk,use-fir; 
+		};
+
+		/* LiuPing@Phone.BSP.Sensor, 2014/09/02, add for gsensor:lis3dh */
+		st@19 { /* Accelerometer sensor */
+			compatible = "st,lis3dh";
+			reg = <0x19>;
+			interrupt-parent = <&msm_gpio>;
+			vdd-supply = <&pm8916_l17>;
+			vio-supply = <&pm8916_l6>;
+			st,min-interval = <5>;
+			st,init-interval = <200>;
+			st,axis-map-x = <0>;
+			st,axis-map-y = <1>;
+			st,axis-map-z = <2>;
+			st,g-range = <2>;
+			st,gpio-int1 = <&msm_gpio 112 0x2002>;
+			st,negate-x;
+			//st,negate-y;			
+			st,negate-z;
+		};	
+
+		/* LiuPing@Phone.BSP.Sensor, 2014/09/04, add for msensor:mmc3416x */
+		memsic@30 { /* Magnetic field sensor */
+		compatible = "memsic,mmc3416x";
+		reg = <0x30>;
+		vdd-supply = <&pm8916_l17>;
+		vio-supply = <&pm8916_l6>;
+		memsic,dir = "reverse-x-axis-backward";
+		memsic,auto-report;
+		};		
+
+		yamaha@2e { /* Magnetic field sensor */
+			compatible = "yamaha,yas533";
+			reg = <0x2e>;
+			vdd-supply = <&pm8916_l17>;
+			vio-supply = <&pm8916_l6>;
+			yamaha,dir = <6>;
+		};		
+
+		akm@c {
+			compatible = "ak,ak8963";
+			reg = <0x0c>;
+			pinctrl-names = "ak8963_default", "ak8963_sleep";
+			pinctrl-0 = <&ak8963_default>;
+			pinctrl-1 = <&ak8963_sleep>;
+			interrupt-parent = <&msm_gpio>;
+			interrupts = <69 0x2>;
+			vdd-supply = <&pm8916_l17>;
+			vio-supply = <&pm8916_l6>;
+			ak,layout = <0x6>;
+			ak,auto-report;
+		};
+
+	};
+
+	sound {
+		compatible = "qcom,msm8x16-audio-codec";
+		qcom,model = "msm8x16-snd-card-mtp";
+		qcom,msm-snd-card-id = <0>;
+		qcom,msm-codec-type = "internal";
+		qcom,msm-ext-pa = "primary";
+		qcom,msm-mclk-freq = <9600000>;
+		/*zhangping@Multimedia, 2015-03-12, Modify for headset*/
+		/*qcom,msm-mbhc-hphl-swh = <0>;*/
+		qcom,msm-mbhc-hphl-swh = <1>;
+        /*zhangping@Multimedia, 2015-03-12, Modify end*/
+		qcom,msm-mbhc-gnd-swh = <0>;
+		qcom,msm-micbias1-ext-cap;
+        /*zhangping@Multimedia, 2015-03-11, Modify for headset*/
+	        qcom,msm-micbias2-ext-cap;
+        qcom,msm-hs-micbias-type = "internal";	
+       /* qcom,msm-hs-micbias-type = "external";*/	
+        /*zhangping@Multimedia, 2015-03-11, Modify end*/
+		qcom,audio-routing =
+			"RX_BIAS", "MCLK",
+			"SPK_RX_BIAS", "MCLK",
+			"INT_LDO_H", "MCLK",
+			"MIC BIAS External", "Handset Mic",
+			"MIC BIAS Internal2", "Headset Mic",
+			"MIC BIAS External", "Secondary Mic",
+			"AMIC1", "MIC BIAS External",
+			"AMIC2", "MIC BIAS Internal2",
+			"AMIC3", "MIC BIAS External",
+			"DMIC1", "MIC BIAS Internal1",
+			"MIC BIAS Internal1", "Digital Mic1",
+			"DMIC2", "MIC BIAS Internal1",
+			"MIC BIAS Internal1", "Digital Mic2";
+     /*John.Xu@Multimedia, 2015/04/30, add for after evt2 headset compatible*/
+		qcom,audio-routing-15009-after-evt2 =
+			"RX_BIAS", "MCLK",
+			"SPK_RX_BIAS", "MCLK",
+			"INT_LDO_H", "MCLK",
+			"MIC BIAS External", "Handset Mic",
+			"MIC BIAS External2", "Headset Mic",
+			"MIC BIAS External", "Secondary Mic",
+			"AMIC1", "MIC BIAS External",
+			"AMIC2", "MIC BIAS External2",
+			"AMIC3", "MIC BIAS External";
+    /*John.Xu@Multimedia, 2015/04/30, Modify end*/
+		pinctrl-names = "cdc_lines_act",
+				"cdc_lines_sus",
+				"cdc_lines_sec_ext_act",
+				"cdc_lines_sec_ext_sus",
+				"cross_conn_det_act",
+				"cross_conn_det_sus";
+		pinctrl-0 = <&cdc_pdm_lines_act>;
+		pinctrl-1 = <&cdc_pdm_lines_sus>;
+		pinctrl-2 = <&cdc_pdm_lines_act &cdc_ext_pa_act
+						&cdc_ext_pa_ws_act>;
+		pinctrl-3 = <&cdc_pdm_lines_sus &cdc_ext_pa_sus
+						&cdc_ext_pa_ws_sus>;
+		pinctrl-4 = <&cross_conn_det_act>;
+		pinctrl-5 = <&cross_conn_det_sus>;
+		/*qcom,cdc-us-euro-gpios = <&msm_gpio 120 0>;*/
+	       /*xiang.fei@Multimedia, 2014/07/29, Add for yda145*/	
+                 spk-pa-en = <&msm_gpio 120 0x00>;	
+              /*xiang.fei@Multimedia, 2014/09/10, Add end*/	
+              /* OPPO 2015-01-09 John.Xu@Audio.Driver Add begin for boost for yda145 */	
+                //#ifdef VENDOR_EDIT 
+                yda145_boost-en = <&msm_gpio 118 0x00>;	
+               //#endif 	
+               /* OPPO 2015-01-09 John.Xu@Audio.Driver Add end */
+		asoc-platform = <&pcm0>, <&pcm1>, <&voip>, <&voice>,
+				<&loopback>, <&compress>, <&hostless>,
+				<&afe>, <&lsm>, <&routing>, <&lpa>;
+		asoc-platform-names = "msm-pcm-dsp.0", "msm-pcm-dsp.1",
+				"msm-voip-dsp", "msm-pcm-voice", "msm-pcm-loopback",
+				"msm-compress-dsp", "msm-pcm-hostless", "msm-pcm-afe",
+				"msm-lsm-client", "msm-pcm-routing", "msm-pcm-lpa";
+		asoc-cpu = <&dai_pri_auxpcm>, <&dai_hdmi>,
+				<&dai_mi2s0>, <&dai_mi2s1>, <&dai_mi2s2>, <&dai_mi2s3>,
+				<&sb_0_rx>, <&sb_0_tx>, <&sb_1_rx>, <&sb_1_tx>,
+				<&sb_3_rx>, <&sb_3_tx>, <&sb_4_rx>, <&sb_4_tx>,
+				<&bt_sco_rx>, <&bt_sco_tx>, <&int_fm_rx>, <&int_fm_tx>,
+				<&afe_pcm_rx>, <&afe_pcm_tx>, <&afe_proxy_rx>, <&afe_proxy_tx>,
+				<&incall_record_rx>, <&incall_record_tx>, <&incall_music_rx>,
+				<&incall_music_2_rx>;
+		asoc-cpu-names = "msm-dai-q6-auxpcm.1", "msm-dai-q6-hdmi.8",
+				"msm-dai-q6-mi2s.0", "msm-dai-q6-mi2s.1",
+				"msm-dai-q6-mi2s.2", "msm-dai-q6-mi2s.3",
+				"msm-dai-q6-dev.16384", "msm-dai-q6-dev.16385",
+				"msm-dai-q6-dev.16386", "msm-dai-q6-dev.16387",
+				"msm-dai-q6-dev.16390", "msm-dai-q6-dev.16391",
+				"msm-dai-q6-dev.16392", "msm-dai-q6-dev.16393",
+				"msm-dai-q6-dev.12288", "msm-dai-q6-dev.12289",
+				"msm-dai-q6-dev.12292", "msm-dai-q6-dev.12293",
+				"msm-dai-q6-dev.224", "msm-dai-q6-dev.225",
+				"msm-dai-q6-dev.241", "msm-dai-q6-dev.240",
+				"msm-dai-q6-dev.32771", "msm-dai-q6-dev.32772",
+				"msm-dai-q6-dev.32773", "msm-dai-q6-dev.32770";
+		asoc-codec = <&stub_codec>, <&pm8916_tombak_dig>;
+		asoc-codec-names = "msm-stub-codec.1", "tombak_codec";
+		   /*John.Xu@Multimedia, 2015/04/30, add for after evt2 headset compatible*/
+    			pcb-ver-flag0 = <&msm_gpio 50 0x00>;
+    			pcb-ver-flag1 = <&msm_gpio 51 0x00>;
+    			pcb-ver-flag2 = <&msm_gpio 52 0x00>;
+    		   /*John.Xu@Multimedia, 2015/04/30, Add end*/
+	};
+};
+
+&blsp1_uart2 {
+	status = "ok";
+	pinctrl-names = "default";
+	pinctrl-0 = <&uart_console_sleep>;
+};
+
+&soc {
+	uei {
+		compatible = "uei";
+		uei,power-gpio = <&msm_gpio 115 0x2008>;
+	};
+
+/*ifdef VENDOR_EDIT*/
+//Added by Tong.han@Bsp.Group.Tp for device-info,2015-4-13
+	devinfo {
+		compatible = "oppo-devinfo";
+		Hw,operator-gpio1 = <&msm_gpio 16 0x00>;
+		Hw,operator-gpio2 = <&msm_gpio 17 0x00>;
+		Hw,operator-gpio3 = <&msm_gpio 106 0x00>;
+		Hw,sub_hwid_1 = <&msm_gpio 86 0x00>;
+		Hw,sub_hwid_2= <&msm_gpio 111 0x00>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&hw_operator_gpio1_active &hw_operator_gpio2_active &hw_operator_gpio3_active &hw_sub_gpio1_active &hw_sub_gpio2_active>;	
+	};
+/*endif*/
+	gpio_keys {
+		compatible = "gpio-keys";
+		input-name = "gpio-keys";
+		pinctrl-names = "tlmm_gpio_key_active","tlmm_gpio_key_suspend";
+		pinctrl-0 = <&gpio_key_active>;
+		pinctrl-1 = <&gpio_key_suspend>;
+
+//#ifdef VENDOR_EDIT
+//deleted by Tong.han@BSP.group.TP (conflict with TP ID1) 2014-8-13
+/*	
+		camera_focus {
+			label = "camera_focus";
+			gpios = <&msm_gpio 108 0x1>;
+			linux,input-type = <1>;
+			linux,code = <0x210>;
+			gpio-key,wakeup;
+			debounce-interval = <15>;
+		};
+
+		camera_snapshot {
+			label = "camera_snapshot";
+			gpios = <&msm_gpio 109 0x1>;
+			linux,input-type = <1>;
+			linux,code = <0x2fe>;
+			gpio-key,wakeup;
+			debounce-interval = <15>;
+		};
+*/
+//#else
+		vol_down {
+			label = "volume_down";
+			gpios = <&msm_gpio 108 0x1>;
+			linux,input-type = <1>;
+			linux,code = <114>;
+			gpio-key,wakeup;
+			debounce-interval = <15>;
+		};
+//#endif/*VENDOR_EDIT*/
+		vol_up {
+			label = "volume_up";
+			gpios = <&msm_gpio 107 0x1>;
+			linux,input-type = <1>;
+			linux,code = <115>;
+			gpio-key,wakeup;
+			debounce-interval = <15>;
+		};
+		/* LiuPing@Phone.BSP.Sensor, 2014/11/07, add for hall */
+		hallsensor_key {
+			label = "hallsensor_key";
+			gpios = <&msm_gpio 121 1>;
+			interrupt-parent = <&msm_gpio>;
+			interrupts = <121 0x0>;
+			linux,input-type = <5>;
+			linux,code = <0>;
+			gpio-key,wakeup;
+			debounce-interval = <150>;
+		};	
+	};
+};
+
+&blsp1_uart1 {
+	status = "ok";
+};
+
+&sdhc_1 {
+	vdd-supply = <&pm8916_l8>;
+	qcom,vdd-voltage-level = <2900000 2900000>;
+	//#ifdef VENDOR_EDIT
+	//Modified for Tong.han@Bsp.Group.Tp for hynix resume isssue.2015-07-13
+	qcom,vdd-always-on;
+	//#endif/*VENDOR_EDIT*/
+	qcom,vdd-current-level = <200 400000>;
+
+	vdd-io-supply = <&pm8916_l5>;
+	qcom,vdd-io-always-on;
+	qcom,vdd-io-lpm-sup;
+	qcom,vdd-io-voltage-level = <1800000 1800000>;
+	qcom,vdd-io-current-level = <200 60000>;
+
+	pinctrl-names = "active", "sleep";
+	pinctrl-0 = <&sdc1_clk_on &sdc1_cmd_on &sdc1_data_on>;
+	pinctrl-1 = <&sdc1_clk_off &sdc1_cmd_off &sdc1_data_off>;
+
+	qcom,nonremovable;
+
+	status = "ok";
+};
+
+&sdhc_2 {
+//#ifndef VENDOR_EDIT //Jianfeng.Qiu@BSP.Driver, 2014-09-13, Modify for tf card vdd supply change
+	//vdd-supply = <&pm8916_l11>;
+//#else /* VENDOR_EDIT */
+    vdd-gpio-en = <&msm_gpio 116 0x1>;
+//#endif /* VENDOR_EDIT */
+	qcom,vdd-voltage-level = <2800000 2950000>;
+	qcom,vdd-current-level = <15000 400000>;
+
+	vdd-io-supply = <&pm8916_l12>;
+	qcom,vdd-io-voltage-level = <1800000 2950000>;
+	qcom,vdd-io-current-level = <200 50000>;
+
+	pinctrl-names = "active", "sleep";
+	pinctrl-0 = <&sdc2_clk_on &sdc2_cmd_on &sdc2_data_on &sdc2_cd_on>;
+	pinctrl-1 = <&sdc2_clk_off &sdc2_cmd_off &sdc2_data_off &sdc2_cd_off>;
+
+	#address-cells = <0>;
+	interrupt-parent = <&sdhc_2>;
+	interrupts = <0 1 2>;
+	#interrupt-cells = <1>;
+	interrupt-map-mask = <0xffffffff>;
+	interrupt-map = <0 &intc 0 125 0
+			1 &intc 0 221 0
+			2 &msm_gpio 38 0>;
+	interrupt-names = "hc_irq", "pwr_irq", "status_irq";
+	//#ifdef VENDOR_EDIT //Tong.han@Bsp.Group.Tp modify for hotplug of T_card,2015-03-11
+	//cd-gpios = <&msm_gpio 38 0x1>;
+	//#else
+	cd-gpios = <&msm_gpio 38 0x0>;
+	//#endif
+
+	status = "ok";
+};
+
+&pm8916_mpps {
+	mpp@a000 { /* MPP 1 */
+		/* VDD_PX */
+		status = "disabled";
+	};
+
+	mpp@a100 { /* MPP 2 */
+		/*Fuchun.Liao@Mobile.BSP.CHG 2014-08-08 modify for set MPP2 to iadc_usbin*/
+		status = "ok";
+		qcom,mode = <4>;		/* QPNP_PIN_MODE_AIN */
+		qcom,invert = <0>;		/* Disable invert */
+		qcom,output-type = <0>;	/* CMOS */
+		qcom,src-sel = <0>;		/* MPP Constant */
+		qcom,ain-route = <1>;	/* QPNP_PIN_AIN_AMUX_CH6 = 1 for MPP2 */
+		qcom,master-en = <1>;		/* Enable MPP */
+		/* Fuchun.Liao modify end */
+	};
+
+	mpp@a200 { /* MPP 3 */
+		/* VREF DAC */
+		status = "disabled";
+	};
+
+	mpp@a300 { /* MPP 4 */
+		/* Backlight PWM */
+		qcom,mode = <1>;		/* Digital output */
+		qcom,invert = <0>;		/* Disable invert */
+		qcom,src-sel = <4>;		/* DTEST1 */
+		qcom,vin-sel = <0>;		/* VPH_PWR */
+		qcom,master-en = <1>;		/* Enable MPP */
+	};
+};
+
+&pm8916_gpios {
+	gpio@c000 { /* GPIO 1 */
+		/* Battery UICC Alarm */
+		status = "disabled";
+	};
+
+	gpio@c100 { /* GPIO 2 */
+		/* NFC_CLK_REQ */
+		qcom,mode = <0>; /* QPNP_PIN_MODE_DIG_IN */
+		qcom,pull = <5>; /* QPNP_PIN_PULL_NO */
+		qcom,vin-sel = <2>; /* QPNP_PIN_VIN2 */
+		qcom,src-sel = <2>; /* QPNP_PIN_SEL_FUNC_1 */
+		qcom,master-en = <1>;
+	};
+
+	gpio@c200 { /* GPIO 3 */
+		/* External regulator control for WTR */
+		status = "disabled";
+	};
+
+	gpio@c300 { /* GPIO 4 */
+		/* External regulator control for APC */
+		/*Fuchun.Liao@Mobile.BSP.CHG 2014-08-06 modify pm_gpio_4 output VPH_PWR for DVT PCBA*/
+		status = "ok";
+		qcom,mode = <1>; /* QPNP_PIN_MODE_DIG_OUT */
+		qcom,vin-sel = <0>; /* VPH_PWR */
+		qcom,src-sel = <0>; /* QPNP_PIN_SEL_FUNC_CONSTANT */
+		qcom,out-strength = <2>; /* QPNP_PIN_OUT_STRENGTH_MED */
+		qcom,master-en = <1>;
+		/*Fuchun.Liao modify end*/
+	};
+};
+
+#include "dsi-panel-oppo15037tm-otm9605a-540p-video.dtsi"
+#include "dsi-panel-oppo15037truly-hx8389c-540p-video.dtsi"
+&mdss_mdp {
+	qcom,mdss-pref-prim-intf = "dsi";
+};
+
+/*
+&dsi_jdi_1080_vid {
+	qcom,mdss-dsi-bl-pmic-control-type = "bl_ctrl_pwm";
+	qcom,mdss-dsi-bl-pmic-pwm-frequency = <100>;
+	qcom,mdss-dsi-bl-pmic-bank-select = <0>;
+	qcom,mdss-dsi-pwm-gpio = <&pm8916_mpps 4 0>;
+
+};
+*/
+
+&pmx_mdss {
+	qcom,num-grp-pins = <3>;
+	qcom,pins = <&gp 97>, <&gp 25>, <&gp 98>;
+};
+
+&pmx_mdss_te {
+	qcom,num-grp-pins = <1>;
+	qcom,pins = <&gp 24>;
+};
+
+&mdss_dsi0 {
+	qcom,dsi-pref-prim-pan = <&dsi_oppo15037tm_otm9605a_540p_vid>;
+	pinctrl-names = "mdss_default", "mdss_sleep";
+	pinctrl-0 = <&mdss_dsi_active &mdss_te_active>;
+	pinctrl-1 = <&mdss_dsi_suspend &mdss_te_suspend>;
+
+	qcom,platform-enable-gpio = <&msm_gpio 97 0>;
+	qcom,platform-reset-gpio = <&msm_gpio 25 0>;
+	qcom,platform-bklight-en-gpio = <&msm_gpio 98 0>;
+};
+
+&dsi_oppo15037tm_otm9605a_540p_vid {
+      qcom,cont-splash-enabled;
+      /*qcom,esd-check-enabled;*/
+};
+
+&dsi_oppo15037truly_hx8389c_540p_video {
+      qcom,cont-splash-enabled;
+      /*qcom,esd-check-enabled;*/
+};
+
+
+&pm8916_chg {
+	status = "ok";
+	qcom,charging-disabled;
+};
+
+/ {
+/*Fuchun.Liao@Mobile.BSP.CHG 2014-11-19 modify for batterydata*/
+	mtp_sony_batterydata: qcom,battery-data-sony {
+		qcom,rpull-up-kohm = <100>;
+		qcom,vref-batt-therm = <1800000>;
+		#include "batterydata-oppo-sony-4v35-2420mah.dtsi"
+	};
+
+	mtp_atl_batterydata: qcom,battery-data-atl {
+		qcom,rpull-up-kohm = <100>;
+		qcom,vref-batt-therm = <1800000>;
+		#include "batterydata-oppo-atl-4v35-2420mah.dtsi"
+	};
+/*Fuchun.Liao modify end*/
+};
+
+&pm8916_bms {
+	status = "ok";
+/*Fuchun.Liao@Mobile.BSP.CHG 2014-11-19 modify for batterydata*/
+	//qcom,battery-data = <&mtp_batterydata>;
+	qcom,battery-data-sony = <&mtp_sony_batterydata>;
+	qcom,battery-data-atl = <&mtp_atl_batterydata>;
+/*Fuchun.Liao modify end*/
+};
+
+&spmi_bus {
+	qcom,pm8916@0 {
+/*	Fuchun.Liao@Mobile.BSP.CHG 2014-08-13 del for MPP2 used to read smb358 current */
+/*
+		qcom,leds@a100 {
+			status = "okay";
+			qcom,led_mpp_2 {
+				label = "mpp";
+				linux,name = "button-backlight";
+				linux,default-trigger = "none";
+				qcom,default-state = "off";
+				qcom,max-current = <40>;
+				qcom,current-setting = <5>;
+				qcom,id = <6>;
+				qcom,mode = "manual";
+				qcom,source-sel = <1>;
+				qcom,mode-ctrl = <0x60>;
+			};
+		};
+*/
+/* Fuchun.Liao del end */
+	};
+};
+
+&qcom_tzlog {
+	status = "okay";
+};
+
+&qcom_rng {
+	status = "okay";
+};
+
+&qcom_crypto {
+	status = "okay";
+};
+
+&qcom_cedev {
+	status = "okay";
+};
+
+&qcom_seecom {
+	status = "okay";
+};
+
+/* CoreSight */
+&tpiu {
+      pinctrl-names = "sdcard", "trace", "swduart",
+		      "swdtrc", "jtag", "spmi";
+       /* NIDnT */
+      pinctrl-0 = <&qdsd_clk_sdcard &qdsd_cmd_sdcard
+                  &qdsd_data0_sdcard &qdsd_data1_sdcard
+                  &qdsd_data2_sdcard &qdsd_data3_sdcard>;
+      pinctrl-1 = <&qdsd_clk_trace &qdsd_cmd_trace
+                  &qdsd_data0_trace &qdsd_data1_trace
+                  &qdsd_data2_trace &qdsd_data3_trace>;
+      pinctrl-2 = <&qdsd_cmd_swduart &qdsd_data0_swduart
+                  &qdsd_data1_swduart &qdsd_data2_swduart
+                  &qdsd_data3_swduart>;
+      pinctrl-3 = <&qdsd_clk_swdtrc &qdsd_cmd_swdtrc
+                  &qdsd_data0_swdtrc &qdsd_data1_swdtrc
+                  &qdsd_data2_swdtrc &qdsd_data3_swdtrc>;
+      pinctrl-4 = <&qdsd_cmd_jtag &qdsd_data0_jtag
+                  &qdsd_data1_jtag &qdsd_data2_jtag
+                  &qdsd_data3_jtag>;
+      pinctrl-5 = <&qdsd_clk_spmi &qdsd_cmd_spmi
+                  &qdsd_data0_spmi &qdsd_data3_spmi>;
+};
+
+&spmi_bus {
+	qcom,pm8916@1 {
+		qcom,vibrator@c000 {
+			status = "okay";
+			qcom,vib-timeout-ms = <15000>;
+			qcom,vib-vtg-level-mV = <3100>;
+		};
+	};
+};

@@ -76,6 +76,7 @@ enum sensor_sub_module_t {
 	SUB_MODULE_CSIPHY,
 	SUB_MODULE_CSIPHY_3D,
 	SUB_MODULE_OIS,
+	SUB_MODULE_TOF,
 	SUB_MODULE_MAX,
 };
 
@@ -214,12 +215,23 @@ struct camera_vreg_t {
 	const char *custom_vreg_name;
 	enum camera_vreg_type type;
 };
+#ifdef VENDOR_EDIT
+/* xianglie.liu 2014-10-11 add interface to get exposure time */
+struct msm_yuv_info {
+	uint32_t exp_time;
+	uint32_t iso;
+};
+#endif
 
 struct sensorb_cfg_data {
 	int cfgtype;
 	union {
 		struct msm_sensor_info_t      sensor_info;
 		struct msm_sensor_init_params sensor_init_params;
+#ifdef VENDOR_EDIT
+/* xianglie.liu 2014-10-11 add interface to get exposure time */
+		struct msm_yuv_info yuv_info;
+#endif
 		void                         *setting;
 	} cfg;
 };
@@ -400,6 +412,10 @@ enum msm_sensor_cfg_type_t {
 	CFG_SET_AUTOFOCUS,
 	CFG_CANCEL_AUTOFOCUS,
 	CFG_SET_STREAM_TYPE,
+#ifdef VENDOR_EDIT
+/* xianglie.liu 2014-10-11 add interface to get exposure time */
+	CFG_GET_YUV_INFO,
+#endif
 };
 
 enum msm_actuator_cfg_type_t {
@@ -592,6 +608,26 @@ struct sensor_init_cfg_data {
 	} cfg;
 };
 
+struct tof_read_t {
+	uint8_t *dbuffer;
+	uint32_t num_bytes;
+};
+
+
+enum msm_tof_cfg_type_t {
+	CFG_TOF_INIT,
+	CFG_TOF_POWER_UP,
+	CFG_TOF_POWER_DOWN,
+	CFG_GET_TOF_DATA,
+};
+
+struct msm_tof_cfg_data {
+	enum msm_tof_cfg_type_t cfgtype;
+	union {
+		struct tof_read_t  read_data;
+	} cfg;
+};
+
 #define VIDIOC_MSM_SENSOR_CFG \
 	_IOWR('V', BASE_VIDIOC_PRIVATE + 1, struct sensorb_cfg_data)
 
@@ -627,6 +663,9 @@ struct sensor_init_cfg_data {
 
 #define VIDIOC_MSM_FLASH_CFG \
 	_IOWR('V', BASE_VIDIOC_PRIVATE + 13, struct msm_flash_cfg_data_t)
+
+#define VIDIOC_MSM_TOF_CFG \
+  _IOWR('V', BASE_VIDIOC_PRIVATE + 14, struct msm_tof_cfg_data)
 
 #ifdef CONFIG_COMPAT
 struct msm_camera_i2c_reg_setting32 {
@@ -701,6 +740,11 @@ struct csiphy_cfg_data32 {
 	} cfg;
 };
 
+struct tof_read_t32 {
+	compat_uptr_t dbuffer;
+	uint32_t num_bytes;
+};
+
 struct sensorb_cfg_data32 {
 	int cfgtype;
 	union {
@@ -749,6 +793,13 @@ struct msm_flash_cfg_data_t32 {
 	} cfg;
 };
 
+struct msm_tof_cfg_data32 {
+	enum msm_tof_cfg_type_t cfg_type;
+	union {
+		struct tof_read_t32 read_data;
+	} cfg;
+};
+
 #define VIDIOC_MSM_ACTUATOR_CFG32 \
 	_IOWR('V', BASE_VIDIOC_PRIVATE + 6, struct msm_actuator_cfg_data32)
 
@@ -772,6 +823,9 @@ struct msm_flash_cfg_data_t32 {
 
 #define VIDIOC_MSM_FLASH_CFG32 \
 	_IOWR('V', BASE_VIDIOC_PRIVATE + 13, struct msm_flash_cfg_data_t32)
+
+#define VIDIOC_MSM_TOF_CFG32 \
+  _IOWR('V', BASE_VIDIOC_PRIVATE + 14, struct msm_tof_cfg_data32)
 #endif
 
 #endif /* __LINUX_MSM_CAM_SENSOR_H */

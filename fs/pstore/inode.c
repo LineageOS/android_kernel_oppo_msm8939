@@ -247,6 +247,10 @@ static void parse_options(char *options)
 
 static int pstore_remount(struct super_block *sb, int *flags, char *data)
 {
+#ifdef VENDOR_EDIT
+//tanggeliang@Swdp.Android.Kernel, 2015/05/07, enable ramoops_console
+	sync_filesystem(sb);
+#endif /* VENDOR_EDIT */
 	parse_options(data);
 
 	return 0;

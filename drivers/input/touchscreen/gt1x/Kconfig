@@ -1,0 +1,8 @@
+#ifdef VENDOR_EDIT
+#Added by Tong.han@Bsp.group.Tp for gt1x_ic driver,2015-01-21 
+config GT1X_OPPO
+#	default y
+	bool "TP gt1x_ic enable or not for OPPO"
+	---help---
+	say Y to enable driver for Touchpanel useing gt1x_ic
+#endif

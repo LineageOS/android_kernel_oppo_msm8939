@@ -30,7 +30,15 @@
 
 #define MAX_NUM_IRQS 14
 #define NUM_IRQ_REGS 2
+
+/*xiang.fei@Multimedia, 2014/11/18, Modify for resume time*/
+#ifndef VENDOR_EDIT
 #define WCD9XXX_SYSTEM_RESUME_TIMEOUT_MS 300
+#else
+//#define WCD9XXX_SYSTEM_RESUME_TIMEOUT_MS 1000
+#define WCD9XXX_SYSTEM_RESUME_TIMEOUT_MS 2000 //John.Xu@Multimedia 2015-06-03 modified for Headset detect
+#endif
+/*xiang.fei@Multimedia, 2014/11/18, Modify end*/
 
 #define BYTE_BIT_MASK(nr) (1UL << ((nr) % BITS_PER_BYTE))
 #define BIT_BYTE(nr) ((nr) / BITS_PER_BYTE)
@@ -158,15 +166,39 @@ int wcd9xxx_spmi_request_irq(int irq, irq_handler_t handler,
 			const char *name, void *priv)
 {
 	int rc;
+    #ifdef VENDOR_EDIT
+    //John.Xu@PhoneSw.AudioDriver, 2015/07/01, Add for system not reume when in sleep mode
+	unsigned long irq_flags;
+	if (strcmp(name, "mbhc sw intr")) {
+        irq_flags = IRQF_TRIGGER_RISING | IRQF_TRIGGER_FALLING |
+            IRQF_ONESHOT;
+    } else {
+        irq_flags = IRQF_TRIGGER_RISING | IRQF_TRIGGER_FALLING |
+            IRQF_ONESHOT | IRQF_NO_SUSPEND;
+    }
+    #endif /* VENDOR_EDIT */
+
 	map.linuxirq[irq] =
 		spmi_get_irq_byname(map.spmi[BIT_BYTE(irq)], NULL,
 				    irq_names[irq]);
+    #ifndef VENDOR_EDIT
+    //John.Xu@PhoneSw.AudioDriver, 2015/07/01, Modify for system not reume when in sleep mode
+    /*
 	rc = devm_request_threaded_irq(&map.spmi[BIT_BYTE(irq)]->dev,
 				map.linuxirq[irq], NULL,
 				wcd9xxx_spmi_irq_handler,
 				IRQF_TRIGGER_RISING | IRQF_TRIGGER_FALLING
 				| IRQF_ONESHOT,
 				name, priv);
+	*/
+    #else /* VENDOR_EDIT */
+    rc = devm_request_threaded_irq(&map.spmi[BIT_BYTE(irq)]->dev,
+                map.linuxirq[irq], NULL,
+                wcd9xxx_spmi_irq_handler,
+                irq_flags,
+				name, priv);
+    #endif /* VENDOR_EDIT */
+
 		if (rc < 0) {
 			dev_err(&map.spmi[BIT_BYTE(irq)]->dev,
 				"Can't request %d IRQ\n", irq);

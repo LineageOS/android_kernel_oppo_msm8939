@@ -126,6 +126,22 @@ struct wcd_mbhc_config {
 	bool mono_stero_detection;
 	bool (*swap_gnd_mic) (struct snd_soc_codec *codec);
 	bool hs_ext_micbias;
+	/*xiang.fei@Multimedia, 2014/11/20, Add for no voice in calling*/
+    #ifdef VENDOR_EDIT
+    int spk_pa_en_state;
+    #endif
+    /*xiang.fei@Multimedia, 2014/11/20, Add end*/
+	/*xiang.fei@Multimedia, 2014/11/26, Add for pop noise*/
+    #ifdef VENDOR_EDIT
+    int gpio_spk_pa_en;
+    #endif
+    /*xiang.fei@Multimedia, 2014/11/26, Add for pop noise end*/
+
+#ifdef VENDOR_EDIT
+//John.Xu@PhoneSw.AudioDriver, 2015/01/09, Add for yda145 boost
+    int gpio_yda145_boost_en;
+#endif /* VENDOR_EDIT */
+
 };
 
 struct wcd_mbhc_intr {

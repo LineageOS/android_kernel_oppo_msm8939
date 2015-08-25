@@ -63,6 +63,17 @@
 			label = "peripheral_mem";
 		};
 
+                //#ifdef VENDOR_EDIT
+                //tanggeliang@Swdp.Android.Kernel, 2015/03/12, enable ramoops_console
+                pstore_reserve_mem: pstore_reserve_region@0 {
+                        linux,reserve-contiguous-region;
+                        linux,reserve-region;
+                        linux,remove-completely;
+                        reg = <0x0 0x9ff00000 0x0 0x400000>;
+                        label = "pstore_reserve_mem";
+                };
+                //#endif /* VENDOR_EDIT */
+
 		venus_mem: venus_region@0 {
 			linux,reserve-contiguous-region;
 			linux,memory-limit = <0x90000000>;
@@ -94,6 +105,16 @@
 			reg = <0x0 0x83000000 0x0 0x2000000>;
 			label = "cont_splash_mem";
 		};
+		
+		/*#ifdef VENDOR_EDIT  //add for enlarge nv backup memory*/
+		nvbackup_regions: nvbackup_regions@0 {
+			linux,reserve-contiguous-region;
+			linux,reserve-region;
+			linux,remove-completely;
+			reg = <0 0x85f00000 0 0x100000>;
+			label = "memory_nvbackup";
+		};
+		/*#endif  VENDOR_EDIT*/
 	};
 
 	soc: soc { };
@@ -529,6 +550,10 @@
 		qcom,freq-mitigation-temp = <105>;
 		qcom,freq-mitigation-temp-hysteresis = <15>;
 		qcom,freq-mitigation-value = <400000>;
+//#ifdef VENDOR_EDIT
+/* fanhui@PhoneSW.BSP, 2015/06/20, Add to set the minimum freqency for thermal mitigation */
+		qcom,freq-mitigation-min = <800000>;
+//#endif
 		qcom,freq-mitigation-control-mask = <0x01>;
 		qcom,therm-reset-temp = <115>;
 		qcom,online-hotplug-core;
@@ -789,7 +814,7 @@
 		qcom,vdd-voltage-level = <1 5 7>;
 
 		qcom,hsusb-otg-phy-init-seq =
-			<0x44 0x80 0x6B 0x81 0x24 0x82 0x13 0x83 0xffffffff>;
+			<0x74 0x80 0x6B 0x81 0x24 0x82 0x13 0x83 0xffffffff>;
 		qcom,hsusb-otg-phy-type = <2>;
 		qcom,hsusb-otg-mode = <1>;
 		qcom,hsusb-otg-otg-control = <2>;

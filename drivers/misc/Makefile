@@ -31,6 +31,9 @@ obj-$(CONFIG_CS5535_MFGPT)	+= cs5535-mfgpt.o
 obj-$(CONFIG_HP_ILO)		+= hpilo.o
 obj-$(CONFIG_APDS9802ALS)	+= apds9802als.o
 obj-$(CONFIG_APDS9930)		+= apds993x.o
+#ifdef VENDOR_EDIT /* xiaohua.tian@EXP.Driver.Sensor, 2015/06/03, add for apds993x_ex. */
+obj-$(CONFIG_APDS9930)		+= apds993x_ex.o
+#endif /*VENDOR_EDIT*/
 obj-$(CONFIG_ISL29003)		+= isl29003.o
 obj-$(CONFIG_ISL29020)		+= isl29020.o
 obj-$(CONFIG_USB_HSIC_SMSC_HUB) += smsc_hub.o
@@ -67,3 +70,12 @@ obj-$(CONFIG_TI_DRV2667) += ti_drv2667.o
 obj-$(CONFIG_QPNP_MISC) += qpnp-misc.o
 obj-$(CONFIG_QCOM_LIQUID_DOCK)	+= qcom_liquid_dock.o
 obj-y				+= qcom/
+obj-y += remote/
+# ifdef VENDOR_EDIT //Jianfeng.Qiu@BSP.Driver, 2014/09/11, Add for breath led
+obj-$(CONFIG_SN3193_SLED)  += shineled/
+# endif
+
+# ifdef VENDOR_EDIT //Tong.han@BSP.Group.Tp, 2015/04/05, Add for KTD breath led
+obj-$(CONFIG_KTD2026_SLED)  += ktd_shineled/
+# endif
+

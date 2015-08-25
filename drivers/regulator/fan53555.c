@@ -29,6 +29,13 @@
 #include <linux/delay.h>
 #include <linux/regulator/fan53555.h>
 
+#ifdef VENDOR_EDIT /*dengnw@bsp.drv add two dcdc chip 20150115*/
+#include <soc/oppo/oppo_project.h>
+
+bool ext_apc_buck_is_fan53555 = false;
+EXPORT_SYMBOL(ext_apc_buck_is_fan53555);
+#endif
+
 /* Voltage setting */
 #define FAN53555_VSEL0		0x00
 #define FAN53555_VSEL1		0x01
@@ -578,6 +585,18 @@ static int fan53555_regulator_probe(struct i2c_client *client,
 		dev_err(&client->dev, "Failed to get chip ID!\n");
 		return -ENODEV;
 	}
+	#ifdef VENDOR_EDIT /*dengnw@bsp.drv add two dcdc chip 20150115*/
+	else {
+/*hanqing.wang@EXP.BasicDrv.Audio add for clone 15089=15018 and add the macor MSM_15062 and OPPO_15011 = OPPO_15018*/
+/*huqiao@EXP.BasicDrv.Basic add for clone 15085*/
+		if(is_project(OPPO_15018)||is_project(OPPO_15011) || is_project(OPPO_15085))
+		{
+ 			ext_apc_buck_is_fan53555 = true;
+		} else {
+			ext_apc_buck_is_fan53555 = false;
+		}
+  	}
+	#endif
 	di->chip_id = val & DIE_ID;
 	/* Get chip revision */
 	ret = fan53555_read(di, FAN53555_ID2, &val);

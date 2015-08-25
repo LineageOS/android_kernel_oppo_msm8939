@@ -211,6 +211,12 @@
 };
 
 &soc {
+/*ifdef VENDOR_EDIT*/
+//Added by Tong.han@Bsp.Group.Tp for device-info,2015-4-13
+	devinfo {
+		compatible = "oppo-devinfo";
+	};
+/*endif*/
 	gpio_keys {
 		compatible = "gpio-keys";
 		input-name = "gpio-keys";

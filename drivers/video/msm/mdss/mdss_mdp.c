@@ -53,6 +53,7 @@
 #include "mdss_panel.h"
 #include "mdss_debug.h"
 #include "mdss_mdp_debug.h"
+#include "mdss_mdp_rotator.h"
 
 #define CREATE_TRACE_POINTS
 #include "mdss_mdp_trace.h"
@@ -241,7 +242,10 @@ static irqreturn_t mdss_irq_handler(int irq, void *ptr)
 		return IRQ_NONE;
 
 	mdss_mdp_hw.irq_info->irq_buzy = true;
-
+#ifdef VENDOR_EDIT
+/* Xiaori.Yuan@Mobile Phone Software Dept.Driver, 2015/06/27  Add for splash screen */
+	MDSS_XLOG(intr);
+#endif /*VENDOR_EDIT*/
 	if (intr & MDSS_INTR_MDP) {
 		spin_lock(&mdp_lock);
 		mdata->mdss_util->irq_dispatch(MDSS_HW_MDP, irq, ptr);
@@ -1547,6 +1551,11 @@ static int mdss_mdp_probe(struct platform_device *pdev)
 	rc = mdss_mdp_bus_scale_register(mdata);
 	if (rc) {
 		pr_err("unable to register bus scaling\n");
+		goto probe_done;
+	}
+	rc = mdss_mdp_rot_mgr_init();
+	if (rc) {
+		pr_err("unable to initialize rotation mgr\n");
 		goto probe_done;
 	}
 

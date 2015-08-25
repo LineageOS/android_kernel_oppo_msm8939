@@ -44,6 +44,10 @@ int msm_cam_clk_sel_src(struct device *dev, struct msm_cam_clk_info *clk_info,
 		struct msm_cam_clk_info *clk_src_info, int num_clk);
 int msm_cam_clk_enable(struct device *dev, struct msm_cam_clk_info *clk_info,
 		struct clk **clk_ptr, int num_clk, int enable);
+#ifdef VENDOR_EDIT
+/*Added by Jinshui.Liu@Camera 20150604 start for debug clock*/
+int msm_cam_clk_getinfo(struct clk **clk_ptr, int num_clk, bool *enable, long *rate);
+#endif
 
 int msm_camera_config_vreg(struct device *dev, struct camera_vreg_t *cam_vreg,
 		int num_vreg, enum msm_camera_vreg_name_t *vreg_seq,

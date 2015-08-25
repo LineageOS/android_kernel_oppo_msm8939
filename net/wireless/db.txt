@@ -21,7 +21,7 @@ country AE:
 	(5170 - 5250 @ 80), (6, 24)
 	(5250 - 5330 @ 80), (6, 24), DFS
 	(5490 - 5730 @ 80), (6, 24), DFS
-	(5735 - 5835 @ 80), (6, 30)
+	#(5735 - 5835 @ 80), (6, 30)
 
 country AF: DFS-ETSI
 	(2402 - 2482 @ 40), (N/A, 20)
@@ -65,7 +65,10 @@ country AS:
 	(5170 - 5250 @ 80), (6, 24)
 	(5250 - 5330 @ 80), (6, 24), DFS
 	(5490 - 5730 @ 80), (6, 24), DFS
-	(5735 - 5850 @ 80), (6, 30)
+	 #VENDOR_EDIT
+	# yimin@wx.connectivity.wifi,delete the fre of as
+	#(5735 - 5850 @ 80), (6, 30)
+	#end
 
 country AT: DFS-ETSI
 	(2402 - 2482 @ 40), (N/A, 20)
@@ -80,8 +83,13 @@ country AU:
 	(5170 - 5250 @ 80), (6, 24)
 	(5250 - 5330 @ 80), (6, 24), DFS
 	(5490 - 5590 @ 80), (6, 24), DFS
-	(5650 - 5730 @ 80), (6, 24), DFS
-	(5735 - 5835 @ 80), (6, 30)
+	#VENDOR_EDIT
+	# yimin@wx.connectivity.wifi,modify the fre of AU
+	(5590 - 5730 @ 80), (6, 24), DFS
+	#VENDOR_EDIT
+	# yimin@wx.connectivity.wifi,delete the fre of AU
+	#(5735 - 5835 @ 80), (6, 30)
+	#END
 
 country AW:
 	(2402 - 2482 @ 40), (N/A, 20)
@@ -110,7 +118,10 @@ country BB:
 
 country BD:
 	(2402 - 2482 @ 40), (N/A, 20)
-	(5735 - 5835 @ 80), (N/A, 30)
+    #VENDOR_EDIT
+	# chuanye.xu@wx.connectivity.wifi,modify the fre of BD
+	(5735 - 5815 @ 80), (N/A, 30)
+	#end
 
 country BE: DFS-ETSI
 	(2402 - 2482 @ 40), (N/A, 20)
@@ -244,7 +255,7 @@ country CO:
 	(2402 - 2482 @ 40), (N/A, 20)
 	(5170 - 5250 @ 80), (6, 24)
 	(5250 - 5330 @ 80), (6, 24), DFS
-	(5490 - 5730 @ 80), (6, 24), DFS
+	#(5490 - 5730 @ 80), (6, 24), DFS
 	(5735 - 5835 @ 80), (6, 30)
 
 country CR:
@@ -326,8 +337,11 @@ country DZ:
 	(2402 - 2482 @ 40), (N/A, 20)
 	(5170 - 5250 @ 80), (N/A, 23)
 	(5250 - 5330 @ 80), (N/A, 23), DFS
-	(5490 - 5670 @ 80), (N/A, 23), DFS
-
+	#VENDOR_EDIT
+	#yimin@wx.connectivity.wifi,modify the fre of AU
+	#(5490 - 5670 @ 80), (N/A, 23), DFS
+	(5490 - 5730 @ 80), (N/A, 23), DFS
+    #end
 country EC:
 	(2402 - 2482 @ 40), (N/A, 20)
 	(5170 - 5250 @ 20), (6, 24)
@@ -346,7 +360,8 @@ country EE: DFS-ETSI
 country EG:
 	(2402 - 2482 @ 40), (N/A, 20)
 	(5170 - 5250 @ 40), (N/A, 20)
-	(5250 - 5330 @ 40), (N/A, 20), DFS
+	(5735 - 5835 @ 20), (N/A, 20), DFS
+	
 
 country ES: DFS-ETSI
 	(2402 - 2482 @ 40), (N/A, 20)
@@ -469,7 +484,7 @@ country HK:
 	(5170 - 5250 @ 80), (6, 24)
 	(5250 - 5330 @ 80), (6, 24), DFS
 	(5490 - 5730 @ 80), (6, 24), DFS
-	(5735 - 5835 @ 80), (6, 30)
+	#(5735 - 5835 @ 80), (6, 30)
 
 country HR: DFS-ETSI
 	(2402 - 2482 @ 40), (N/A, 20)
@@ -528,7 +543,10 @@ country IS: DFS-ETSI
 
 country IR:
 	(2402 - 2482 @ 40), (N/A, 20)
-	(5735 - 5835 @ 80), (N/A, 30)
+	#VENDOR_EDIT
+	# chuanye.xu@wx.connectivity.wifi,add the fre of MA
+	(5735 - 5815 @ 80), (N/A, 30)
+	#end
 
 country IT: DFS-ETSI
 	(2402 - 2482 @ 40), (N/A, 20)
@@ -665,6 +683,10 @@ country MA:
 	(2402 - 2482 @ 40), (N/A, 20)
 	(5170 - 5250 @ 80), (N/A, 20)
 	(5250 - 5330 @ 80), (N/A, 20), DFS
+	#VENDOR_EDIT
+	# chuanye.xu@wx.connectivity.wifi,add the fre of MA
+	(5735 - 5835 @ 80), (N/A, 20)
+	#end
 
 country MD: DFS-ETSI
 	(2402 - 2482 @ 40), (N/A, 20)
@@ -716,7 +738,14 @@ country MN:
 	(5250 - 5330 @ 80), (6, 24), DFS
 	(5490 - 5730 @ 80), (6, 24), DFS
 	(5735 - 5835 @ 80), (6,	30)
-
+	
+#yimin add for Myanmar
+country MM:	
+    (2402 - 2482 @ 40), (N/A, 20)
+	(5170 - 5250 @ 80), (3, 17)
+	(5250 - 5330 @ 80), (3, 24), DFS
+	(5490 - 5710 @ 80), (3, 24), DFS
+	
 country MT: DFS-ETSI
 	(2402 - 2482 @ 40), (N/A, 20)
 	(5170 - 5250 @ 80), (N/A, 20)
@@ -760,7 +789,7 @@ country MX:
 	(2402 - 2482 @ 40), (N/A, 20)
 	(5170 - 5250 @ 80), (6, 24)
 	(5250 - 5330 @ 80), (6, 24), DFS
-	(5490 - 5730 @ 80), (6, 24), DFS
+	#(5490 - 5730 @ 80), (6, 24), DFS
 	(5735 - 5835 @ 80), (6, 30)
 
 country MW:
@@ -772,6 +801,11 @@ country MW:
 country NG:
 	(2402 - 2482 @ 40), (N/A, 20)
 	(5250 - 5330 @ 80), (N/A, 30), DFS
+	#VENDOR_EDIT
+	# chuanye.xu@wx.connectivity.wifi,add the fre of NG
+	(5490 - 5590 @ 80), (6, 17), DFS
+	(5590 - 5710 @ 80), (6, 30), DFS
+	#end
 	(5735 - 5835 @ 80), (N/A, 30)
 
 country NI:
@@ -847,11 +881,14 @@ country PH:
 	(5170 - 5250 @ 80), (6, 24)
 	(5250 - 5330 @ 80), (6, 24), DFS
 	(5490 - 5730 @ 80), (6, 24), DFS
-	(5735 - 5835 @ 80), (6, 30)
+	#(5735 - 5835 @ 80), (6, 30)
 
 country PK:
 	(2402 - 2482 @ 40), (N/A, 20)
-	(5735 - 5835 @ 80), (N/A, 30)
+	#VENDOR_EDIT
+	# chuanye.xu@wx.connectivity.wifi,add the fre of PK
+	(5735 - 5815 @ 80), (N/A, 30)
+	#end
 
 country PL: DFS-ETSI
 	(2402 - 2482 @ 40), (N/A, 20)
@@ -929,7 +966,10 @@ country RU:
 	(2402 - 2482 @ 40), (N/A, 20)
 	(5170 - 5250 @ 40), (N/A, 20)
 	(5250 - 5330 @ 40), (N/A, 20), DFS
-	(5650 - 5710 @ 40), (N/A, 30), DFS
+	#VENDOR_EDIT
+	# chuanye.xu@wx.connectivity.wifi,delete the fre of RU
+	#(5650 - 5710 @ 40), (N/A, 30), DFS
+	#end
 	(5735 - 5835 @ 40), (N/A, 30)
 
 country RW:
@@ -957,7 +997,7 @@ country SG:
 	(2402 - 2482 @ 40), (N/A, 20)
 	(5170 - 5250 @ 80), (6, 24)
 	(5250 - 5330 @ 80), (6, 24), DFS
-	(5490 - 5730 @ 80), (6, 24), DFS
+	#(5490 - 5730 @ 80), (6, 24), DFS
 	(5735 - 5835 @ 80), (6, 30)
 
 country SI: DFS-ETSI
@@ -1007,10 +1047,13 @@ country TC:
 
 country TW:
 	(2402 - 2472 @ 40), (N/A, 30)
-	(5170 - 5250 @ 80), (6, 24)
-	(5250 - 5330 @ 80), (6, 24), DFS
-	(5490 - 5730 @ 80), (6, 24), DFS
+	#VENDOR_EDIT
+	# chuanye.xu@wx.connectivity.wifi,modify the fre of TW
+	(5250 - 5330 @ 40), (6, 17)
+	(5490 - 5590 @ 80), (6, 17), DFS
+	(5590 - 5710 @ 80), (6, 30), DFS
 	(5735 - 5835 @ 80), (6, 30)
+	#end
 
 country TD:
 	(2402 - 2482 @ 40), (N/A, 20)
@@ -1029,7 +1072,7 @@ country TH:
 	(5170 - 5250 @ 80), (6, 24)
 	(5250 - 5330 @ 80), (6, 24), DFS
 	(5490 - 5730 @ 80), (6, 24), DFS
-	(5735 - 5835 @ 80), (6, 30)
+	#(5735 - 5835 @ 80), (6, 30)
 
 country TT:
 	(2402 - 2482 @ 40), (N/A, 20)
@@ -1082,7 +1125,10 @@ country US: DFS-FCC
 	(2402 - 2472 @ 40), (N/A, 30)
 	(5170 - 5250 @ 80), (6, 24)
 	(5250 - 5330 @ 80), (6, 24), DFS
-	(5490 - 5730 @ 80), (6, 24), DFS
+	#VENDOR_EDIT
+	# chuanye.xu@wx.connectivity.wifi,modify the fre of US
+	(5490 - 5710 @ 80), (6, 24), DFS
+	#end
 	(5735 - 5835 @ 80), (6, 30)
 	# 60g band
 	# reference: http://cfr.regstoday.com/47cfr15.aspx#47_CFR_15p255

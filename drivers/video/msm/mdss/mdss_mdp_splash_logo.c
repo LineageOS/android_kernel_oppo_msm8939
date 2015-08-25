@@ -28,6 +28,11 @@
 #include "mdss_mdp.h"
 #include "splash.h"
 #include "mdss_mdp_splash_logo.h"
+#ifdef VENDOR_EDIT
+/* Xiaori.Yuan@Mobile Phone Software Dept.Driver, 2015/04/09  Add for ftm mode */
+#include <soc/oppo/oppo_project.h>
+#include <soc/oppo/boot_mode.h>
+#endif /*VENDOR_EDIT*/
 
 #define INVALID_PIPE_INDEX 0xFFFF
 #define MAX_FRAME_DONE_COUNT_WAIT 2
@@ -577,7 +582,14 @@ static __ref int mdss_mdp_splash_parse_dt(struct msm_fb_data_type *mfd)
 	mfd->splash_info.splash_logo_enabled =
 				of_property_read_bool(pdev->dev.of_node,
 				"qcom,mdss-fb-splash-logo-enabled");
-
+#ifdef VENDOR_EDIT
+/* Xiaori.Yuan@Mobile Phone Software Dept.Driver, 2015/04/09  Add for ftm mode */
+/* wuyu@EXP.BaseDrv.LCM, 2015-05-18, add micro OPPO_15011, (OPPO15011=OPPO_15018) */
+/*chaoying.chen@EXP.BaseDrv.LCM,2015/07/14 modify  ftm for 15085 at sleep */
+	if(get_boot_mode() == MSM_BOOT_MODE__FACTORY && (is_project(OPPO_15011) || is_project(OPPO_15018) || is_project(OPPO_15022) || is_project(OPPO_15037) || is_project(OPPO_15085))){
+		mfd->splash_info.splash_logo_enabled = true;
+	}
+#endif /*VENDOR_EDIT*/
 	of_find_property(pdev->dev.of_node, "qcom,memblock-reserve", &len);
 	if (len) {
 		len = len / sizeof(u32);

@@ -1390,6 +1390,7 @@ int mmc_attach_sd(struct mmc_host *host)
 	 */
 #ifdef CONFIG_MMC_PARANOID_SD_INIT
 	retries = 5;
+
 	/*
 	 * Some bad cards may take a long time to init, give preference to
 	 * suspend in those cases.
@@ -1438,6 +1439,7 @@ remove_card:
 	mmc_claim_host(host);
 err:
 	mmc_detach_bus(host);
+
 	if (err)
 		pr_err("%s: error %d whilst initialising SD card: rescan: %d\n",
 		       mmc_hostname(host), err, host->rescan_disable);

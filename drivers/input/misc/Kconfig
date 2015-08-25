@@ -745,6 +745,16 @@ config SENSORS_MMC3416X
 	  To compile this driver as a module, choose M here: the
 	  module will be called mmc3416x.
 
+config SENSORS_YAS533
+	tristate "YAS Geomagnetic Sensor"
+	depends on I2C
+	help
+	  Say Y here if you want to enable the YAS533 magnetic sensor
+	  driver.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called yas533.
+
 config SENSORS_AKM09911
 	tristate "AKM09911 3-axis electronic compass sensor driver"
 	depends on I2C
@@ -776,6 +786,19 @@ config SENSORS_STK3X1X
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called stk3x1x.
+
+##ifdef VENDOR_EDIT /* LiuPing@Phone.BSP.Sensor, 2014/08/18, add for alsps:tmg399x. */
+config SENSORS_TMG399X
+	tristate "TMG399X device driver"
+	depends on I2C
+	default n
+	help
+	  Say Y here you want to enable for the sitronix tmg399x
+	  light and proximity sensors driver.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called tmg399x.	  
+##endif /*VENDOR_EDIT*/
 
 config SENSORS_CAPELLA_CM36283
 	tristate "CM36283 proximity and light sensor"
@@ -830,5 +853,36 @@ config SENSORS_BMI058
 	 If you say yes here, you get support for Bosch Sensortec's
 	 sensor driver of BMI058.
 
+config SENSORS_APDS9921
+	tristate "APDS9921 device driver"
+	depends on I2C
+	default n
+	help
+	  Say Y here you want to enable for the sitronix apds9921
+	  light and proximity sensors driver.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called apds9921.
+
+##ifdef VENDOR_EDIT /* LiuPing@Phone.BSP.Sensor, 2015/03/02, add for alsps:36686. */
+config SENSORS_CAPELLA_CM36686
+	tristate "CM36686 proximity and light sensor"
+	depends on I2C
+	default n
+	help
+	  Say Y here to enable the CM36686 Proximity
+	  Sensor with Ambient Light Sensor.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called CM36686.
+##endif /*VENDOR_EDIT*/
+
+#ifdef VENDOR_EDIT
+#Lycan.Wang@Prd.BasicDrv, 2015-04-11 Add for fingerprint driver
+config BTP_FPC1021
+	default n
+	tristate "FPC_BTP fingerprint sensor support"
+	depends on SPI_MASTER
+#endif /* VENDOR_EDIT */
 endif
 

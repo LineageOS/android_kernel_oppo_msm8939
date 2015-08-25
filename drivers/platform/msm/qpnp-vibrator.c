@@ -64,6 +64,10 @@ struct qpnp_vib {
 	int state;
 	int vtg_level;
 	int timeout;
+#ifdef VENDOR_EDIT
+//Added by Tong.han@Bsp.group.Tp for vib min time setting,2015-07-07-07
+	int time_min;
+#endif/*VENDOR_EDIT*/
 	struct mutex lock;
 };
 
@@ -188,6 +192,11 @@ static void qpnp_vib_enable(struct timed_output_dev *dev, int value)
 	else {
 		value = (value > vib->timeout ?
 				 vib->timeout : value);
+#ifdef VENDOR_EDIT
+//Added by Tong.han@Bsp.group.Tp for vib min time setting,2015-07-07-07
+		value = (value < vib->time_min ?
+				 vib->time_min : value);
+#endif/*VENDOR_EDIT*/
 		vib->state = 1;
 		hrtimer_start(&vib->vib_timer,
 			      ktime_set(value / 1000, (value % 1000) * 1000000),
@@ -260,6 +269,18 @@ static int qpnp_vib_parse_dt(struct qpnp_vib *vib)
 		return rc;
 	}
 
+#ifdef VENDOR_EDIT
+//Added by Tong.han@Bsp.group.Tp for vib min time setting,2015-07-07-07
+	rc = of_property_read_u32(spmi->dev.of_node,
+			"qcom,vib-timemin-ms", &temp_val);
+	if (!rc) {
+		vib->time_min = temp_val;
+	} else if (rc != -EINVAL) {
+		dev_err(&spmi->dev, "Unable to read vib time_min\n");
+		vib->time_min = 0;
+	}
+#endif/*VENDOR_EDIT*/
+	
 	vib->vtg_level = QPNP_VIB_DEFAULT_VTG_LVL;
 	rc = of_property_read_u32(spmi->dev.of_node,
 			"qcom,vib-vtg-level-mV", &temp_val);

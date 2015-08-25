@@ -1560,7 +1560,7 @@ static struct i2c_driver akm_compass_driver = {
 
 static int __init akm_compass_init(void)
 {
-	pr_info("AKM compass driver: initialize.");
+	pr_info("AKM compass driver: initialize.\n");
 	return i2c_add_driver(&akm_compass_driver);
 }
 

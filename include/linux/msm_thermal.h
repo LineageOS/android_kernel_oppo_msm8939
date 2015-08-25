@@ -45,6 +45,10 @@ struct msm_thermal_data {
 	uint32_t freq_mitig_temp_hysteresis_degc;
 	uint32_t freq_mitig_control_mask;
 	uint32_t freq_limit;
+#ifdef VENDOR_EDIT
+/* fanhui@PhoneSW.BSP, 2015/06/20, Add to store minimum freqency from dts */
+	uint32_t freq_min;
+#endif
 	int32_t vdd_rstr_temp_degC;
 	int32_t vdd_rstr_temp_hyst_degC;
 	int32_t vdd_mx_min;

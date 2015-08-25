@@ -83,3 +83,10 @@ obj-$(CONFIG_TOUCHSCREEN_SYNAPTICS_I2C_RMI4)		+= synaptics_i2c_rmi4.o
 obj-$(CONFIG_TOUCHSCREEN_GT9XX)		+= gt9xx/
 obj-$(CONFIG_TOUCHSCREEN_BU21150)	+= bu21150.o
 obj-$(CONFIG_INPUT_MT_WRAPPER)		+= input_mt_wrapper.o
+
+#ifdef VENDOR_EDIT//Added by Tong.han@Bsp.group.Tp for synaptics_ic driver,2015-01-21 
+obj-$(CONFIG_SYNAPTICS_OPPO) += synaptics_oppo/
+#endif
+#ifdef VENDOR_EDIT//Added by huqiao.Tp for goodix_id,2015-06-16
+obj-$(CONFIG_GT1X_OPPO) += gt1x/
+#endif 

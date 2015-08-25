@@ -385,6 +385,66 @@ KBUILD_AFLAGS_MODULE  := -DMODULE
 KBUILD_CFLAGS_MODULE  := -DMODULE
 KBUILD_LDFLAGS_MODULE := -T $(srctree)/scripts/module-common.lds
 
+#ifdef VENDOR_EDIT
+#jiangyg@OnlineRd.PM, 2013/10/15, add enviroment variant
+KBUILD_CFLAGS +=   -DVENDOR_EDIT
+KBUILD_CPPFLAGS += -DVENDOR_EDIT
+CFLAGS_KERNEL +=   -DVENDOR_EDIT
+CFLAGS_MODULE +=   -DVENDOR_EDIT
+
+#Added by yixue.ge@bsp.drv, 2015-07-22 add for disable fastboot modem at release soft
+ifeq ($(OPPO_BUILD_TYPE),release)
+  CFLAGS_KERNEL += -DDISABLE_FASTBOOT_CMDS=1
+endif
+
+#Added by Tong.han@Bsp.group,2014-12-23,for select different config of console.
+ifneq ($(SPECIAL_OPPO_CONFIG),1)
+ifeq ($(filter release cmcc cu ct,$(OPPO_BUILD_TYPE)),)
+KBUILD_CFLAGS += -DCONFIG_OPPO_DAILY_BUILD
+endif
+endif
+
+#Added by Tong.han@Bsp.group,2014-12-23,for select different config of console.
+ifeq ($(OPPO_BUILD_TYPE),cmcctest)
+KBUILD_CFLAGS += -DOPPO_CMCC_TEST
+endif
+
+#Added by wenhua.Leng@MultiMedia.Display,2015-1-6,for select different config of build type.
+ifeq ($(OPPO_BUILD_TYPE),cmcc)
+KBUILD_CFLAGS += -DOPPO_CMCC_MP
+endif
+
+ifeq ($(OPPO_BUILD_TYPE),cutest)
+KBUILD_CFLAGS += -DOPPO_CU_TEST
+endif
+
+ifeq ($(OPPO_BUILD_TYPE),cu)
+KBUILD_CFLAGS += -DOPPO_CU_CLIENT
+endif
+
+#add by liwenxiong for cmcctest_dm compile
+ifeq ($(OPPO_BUILD_TYPE),cmcctest_dm)
+KBUILD_CFLAGS += -DOPPO_CMCC_TEST
+endif
+
+ifeq ($(OPPO_BUILD_TYPE),cta)
+KBUILD_CFLAGS += -DOPPO_CTA_FLAG
+KBUILD_CPPFLAGS += -DOPPO_CTA_FLAG
+endif
+
+ifeq ($(OPPO_TARGET_DEVICE),MSM_14042)
+KBUILD_CFLAGS += -DOPPO_CU_TEST
+endif
+
+#Lile@EXP.BasicDrv 2014-11-19, add for 14065 clone
+ifneq ($(filter $(OPPO_TARGET_DEVICE),MSM_14037 MSM_14039 MSM_14040 MSM_14065),)
+KBUILD_CFLGAS += -DCONFIG_ENHANCED_LMK
+CFLAGS_KERNEL +=   -DCONFIG_ENHANCED_LMK
+CFLAGS_MODULE +=   -DCONFIG_ENHANCED_LMK
+KBUILD_CPPFLAGS += -DCONFIG_ENHANCED_LMK
+endif
+
+#endif /*VENDOR_EDIT*/
 # Read KERNELRELEASE from include/config/kernel.release (if it exists)
 KERNELRELEASE = $(shell cat include/config/kernel.release 2> /dev/null)
 KERNELVERSION = $(VERSION)$(if $(PATCHLEVEL),.$(PATCHLEVEL)$(if $(SUBLEVEL),.$(SUBLEVEL)))$(EXTRAVERSION)

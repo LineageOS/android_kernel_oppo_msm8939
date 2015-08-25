@@ -392,6 +392,11 @@ static int ion_system_heap_debug_show(struct ion_heap *heap, struct seq_file *s,
 	unsigned long cached_total = 0;
 
 	int i;
+#ifdef VENDOR_EDIT
+//Peirs@Swdp.Android.FrameworkUI, 2014.09.30, add to show total size for calculate the freememory
+	unsigned long total_bytes_in_uncached_pool = 0;
+	unsigned long total_bytes_in_cached_pool = 0;
+#endif /* VENDOR_EDIT */
 	for (i = 0; i < num_orders; i++) {
 		struct ion_page_pool *pool = sys_heap->uncached_pools[i];
 		if (use_seq) {
@@ -405,6 +410,10 @@ static int ion_system_heap_debug_show(struct ion_heap *heap, struct seq_file *s,
 				pool->low_count, pool->order,
 				(1 << pool->order) * PAGE_SIZE *
 					pool->low_count);
+#ifdef VENDOR_EDIT
+//Peirs@Swdp.Android.FrameworkUI, 2014.09.30, add to show total size for calculate the freem memory			
+			total_bytes_in_uncached_pool += (1 << pool->order) * PAGE_SIZE * (pool->high_count +pool->low_count);
+#endif /* VENDOR_EDIT */
 		} else {
 			uncached_total += (1 << pool->order) * PAGE_SIZE *
 						pool->high_count;
@@ -426,6 +435,10 @@ static int ion_system_heap_debug_show(struct ion_heap *heap, struct seq_file *s,
 				pool->low_count, pool->order,
 				(1 << pool->order) * PAGE_SIZE *
 					pool->low_count);
+#ifdef VENDOR_EDIT
+//Peirs@Swdp.Android.FrameworkUI, 2014.09.30, add to show total size for calculate the freem memory			
+			total_bytes_in_cached_pool += (1 << pool->order) * PAGE_SIZE * (pool->high_count + pool->low_count);
+#endif /* VENDOR_EDIT */
 		} else {
 			cached_total += (1 << pool->order) * PAGE_SIZE *
 						pool->high_count;
@@ -437,6 +450,17 @@ static int ion_system_heap_debug_show(struct ion_heap *heap, struct seq_file *s,
 	if (!use_seq)
 		pr_info("uncached pool total = %lu cached pool total %lu\n",
 				uncached_total, cached_total);
+
+#ifdef VENDOR_EDIT
+//Peirs@Swdp.Android.FrameworkUI, 2014.09.30, add to show total size for calculate the freem memory			
+	if (use_seq) { 
+		seq_printf(s,
+				"total_bytes_in_uncached_pool: %lu; total_bytes_in_cached_pool: %lu\n",
+				total_bytes_in_uncached_pool, total_bytes_in_cached_pool);
+		seq_printf(s,
+				"Total bytes in pool: %lu\n", (total_bytes_in_uncached_pool + total_bytes_in_cached_pool));					
+	}
+#endif /* VENDOR_EDIT */
 
 	return 0;
 }

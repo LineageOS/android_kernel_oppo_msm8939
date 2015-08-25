@@ -43,7 +43,12 @@ module_param(record_size, ulong, 0400);
 MODULE_PARM_DESC(record_size,
 		"size of each dump done on oops/panic");
 
+#ifdef VENDOR_EDIT
+//tanggeliang@Swdp.Android.Kernel, 2015/03/12, enable ramoops_console
+static ulong ramoops_console_size = 64 * MIN_MEM_SIZE;
+#else
 static ulong ramoops_console_size = MIN_MEM_SIZE;
+#endif /* VENDOR_EDIT */
 module_param_named(console_size, ramoops_console_size, ulong, 0400);
 MODULE_PARM_DESC(console_size, "size of kernel console log");
 
@@ -117,19 +122,40 @@ ramoops_get_next_prz(struct persistent_ram_zone *przs[], uint *c, uint max,
 		return NULL;
 
 	prz = przs[i];
+#ifdef VENDOR_EDIT
+//tanggeliang@Swdp.Android.Kernel, 2015/05/07, enable ramoops_console
+	if (!prz)
+		return NULL;
 
-	if (update) {
-		/* Update old/shadowed buffer. */
+	/* Update old/shadowed buffer. */
+	if (update)
 		persistent_ram_save_old(prz);
-		if (!persistent_ram_old_size(prz))
-			return NULL;
-	}
+
+	if (!persistent_ram_old_size(prz))
+		return NULL;
+#else
+        if (update) {
+                /* Update old/shadowed buffer. */
+                persistent_ram_save_old(prz);
+                if (!persistent_ram_old_size(prz))
+                        return NULL;
+        }
+#endif /* VENDOR_EDIT */
 
 	*typep = type;
 	*id = i;
 
 	return prz;
 }
+
+#ifdef VENDOR_EDIT
+//tanggeliang@Swdp.Android.Kernel, 2015/05/07, enable ramoops_console
+static bool prz_ok(struct persistent_ram_zone *prz)
+{
+       return !!prz && !!(persistent_ram_old_size(prz) +
+                          persistent_ram_ecc_string(prz, NULL, 0));
+}
+#endif /* VENDOR_EDIT */
 
 static ssize_t ramoops_pstore_read(u64 *id, enum pstore_type_id *type,
 				   int *count, struct timespec *time,
@@ -143,14 +169,35 @@ static ssize_t ramoops_pstore_read(u64 *id, enum pstore_type_id *type,
 	prz = ramoops_get_next_prz(cxt->przs, &cxt->dump_read_cnt,
 				   cxt->max_dump_cnt, id, type,
 				   PSTORE_TYPE_DMESG, 1);
+#ifdef VENDOR_EDIT
+//tanggeliang@Swdp.Android.Kernel, 2015/05/07, enable ramoops_console
+	if (!prz_ok(prz))
+#else
 	if (!prz)
+#endif /* VENDOR_EDIT */
 		prz = ramoops_get_next_prz(&cxt->cprz, &cxt->console_read_cnt,
 					   1, id, type, PSTORE_TYPE_CONSOLE, 0);
+#ifdef VENDOR_EDIT
+//tanggeliang@Swdp.Android.Kernel, 2015/05/07, enable ramoops_console
+	if (!prz_ok(prz))
+#else
 	if (!prz)
+#endif /* VENDOR_EDIT */
 		prz = ramoops_get_next_prz(&cxt->fprz, &cxt->ftrace_read_cnt,
 					   1, id, type, PSTORE_TYPE_FTRACE, 0);
+#ifdef VENDOR_EDIT
+//tanggeliang@Swdp.Android.Kernel, 2015/05/07, enable ramoops_console
+	if (!prz_ok(prz))
+#else
 	if (!prz)
+#endif /* VENDOR_EDIT */
 		return 0;
+
+#ifdef VENDOR_EDIT
+//tanggeliang@Swdp.Android.Kernel, 2015/05/07, enable ramoops_console
+	if (!persistent_ram_old(prz))
+		return 0;
+#endif /* VENDOR_EDIT */
 
 	/* TODO(kees): Bogus time for the moment. */
 	time->tv_sec = 0;

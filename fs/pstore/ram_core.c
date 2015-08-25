@@ -54,7 +54,12 @@ static inline size_t buffer_start_add(struct persistent_ram_zone *prz, size_t a)
 	do {
 		old = atomic_read(&prz->buffer->start);
 		new = old + a;
+#ifdef VENDOR_EDIT
+//tanggeliang@Swdp.Android.Kernel, 2015/05/07, enable ramoops_console
+		while (unlikely(new >= prz->buffer_size))
+#else
 		while (unlikely(new > prz->buffer_size))
+#endif /* VENDOR_EDIT */
 			new -= prz->buffer_size;
 	} while (atomic_cmpxchg(&prz->buffer->start, old, new) != old);
 
@@ -73,7 +78,12 @@ static inline void buffer_size_add(struct persistent_ram_zone *prz, size_t a)
 	do {
 		old = atomic_read(&prz->buffer->size);
 		new = old + a;
+#ifdef VENDOR_EDIT
+//tanggeliang@Swdp.Android.Kernel, 2015/05/07, enable ramoops_console
+		if (new >= prz->buffer_size)
+#else
 		if (new > prz->buffer_size)
+#endif /* VENDOR_EDIT */
 			new = prz->buffer_size;
 	} while (atomic_cmpxchg(&prz->buffer->size, old, new) != old);
 }
@@ -372,7 +382,12 @@ static void *persistent_ram_iomap(phys_addr_t start, size_t size)
 		return NULL;
 	}
 
+#ifdef VENDOR_EDIT
+//tanggeliang@Swdp.Android.Kernel, 2015/05/07, enable ramoops_console
+	return ioremap_wc(start, size);
+#else
 	return ioremap(start, size);
+#endif /* VENDOR_EDIT */
 }
 
 static int persistent_ram_buffer_map(phys_addr_t start, phys_addr_t size,

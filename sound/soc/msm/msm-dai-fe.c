@@ -685,6 +685,21 @@ static struct snd_soc_dai_driver msm_fe_dais[] = {
 		.probe = fe_dai_probe,
 	},
 	{
+		/*OPPO 2014-08-05 zhzhyon Add for loopback*/
+#ifdef VENDOR_EDIT
+		.playback =
+		{
+			.stream_name = "Tertiary MI2S_TX Hostless Playback",
+			.aif_name = "TERT_MI2S_DL_HL",
+			.rates = SNDRV_PCM_RATE_8000_48000,
+			.formats = SNDRV_PCM_FMTBIT_S16_LE,
+			.channels_min = 1,
+			.channels_max = 2,
+			.rate_min =     8000,
+			.rate_max =    48000,
+		},
+#endif
+		/*OPPO 2014-08-05 zhzhyon Add end*/
 		.capture = {
 			.stream_name = "Tertiary MI2S_TX Hostless Capture",
 			.aif_name = "TERT_MI2S_UL_HL",

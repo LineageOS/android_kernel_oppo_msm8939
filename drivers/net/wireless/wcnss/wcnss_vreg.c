@@ -304,7 +304,11 @@ configure_iris_xo(struct device *dev,
 
 				iris_reg = readl_relaxed(iris_read_reg);
 				pr_info("wcnss: IRIS Reg: %08x\n", iris_reg);
-
+				#ifdef VENDOR_EDIT
+				//Yadong.Hu@Prd.Svc.Wifi, 2015/05/01, Add for 
+				/* distinguish the type of wcnss and show firmware version */
+                set_wcnss_chip_type(iris_reg);				
+				#endif /* VENDOR_EDIT */
 				if (validate_iris_chip_id(iris_reg) && i >= 4) {
 					pr_info("wcnss: IRIS Card absent/invalid\n");
 					auto_detect = WCNSS_XO_INVALID;

@@ -31,6 +31,17 @@
 #include <linux/spinlock.h>
 #include <linux/pinctrl/consumer.h>
 
+#ifdef VENDOR_EDIT /* LiuPing@Phone.BSP.Sensor, 2014/11/26, add for hall proc. */
+#define HALL_KEY_STATUS_PROC
+#ifdef HALL_KEY_STATUS_PROC
+#include <linux/proc_fs.h> 
+#include <asm/uaccess.h>
+static struct proc_dir_entry *halldir = NULL;
+static char* hall_node_name = "hall_status";
+static int hall_gpio_num = 0;
+#endif
+#endif /*VENDOR_EDIT*/
+
 struct gpio_button_data {
 	const struct gpio_keys_button *button;
 	struct input_dev *input;
@@ -338,6 +349,13 @@ static void gpio_keys_gpio_report_event(struct gpio_button_data *bdata)
 		input_event(input, type, button->code, !!state);
 	}
 	input_sync(input);
+
+#ifdef VENDOR_EDIT /* LiuPing@Phone.BSP.Sensor, 2014/12/30, add for hall debug. */
+       if (strcmp(button->desc, "hallsensor_key") == 0)
+       {
+            printk("hallsensor_key  state:%d \n",  !!state); 
+       }
+#endif /*VENDOR_EDIT*/
 }
 
 static void gpio_keys_gpio_work_func(struct work_struct *work)
@@ -722,6 +740,36 @@ static void gpio_remove_key(struct gpio_button_data *bdata)
 		gpio_free(bdata->button->gpio);
 }
 
+#ifdef VENDOR_EDIT /* LiuPing@Phone.BSP.Sensor, 2014/11/26, add for hall proc */
+#ifdef HALL_KEY_STATUS_PROC
+static ssize_t hall_node_read(struct file *file, char __user *buf, size_t count, loff_t *pos)
+{	
+	char page[8]; 	
+	char *p = page;	
+	int len = 0; 	
+       int gpio_status = __gpio_get_value(hall_gpio_num);
+	p += sprintf(p, "%d\n", gpio_status);	
+	len = p - page;	
+	if (len > *pos)		
+		len -= *pos;	
+	else		
+		len = 0;	
+
+	if (copy_to_user(buf,page,len < count ? len  : count))		
+		return -EFAULT;	
+	*pos = *pos + (len < count ? len  : count);	
+
+	return len < count ? len  : count;
+}
+
+static struct file_operations hall_node_ctrl = {
+	.read = hall_node_read,
+};
+
+#endif
+
+#endif /*VENDOR_EDIT*/
+
 static int gpio_keys_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
@@ -795,7 +843,19 @@ static int gpio_keys_probe(struct platform_device *pdev)
 		error = gpio_keys_setup_key(pdev, input, bdata, button);
 		if (error)
 			goto err_pinctrl;
-
+#ifdef VENDOR_EDIT /* LiuPing@Phone.BSP.Sensor, 2014/11/26, add for hall proc. */
+#ifdef HALL_KEY_STATUS_PROC
+              if (strcmp(button->desc, "hallsensor_key") == 0)
+              {
+                    hall_gpio_num = button->gpio;
+                    halldir = proc_create(hall_node_name, 0664, NULL, &hall_node_ctrl); 
+                    if (halldir == NULL)
+                    {
+                        printk(KERN_ERR" create proc/%s fail\n", hall_node_name);
+                    }
+              }
+#endif   
+#endif /*VENDOR_EDIT*/
 		if (button->wakeup)
 			wakeup = 1;
 	}

@@ -1190,12 +1190,26 @@ static long do_fb_ioctl(struct fb_info *info, unsigned int cmd,
 	case FBIOBLANK:
 		if (!lock_fb_info(info))
 			return -ENODEV;
+#ifdef VENDOR_EDIT
+/* Xiaori.Yuan@Mobile Phone Software Dept.Driver, 2015/05/20  Add for debug lcd suspend resume time */
+		pr_err("FBIOBLANK 1\n");
+#endif /*VENDOR_EDIT*/
+#ifndef VENDOR_EDIT
+/* Xiaori.Yuan@Mobile Phone Software Dept.Driver, 2015/06/04  Delete for resume too slow */
 		console_lock();
+#endif /*VENDOR_EDIT*/
 		info->flags |= FBINFO_MISC_USEREVENT;
 		ret = fb_blank(info, arg);
 		info->flags &= ~FBINFO_MISC_USEREVENT;
+#ifndef VENDOR_EDIT
+/* Xiaori.Yuan@Mobile Phone Software Dept.Driver, 2015/06/04  Delete for resume too slow */
 		console_unlock();
+#endif /*VENDOR_EDIT*/
 		unlock_fb_info(info);
+#ifdef VENDOR_EDIT
+/* Xiaori.Yuan@Mobile Phone Software Dept.Driver, 2015/05/20  Add for debug lcd suspend resume time */
+		pr_err("FBIOBLANK 4\n");
+#endif /*VENDOR_EDIT*/
 		break;
 	default:
 		fb = info->fbops;

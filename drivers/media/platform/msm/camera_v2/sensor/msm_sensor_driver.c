@@ -18,6 +18,15 @@
 #include "msm_cci.h"
 #include "msm_camera_dt_util.h"
 
+#ifdef VENDOR_EDIT
+/*zhengrong.zhang, 2015/04/15, add for pdaf engineer mode*/
+#include <linux/proc_fs.h>
+bool pdaf_calibration_flag = false;
+bool is_pdaf_supported = false;
+/*zhengrong.zhang, 2015/07/08, add for laser*/
+bool is_laser_supported = false;
+#endif
+
 /* Logging macro */
 #undef CDBG
 #define CDBG(fmt, args...) pr_debug(fmt, ##args)
@@ -742,6 +751,25 @@ int32_t msm_sensor_driver_probe(void *setting,
 
 	CDBG("s_ctrl[%d] %p", slave_info->camera_id, s_ctrl);
 
+#ifdef VENDOR_EDIT
+/* zhengrong.zhang,2015/02/12, Modify for removing project judge */
+	if (s_ctrl->is_probe_succeed == 1 &&
+		slave_info->sensor_id_info.sensor_id ==
+		    s_ctrl->sensordata->cam_slave_info->sensor_id_info.sensor_id) {
+		pr_err("slot%d: sensor id 0x%x already probed\n",
+				slave_info->camera_id,
+				s_ctrl->sensordata->cam_slave_info->
+					sensor_id_info.sensor_id);
+		msm_sensor_fill_sensor_info(s_ctrl,
+				probed_info, entity_name);
+		rc = 0;
+		goto free_slave_info;
+	} else if (s_ctrl->is_probe_succeed == 1) {
+		pr_err("slot %d has some other sensor\n", slave_info->camera_id);
+		rc = -EINVAL;
+		goto free_slave_info;
+	}
+#else
 	if (s_ctrl->is_probe_succeed == 1) {
 		/*
 		 * Different sensor on this camera slot has been connected
@@ -764,6 +792,7 @@ int32_t msm_sensor_driver_probe(void *setting,
 		rc = 0;
 		goto free_slave_info;
 	}
+#endif
 
 	rc = msm_sensor_get_power_settings(setting, slave_info,
 		&s_ctrl->sensordata->power_info);
@@ -1111,6 +1140,12 @@ static int32_t msm_sensor_driver_get_dt_data(struct msm_sensor_ctrl_t *s_ctrl)
 	CDBG("%s qcom,mclk-23880000 = %d\n", __func__,
 		s_ctrl->set_mclk_23880000);
 
+#ifdef VENDOR_EDIT
+/*zhengrong.zhang, 2015/04/15, add for pdaf engineer mode*/
+	if (BACK_CAMERA_B == sensordata->sensor_info->position)
+		is_pdaf_supported = of_property_read_bool(of_node, "qcom,pdaf-support");
+#endif
+
 	return rc;
 
 FREE_VREG_DATA:
@@ -1189,6 +1224,73 @@ FREE_SENSOR_I2C_CLIENT:
 	return rc;
 }
 
+#ifdef VENDOR_EDIT
+/*zhengrong.zhang, 2015/04/15, add for pdaf engineer mode*/
+static ssize_t pdaf_proc_read(struct file *filp, char __user *buff,
+                        	size_t len, loff_t *data)
+{
+    char value[2] = {0};
+
+    snprintf(value, sizeof(value), "%d", (is_pdaf_supported << 1 | pdaf_calibration_flag));
+
+    pr_err("%s,is_pdaf_supported=%d,calibration_flag=%d,value=%s\n", __func__, 
+        is_pdaf_supported,pdaf_calibration_flag,value);
+    return simple_read_from_buffer(buff, len, data, value,1);
+}
+
+static const struct file_operations pdaf_test_fops = {
+    .owner		= THIS_MODULE,
+    .read		= pdaf_proc_read,
+    //.write		= pdaf_proc_write,
+};
+
+static int msm_sensor_driver_pdaf_proc_init(void)
+{
+	int ret=0;
+	struct proc_dir_entry *proc_entry;
+
+	proc_entry = proc_create_data("pdaf_info", 0666, NULL, &pdaf_test_fops, NULL);
+	if (proc_entry == NULL)
+	{
+		ret = -ENOMEM;
+	  	pr_err("[%s]: Error! Couldn't create pdaf_calibration proc entry\n", __func__);
+	}
+	return ret;
+}
+
+/*zhengrong.zhang, 2015/07/08, add for laser*/
+static ssize_t laser_proc_read(struct file *filp, char __user *buff,
+                        	size_t len, loff_t *data)
+{
+    char value[2] = {0};
+
+    snprintf(value, sizeof(value), "%d", is_laser_supported);
+
+    pr_err("%s,is_laser_supported=%d,value=%s\n", __func__,is_laser_supported,value);
+    return simple_read_from_buffer(buff, len, data, value,1);
+}
+
+static const struct file_operations laser_test_fops = {
+    .owner		= THIS_MODULE,
+    .read		= laser_proc_read,
+    //.write		= laser_proc_write,
+};
+
+static int msm_sensor_driver_laser_proc_init(void)
+{
+	int ret=0;
+	struct proc_dir_entry *proc_entry;
+
+	proc_entry = proc_create_data("laser_info", 0666, NULL, &laser_test_fops, NULL);
+	if (proc_entry == NULL)
+	{
+		ret = -ENOMEM;
+	  	pr_err("[%s]: Error! Couldn't create laser proc entry\n", __func__);
+	}
+	return ret;
+}
+#endif
+
 static int32_t msm_sensor_driver_platform_probe(struct platform_device *pdev)
 {
 	int32_t rc = 0;
@@ -1219,6 +1321,18 @@ static int32_t msm_sensor_driver_platform_probe(struct platform_device *pdev)
 
 	/* Fill device in power info */
 	s_ctrl->sensordata->power_info.dev = &pdev->dev;
+
+#ifdef VENDOR_EDIT
+/*zhengrong.zhang, 2015/04/15, add for pdaf engineer mode*/
+	if (is_pdaf_supported &&
+		BACK_CAMERA_B == s_ctrl->sensordata->sensor_info->position)
+		msm_sensor_driver_pdaf_proc_init();
+
+/*zhengrong.zhang, 2015/07/08, add for laser*/
+	if (BACK_CAMERA_B == s_ctrl->sensordata->sensor_info->position)
+		msm_sensor_driver_laser_proc_init();
+#endif
+
 	return rc;
 FREE_S_CTRL:
 	kfree(s_ctrl);

@@ -89,6 +89,11 @@ static int try_to_freeze_tasks(bool user_only)
 		       wakeup ? "aborted" : "failed",
 		       elapsed_msecs / 1000, elapsed_msecs % 1000,
 		       todo - wq_busy, wq_busy);
+#ifdef VENDOR_EDIT
+/* OPPO 2015-03-26 sjc Add begin for sleep debug */
+		if (wakeup)
+			print_active_wakeup_sources();
+#endif /* VENDOR_EDIT */
 
 		if (!wakeup) {
 			read_lock(&tasklist_lock);

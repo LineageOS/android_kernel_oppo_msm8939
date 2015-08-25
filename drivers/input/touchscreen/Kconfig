@@ -1043,5 +1043,10 @@ config INPUT_MT_WRAPPER
 	  Say Y here if you want to enable the driver.
 
 	  If unsure, say N.
-
+	  
+source "drivers/input/touchscreen/synaptics_oppo/Kconfig"
+#ifdef VENDOR_EDIT
+#huqiao@EXP.BasicDrv, 2015-06-17, add for 15085
+source "drivers/input/touchscreen/gt1x/Kconfig"
+#endif /*VENDOR_EDIT*/
 endif

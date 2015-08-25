@@ -67,6 +67,13 @@ enum {
 #define WLAN_RF_DATA0_SHIFT		0
 #define WLAN_RF_DATA1_SHIFT		1
 #define WLAN_RF_DATA2_SHIFT		2
+
+#ifdef VENDOR_EDIT
+//Yadong.Hu@Prd.Svc.Wifi, 2015/05/01, Add for 
+/* distinguish the type of wcnss and show firmware version */
+void set_wcnss_chip_type(u32 chip_id);
+#endif /* VENDOR_EDIT */
+
 #define PRONTO_PMU_OFFSET       0x1004
 #define WCNSS_PMU_CFG_GC_BUS_MUX_SEL_TOP   BIT(5)
 

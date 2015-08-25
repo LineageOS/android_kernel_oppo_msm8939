@@ -44,6 +44,13 @@
 #define XT_SOCKET_SUPPORTED_HOOKS \
 	((1 << NF_INET_PRE_ROUTING) | (1 << NF_INET_LOCAL_IN))
 
+#ifdef VENDOR_EDIT
+//tanggeliang@Swdp.Android.Kernel, 2014/06/20, Add for tag pid
+#define MAX_UID 10000
+static DEFINE_SPINLOCK(pid_stat_tree_lock);
+static struct proc_dir_entry *xt_qtaguid_stats_pid_file;
+static int qtagpid_reset_stats(void);
+#endif /* VENDOR_EDIT */
 
 static const char *module_procdirname = "xt_qtaguid";
 static struct proc_dir_entry *xt_qtaguid_procdir;
@@ -180,12 +187,18 @@ static struct tag_node *tag_node_tree_search(struct rb_root *root, tag_t tag)
 	while (node) {
 		struct tag_node *data = rb_entry(node, struct tag_node, node);
 		int result;
-		RB_DEBUG("qtaguid: tag_node_tree_search(0x%llx): "
-			 " node=%p data=%p\n", tag, node, data);
+	     #ifdef VENDOR_EDIT
+	     //qiulei, 2014/04/28, Remove useless log
+	     //RB_DEBUG("qtaguid: tag_node_tree_search(0x%llx): "
+	     //	 " node=%p data=%p\n", tag, node, data);
+	     #endif /* VENDOR_EDIT */
 		result = tag_compare(tag, data->tag);
-		RB_DEBUG("qtaguid: tag_node_tree_search(0x%llx): "
-			 " data.tag=0x%llx (uid=%u) res=%d\n",
-			 tag, data->tag, get_uid_from_tag(data->tag), result);
+		#ifdef VENDOR_EDIT
+		//qiulei, 2014/04/28, Remove useless log
+		//RB_DEBUG("qtaguid: tag_node_tree_search(0x%llx): "
+		//	 " data.tag=0x%llx (uid=%u) res=%d\n",
+		//	 tag, data->tag, get_uid_from_tag(data->tag), result);
+		#endif /* VENDOR_EDIT */
 		if (result < 0)
 			node = node->rb_left;
 		else if (result > 0)
@@ -869,6 +882,10 @@ static struct iface_stat *iface_alloc(struct net_device *net_dev)
 	}
 	spin_lock_init(&new_iface->tag_stat_list_lock);
 	new_iface->tag_stat_tree = RB_ROOT;
+#ifdef VENDOR_EDIT
+//tanggeliang@Swdp.Android.Kernel, 2014/06/20, Add for tag pid
+	INIT_LIST_HEAD(&new_iface->pid_stat_list);
+#endif /* VENDOR_EDIT */
 	_iface_stat_set_active(new_iface, net_dev, true);
 
 	/*
@@ -1245,6 +1262,11 @@ static void iface_stat_update_from_skb(const struct sk_buff *skb,
 	spin_unlock_bh(&iface_stat_list_lock);
 }
 
+#ifdef VENDOR_EDIT
+//tanggeliang@Swdp.Android.Kernel, 2014/06/20, Add for tag pid
+#include "xt_qtaguid_pid_stat_update.c"
+#endif /* VENDOR_EDIT */
+
 static void tag_stat_update(struct tag_stat *tag_entry,
 			enum ifs_tx_rx direction, int proto, int bytes)
 {
@@ -1259,6 +1281,11 @@ static void tag_stat_update(struct tag_stat *tag_entry,
 	if (tag_entry->parent_counters)
 		data_counters_update(tag_entry->parent_counters, active_set,
 				     direction, proto, bytes);
+#ifdef VENDOR_EDIT
+//tanggeliang@Swdp.Android.Kernel, 2014/06/20, Add for tag pid
+    if (get_uid_from_tag(tag_entry->tn.tag) <= MAX_UID)
+        pid_stat_update(tag_entry, active_set, direction, proto, bytes);
+#endif /* VENDOR_EDIT */
 }
 
 /*
@@ -1279,6 +1306,12 @@ static struct tag_stat *create_if_tag_stat(struct iface_stat *iface_entry,
 		goto done;
 	}
 	new_tag_stat_entry->tn.tag = tag;
+#ifdef VENDOR_EDIT
+//tanggeliang@Swdp.Android.Kernel, 2014/06/20, Add for tag pid
+    new_tag_stat_entry->pid_stat_tree = RB_ROOT;
+    new_tag_stat_entry->iface_stat = iface_entry;
+	spin_lock_init(&new_tag_stat_entry->pid_stat_list_lock);
+#endif /* VENDOR_EDIT */
 	tag_stat_tree_insert(new_tag_stat_entry, &iface_entry->tag_stat_tree);
 done:
 	return new_tag_stat_entry;
@@ -2457,6 +2490,15 @@ static int qtaguid_ctrl_parse(const char *input, int count)
 	case 'u':
 		res = ctrl_cmd_untag(input);
 		break;
+#ifdef VENDOR_EDIT
+	//Peirs@Swdp.Android.FrameworkUi, 2014/09/16, Add for support network state
+	//statistics by process information.
+	case 'r':
+		//printk("------ peirs  qtaguid_ctrl_parse case r begin. -----\n");
+		res = qtagpid_reset_stats();
+		//printk("------ peirs  qtaguid_ctrl_parse case r end. -----\n");
+		break;
+#endif /* VENDOR_EDIT */
 
 	default:
 		res = -EINVAL;
@@ -2496,6 +2538,10 @@ struct proc_print_info {
 	tag_t tag; /* tag found by reading to tag_pos */
 	off_t tag_pos;
 	int tag_item_index;
+#ifdef VENDOR_EDIT
+//tanggeliang@Swdp.Android.Kernel, 2014/06/20, Add for tag pid
+    struct pid_stat *ps_entry;
+#endif /* VENDOR_EDIT */
 };
 
 static void pp_stats_header(struct seq_file *m)
@@ -2920,6 +2966,11 @@ static const struct file_operations proc_qtaguid_stats_fops = {
 	.release	= seq_release_private,
 };
 
+#ifdef VENDOR_EDIT
+//tanggeliang@Swdp.Android.Kernel, 2014/06/20, Add for tag pid
+#include "xt_qtaguid_proc_qtaguid_stats_pid_fops.c"
+#endif /* VENDOR_EDIT */
+
 /*------------------------------------------*/
 static int __init qtaguid_proc_register(struct proc_dir_entry **res_procdir)
 {
@@ -2956,6 +3007,21 @@ static int __init qtaguid_proc_register(struct proc_dir_entry **res_procdir)
 	 * TODO: add support counter hacking
 	 * xt_qtaguid_stats_file->write_proc = qtaguid_stats_proc_write;
 	 */
+    
+#ifdef VENDOR_EDIT
+//tanggeliang@Swdp.Android.Kernel, 2014/06/20, Add for tag pid
+    xt_qtaguid_stats_pid_file = proc_create_data("stats_pid", proc_stats_perms,
+                         *res_procdir,
+                         &proc_qtaguid_stats_pid_fops,
+                         NULL);
+    if (!xt_qtaguid_stats_pid_file) {
+        pr_err("qtaguid: failed to create xt_qtaguid/stats_pid "
+            "file\n");
+        ret = -ENOMEM;
+        goto no_stats_entry;
+    }
+#endif /* VENDOR_EDIT */
+
 	return 0;
 
 no_stats_entry:

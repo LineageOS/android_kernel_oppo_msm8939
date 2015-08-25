@@ -85,6 +85,11 @@
 #include <linux/msg.h>
 #include <linux/shm.h>
 #include <linux/pft.h>
+#ifdef VENDOR_EDIT 
+//jiemin.zhu@Swap.Android.Kernel, add for reboot system when there is no memory
+//to alloc scontext, maybe some hardware error
+#include <linux/reboot.h>
+#endif /* VENDOR_EDIT */
 
 
 #include "avc.h"
@@ -1220,6 +1225,12 @@ static int inode_doinit_with_dentry(struct inode *inode, struct dentry *opt_dent
 	char *context = NULL;
 	unsigned len = 0;
 	int rc = 0;
+#ifdef VENDOR_EDIT
+//jiemin.zhu@Swap.Android.Kernel, add for reboot system when there is no memory
+//to alloc scontext, maybe some hardware error
+	char *tmp = "u:object_r:install_data_file:s0";
+	size_t size;
+#endif
 
 	if (isec->initialized)
 		goto out;
@@ -1330,6 +1341,25 @@ static int inode_doinit_with_dentry(struct inode *inode, struct dentry *opt_dent
 					printk(KERN_WARNING "SELinux: %s:  context_to_sid(%s) "
 					       "returned %d for dev=%s ino=%ld\n",
 					       __func__, context, -rc, dev, ino);
+#ifdef VENDOR_EDIT
+//jiemin.zhu@Swap.Android.Kernel, add for reboot system when there is no memory
+//to alloc scontext, maybe some hardware error
+#define min(x, y) ({            \
+		typeof(x) _min1 = (x);      \
+		typeof(y) _min2 = (y);      \
+		(void) (&_min1 == &_min2);  \
+		_min1 < _min2 ? _min1 : _min2; })
+					if (rc == -ENOMEM) {
+						printk(KERN_WARNING "SELinux: %s: context_to_sid(%s) return -ENOMEM",
+								__func__, context);
+						//char *tmp = "u:object_r:install_data_file:s0";
+						size = min(strlen(context), strlen(tmp));
+						if (strncmp(context, tmp, size) == 0) {
+							mutex_unlock(&isec->lock);
+							emergency_restart();
+						}
+					}
+#endif
 				}
 				kfree(context);
 				/* Leave with the unlabeled SID */
