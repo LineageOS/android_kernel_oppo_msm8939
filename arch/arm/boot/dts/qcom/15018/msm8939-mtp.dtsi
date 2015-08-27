@@ -128,7 +128,7 @@
 
 			qcom,cool_bat_decidegc = <0>;							/* cool battery temperature in decidegC= 0*/
 			qcom,temp_cool_vfloat_mv = <4000>;						/* cool battery temperature cutoff voltage =4.0V (-10~0) */
-			qcom,temp_cool_fastchg_current_ma = <300>;				/* cool battery temperature fast current   =0.25A(-10~0)*//*chaoying.chen@EXP.BaseDrv.charge,2015/08/03 modify  for 15089*/
+			qcom,temp_cool_fastchg_current_ma = <256>;				/* cool battery temperature fast current   =0.25A(-10~0)*//*chaoying.chen@EXP.BaseDrv.charge,2015/08/03 modify  for 15089*/
 
 			qcom,cold_bat_decidegc = <30>;							/* cold battery temperature in decidegC= -3*/
 			qcom,bat_present_decidegc = <200>;						/* battery decidegc temperature in decidegC= -20*/
