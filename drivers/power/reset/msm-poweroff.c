@@ -282,7 +282,7 @@ static void msm_restart_prepare(const char *cmd)
 
 #endif /*VENDOR_EDIT*/
 
-#ifdef VENDOR_EDIT
+#if defined(VENDOR_EDIT) && defined(CONFIG_MSM_DLOAD_MODE)
 //tanggeliang@Swdp.Android.Kernel, 2015/05/07, enable ramoops_console
 	if (in_panic)
 		need_warm_reset = true;
