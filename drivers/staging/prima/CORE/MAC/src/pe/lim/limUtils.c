@@ -57,7 +57,7 @@
 #include "limSession.h"
 #include "vos_nvitem.h"
 #ifdef WLAN_FEATURE_11W
-#include "wniCfg.h"
+#include "wniCfgAp.h"
 #endif
 
 /* Static global used to mark situations where pMac->lim.gLimTriggerBackgroundScanDuringQuietBss is SET
@@ -2626,14 +2626,6 @@ void limProcessChannelSwitchTimeout(tpAniSirGlobal pMac)
             if ( isLimSessionOffChannel(pMac,
                 pMac->lim.limTimers.gLimChannelSwitchTimer.sessionId) )
             {
-                if (limIsLinkSuspended(pMac))
-                {
-                    limLog(pMac, LOGE, FL("Link is already suspended for "
-                        "some other reason. Return here for sessionId:%d"),
-                        pMac->lim.limTimers.gLimChannelSwitchTimer.sessionId);
-                    return;
-                }
-
                 limSuspendLink(pMac,
                     eSIR_DONT_CHECK_LINK_TRAFFIC_BEFORE_SCAN,
                     limProcessChannelSwitchSuspendLink,

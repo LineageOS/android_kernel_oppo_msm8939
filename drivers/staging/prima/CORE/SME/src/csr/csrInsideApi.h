@@ -295,8 +295,6 @@ void csrRemoveScanForSSIDFromPendingList(tpAniSirGlobal pMac, tDblLinkList *pLis
 //The BSS is remove if the count reaches 0.
 eHalStatus csrScanAgeResults(tpAniSirGlobal pMac, tSmeGetScanChnRsp *pScanChnInfo);
 
-eHalStatus csrIbssAgeBss(tpAniSirGlobal pMac);
-
 //If fForce is TRUE we will save the new String that is learn't.
 //Typically it will be true in case of Join or user initiated ioctl
 tANI_BOOLEAN csrLearnCountryInformation( tpAniSirGlobal pMac, tSirBssDescription *pSirBssDesc,
@@ -386,7 +384,6 @@ eCsrCfgDot11Mode csrGetCfgDot11ModeFromCsrPhyMode(tCsrRoamProfile *pProfile, eCs
 tANI_U32 csrTranslateToWNICfgDot11Mode(tpAniSirGlobal pMac, eCsrCfgDot11Mode csrDot11Mode);
 void csrSaveChannelPowerForBand( tpAniSirGlobal pMac, tANI_BOOLEAN fPopulate5GBand );
 void csrApplyChannelPowerCountryInfo( tpAniSirGlobal pMac, tCsrChannel *pChannelList, tANI_U8 *countryCode, tANI_BOOLEAN updateRiva);
-void csrUpdateFCCChannelList(tpAniSirGlobal pMac);
 void csrApplyPower2Current( tpAniSirGlobal pMac );
 void csrAssignRssiForCategory(tpAniSirGlobal pMac, tANI_S8 bestApRssi, tANI_U8 catOffset);
 tANI_BOOLEAN csrIsMacAddressZero( tpAniSirGlobal pMac, tCsrBssid *pMacAddr );
@@ -489,14 +486,6 @@ eHalStatus csrScanFlushResult(tpAniSirGlobal);
  *-------------------------------------------------------------------------------
  */
 eHalStatus csrScanFilterResults(tpAniSirGlobal pMac);
-
-/* ---------------------------------------------------------------------------
- *  \fn csrScanFilterDFSResults
- *  \brief Filter BSSIDs on DFS channels from the scan results.
- *  \return eHalStatus
- *-------------------------------------------------------------------------------
- */
-eHalStatus csrScanFilterDFSResults(tpAniSirGlobal pMac);
 
 eHalStatus csrScanFlushSelectiveResult(tpAniSirGlobal, v_BOOL_t flushP2P);
 
@@ -873,14 +862,6 @@ eHalStatus csrRoamConnectToLastProfile(tpAniSirGlobal pMac, tANI_U32 sessionId);
     \return eHalStatus     
   -------------------------------------------------------------------------------*/
 eHalStatus csrRoamDisconnect(tpAniSirGlobal pMac, tANI_U32 sessionId, eCsrRoamDisconnectReason reason);
-
-/* ---------------------------------------------------------------------------
-    \fn csr_abortConnection
-    \brief To disconnect from a connecting network
-    \retutn void.
-----------------------------------------------------------------------------*/
-
-void csr_abortConnection(tpAniSirGlobal pMac, tANI_U32 sessionId);
 
 /* ---------------------------------------------------------------------------
     \fn csrScanGetPMKIDCandidateList

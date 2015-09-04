@@ -252,11 +252,6 @@ VOS_STATUS WDA_ProcessLLStatsGetReq(tWDA_CbContext *pWDA,
 VOS_STATUS WDA_ProcessLLStatsClearReq(tWDA_CbContext *pWDA,
                                       tSirLLStatsClearReq *wdaRequest);
 #endif /* WLAN_FEATURE_LINK_LAYER_STATS */
-
-VOS_STATUS
-WDA_ProcessSetRtsCtsHTVhtInd(tWDA_CbContext *pWDA,
-                         tANI_U32 val);
-
 /*
  * FUNCTION: WDA_open
  * Allocate the WDA context 
@@ -2100,39 +2095,6 @@ VOS_STATUS WDA_prepareConfigTLV(v_PVOID_t pVosContext,
    tlvStruct = (tHalCfg *)( (tANI_U8 *) tlvStruct
                            + sizeof(tHalCfg) + tlvStruct->length) ;
 
-
-   /* QWLAN_HAL_CFG_LINK_FAIL_TIMEOUT */
-   tlvStruct->type = QWLAN_HAL_CFG_LINK_FAIL_TIMEOUT ;
-   tlvStruct->length = sizeof(tANI_U32);
-   configDataValue = (tANI_U32 *)(tlvStruct + 1);
-
-   if (wlan_cfgGetInt(pMac, WNI_CFG_LINK_FAIL_TIMEOUT,
-                                            configDataValue ) != eSIR_SUCCESS)
-   {
-      VOS_TRACE( VOS_MODULE_ID_WDA, VOS_TRACE_LEVEL_ERROR,
-               "Failed to get value for WNI_CFG_LINK_FAIL_TIMEOUT");
-       goto handle_failure;
-   }
-
-   tlvStruct = (tHalCfg *)( (tANI_U8 *) tlvStruct
-                           + sizeof(tHalCfg) + tlvStruct->length) ;
-
-   /* QWLAN_HAL_CFG_LINK_FAIL_TX_CNT */
-   tlvStruct->type = QWLAN_HAL_CFG_LINK_FAIL_TX_CNT ;
-   tlvStruct->length = sizeof(tANI_U32);
-   configDataValue = (tANI_U32 *)(tlvStruct + 1);
-
-   if (wlan_cfgGetInt(pMac, WNI_CFG_LINK_FAIL_TX_CNT,
-                                            configDataValue ) != eSIR_SUCCESS)
-   {
-      VOS_TRACE( VOS_MODULE_ID_WDA, VOS_TRACE_LEVEL_ERROR,
-               "Failed to get value for WNI_CFG_LINK_FAIL_TX_CNT");
-      goto handle_failure;
-   }
-   tlvStruct = (tHalCfg *)( (tANI_U8 *) tlvStruct
-                           + sizeof(tHalCfg) + tlvStruct->length) ;
-
-
    /* QWLAN_HAL_CFG_BTC_STATIC_OPP_WLAN_IDLE_WLAN_LEN */
    tlvStruct->type = QWLAN_HAL_CFG_BTC_STATIC_OPP_WLAN_IDLE_WLAN_LEN ;
    tlvStruct->length = sizeof(tANI_U32);
@@ -2145,7 +2107,6 @@ VOS_STATUS WDA_prepareConfigTLV(v_PVOID_t pVosContext,
                "Failed to get value for WNI_CFG_BTC_STATIC_OPP_WLAN_IDLE_WLAN_LEN");
       goto handle_failure;
    }
-
    tlvStruct = (tHalCfg *)( (tANI_U8 *) tlvStruct
                            + sizeof(tHalCfg) + tlvStruct->length) ;
 
@@ -12488,15 +12449,6 @@ VOS_STATUS WDA_TxPacket(tWDA_CbContext *pWDA,
           txFlag |= HAL_USE_BD_RATE2_FOR_MANAGEMENT_FRAME;
        }
    }
-#ifdef FEATURE_WLAN_TDLS
-   /* TDLS Management frames are sent using Peer Sta mask */
-   else if ((pFc->type == SIR_MAC_DATA_FRAME) &&
-            (txFlag & HAL_USE_BD_RATE2_FOR_MANAGEMENT_FRAME))
-   {
-       txFlag |= HAL_USE_PEER_STA_REQUESTED_MASK;
-
-   }
-#endif
    vos_atomic_set((uintptr_t*)&pWDA->VosPacketToFree, (uintptr_t)pFrmBuf);/*set VosPacket_freed to pFrmBuf*/
 
    /*Set frame tag to 0 
@@ -13527,11 +13479,6 @@ VOS_STATUS WDA_McProcessMsg( v_CONTEXT_t pVosContext, vos_msg_t *pMsg )
       {
           WDA_ProcessSetSpoofMacAddrReq(pWDA, (tpSpoofMacAddrReqParams)pMsg->bodyptr);
           break;
-      }
-      case WDA_SET_RTS_CTS_HTVHT:
-      {
-         WDA_ProcessSetRtsCtsHTVhtInd( pWDA, pMsg->bodyval);
-         break;
       }
       default:
       {
@@ -18153,35 +18100,3 @@ VOS_STATUS WDA_ProcessLLStatsClearReq(tWDA_CbContext *pWDA,
 }
 
 #endif /* WLAN_FEATURE_LINK_LAYER_STATS */
-
-/*==========================================================================
-  FUNCTION   WDA_ProcessSetRtsCtsHTVhtInd
-
-  DESCRIPTION
-    API to enable/disable RTS/CTS for different modes.
-
-  PARAMETERS
-    pWDA: Pointer to WDA context
-    rtsCtsVal : Bit mask value to enable RTS/CTS for different modes
-===========================================================================*/
-
-VOS_STATUS
-WDA_ProcessSetRtsCtsHTVhtInd(tWDA_CbContext *pWDA,
-                         tANI_U32 rtsCtsVal)
-{
-    WDI_Status status;
-    VOS_TRACE( VOS_MODULE_ID_WDA, VOS_TRACE_LEVEL_INFO,
-                 FL("---> %s"), __func__);
-    status = WDI_SetRtsCtsHTVhtInd(rtsCtsVal);
-    if (WDI_STATUS_PENDING == status)
-    {
-        VOS_TRACE( VOS_MODULE_ID_WDA, VOS_TRACE_LEVEL_INFO,
-                 FL("pending status received "));
-    }
-    else if (WDI_STATUS_SUCCESS_SYNC != status)
-    {
-       VOS_TRACE( VOS_MODULE_ID_WDA, VOS_TRACE_LEVEL_ERROR,
-               FL("Failure status %d"), status);
-    }
-    return CONVERT_WDI2VOS_STATUS(status) ;
-}
