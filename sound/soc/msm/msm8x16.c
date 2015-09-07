@@ -1186,9 +1186,6 @@ static int msm_sec_mi2s_snd_startup(struct snd_pcm_substream *substream)
 	struct snd_soc_codec *codec = rtd->codec;
 	struct msm8916_asoc_mach_data *pdata =
 			snd_soc_card_get_drvdata(card);
-	/*OPPO 2014-08-22 zhzhyon Add for ak4375*/
-	struct snd_soc_dai *codec_dai = rtd->codec_dai;
-	 /*OPPO 2014-08-22 zhzhyon Add end*/
 
 	int ret = 0;
 	pr_debug("%s(): substream = %s  stream = %d\n", __func__,
@@ -1229,19 +1226,6 @@ static int msm_sec_mi2s_snd_startup(struct snd_pcm_substream *substream)
 	ret = snd_soc_dai_set_fmt(cpu_dai, SND_SOC_DAIFMT_CBS_CFS);
 	if (ret < 0)
 		pr_debug("%s: set fmt cpu dai failed\n", __func__);
-	/*OPPO 2014-08-02 zhzhyon Add for ak4375*/
-	#if 1
-	snd_soc_dai_set_sysclk(codec_dai, 0, 12288000,
-						SND_SOC_CLOCK_IN);
-
-
-	ret = snd_soc_dai_set_fmt(codec_dai, SND_SOC_DAIFMT_CBS_CFS | SND_SOC_DAIFMT_I2S);
-	if (ret < 0)
-		pr_debug("%s: set fmt cpu dai failed\n", __func__);
-	#endif
-	/*OPPO 2014-08-02 zhzhyon Add end*/
-
-	//pr_err("zhzhyon:sec i2s start up success\n");
 
 	return ret;
 err1:
@@ -1734,7 +1718,7 @@ static struct snd_soc_ops msm8x16_mi2s_be_ops = {
 };
 
 /*OPPO 2014-08-21 zhzhyon Add for ak4375*/
-#ifdef VENDOR_EDIT //Jianfeng.Qiu@Multimedia.Audio, 2015/06/03, Add for no sound when ap suspend in call
+#ifdef CONFIG_SND_SOC_AK4375 //Jianfeng.Qiu@Multimedia.Audio, 2015/06/03, Add for no sound when ap suspend in call
 static int ak4375_audrx_init(struct snd_soc_pcm_runtime *rtd)
 {
 
@@ -1751,29 +1735,6 @@ static int ak4375_audrx_init(struct snd_soc_pcm_runtime *rtd)
 
     return 0;
 }
-
-static struct snd_soc_dai_link msm8x16_ak4375_dai[] = {
-	/* Backend DAI Links */
-	{
-		.name = LPASS_BE_SEC_MI2S_RX,
-		.stream_name = "Secondary MI2S Playback",
-		.cpu_dai_name = "msm-dai-q6-mi2s.1",
-		.platform_name = "msm-pcm-routing",
-		#if 0
-		.codec_name = "msm-stub-codec.1",
-		.codec_dai_name = "msm-stub-rx",
-		#else
-		.codec_name = "ak4375.3-0010",
-		.codec_dai_name = "ak4375-AIF1",
-		#endif
-		.no_pcm = 1,
-		.init = ak4375_audrx_init,
-		.be_id = MSM_BACKEND_DAI_SECONDARY_MI2S_RX,
-		.be_hw_params_fixup = msm_be_hw_params_fixup,
-		.ops = &msm8x16_sec_mi2s_be_ops,
-		.ignore_suspend = 1,
-	},
-};
 #endif /* VENDOR_EDIT */
 /*OPPO 2014-08-21 zhzhyon Add end*/
 
@@ -2245,23 +2206,25 @@ static struct snd_soc_dai_link msm8x16_dai[] = {
 		.ops = &msm8x16_mi2s_be_ops,
 		.ignore_suspend = 1,
 	},
-	/*OPPO 2014-08-22 zhzhyon Delete for sec i2s*/
-	#if 0
 	{
 		.name = LPASS_BE_SEC_MI2S_RX,
 		.stream_name = "Secondary MI2S Playback",
 		.cpu_dai_name = "msm-dai-q6-mi2s.1",
 		.platform_name = "msm-pcm-routing",
+#ifdef CONFIG_SND_SOC_AK4375
+		.codec_name = "ak4375.3-0010",
+		.codec_dai_name = "ak4375-AIF1",
+		.init = &ak4375_audrx_init,
+#else
 		.codec_name = "msm-stub-codec.1",
 		.codec_dai_name = "msm-stub-rx",
+#endif
 		.no_pcm = 1,
 		.be_id = MSM_BACKEND_DAI_SECONDARY_MI2S_RX,
 		.be_hw_params_fixup = msm_be_hw_params_fixup,
 		.ops = &msm8x16_sec_mi2s_be_ops,
 		.ignore_suspend = 1,
 	},
-	#endif
-	/*OPPO 2014-08-22 zhzhyon Delete end*/
 	{
 		.name = LPASS_BE_TERT_MI2S_TX,
 		.stream_name = "Tertiary MI2S Capture",
@@ -2452,12 +2415,6 @@ static struct snd_soc_dai_link msm8x16_9302_dai_links[
 				ARRAY_SIZE(msm8x16_dai) +
 				ARRAY_SIZE(msm8x16_9302_dai)];
 
-/*OPPO 2014-08-21 zhzhyon Add for ak4375*/
-static struct snd_soc_dai_link msm8x16_ak4375_dai_links[
-				ARRAY_SIZE(msm8x16_dai) +
-				ARRAY_SIZE(msm8x16_ak4375_dai)];
-/*OPPO 2014-08-21 zhzhyon Add end*/
-
 struct snd_soc_card snd_soc_card_9306_msm8916 = {
 	.name		= "msm8x16-tapan-snd-card",
 	.dai_link	= msm8x16_9306_dai_links,
@@ -2487,13 +2444,6 @@ static struct snd_soc_card bear_cards[MAX_SND_CARDS] = {
 		.dai_link	= msm8x16_9302_dai_links,
 		.num_links	= ARRAY_SIZE(msm8x16_9302_dai_links),
 	},
-	/*OPPO 2014-08-21 zhzhyon Add for ak4375*/
-	{
-		.name		= "msm8x16-snd-card",
-		.dai_link	= msm8x16_ak4375_dai_links,
-		.num_links	= ARRAY_SIZE(msm8x16_ak4375_dai_links),
-	},	
-	/*OPPO 2014-08-21 zhzhyon Add end*/
 };
 
 void disable_mclk(struct work_struct *work)
@@ -2735,19 +2685,6 @@ static void populate_ext_snd_card_dailinks(struct platform_device *pdev)
 	}
 }
 
-/*OPPO 2014-08-21 zhzhyon Add for ak4375*/
-static void add_snd_card_dailinks(struct platform_device *pdev)
-{
-		pr_err("%s: CARD is ak4375\n", __func__);
-
-		memcpy(msm8x16_ak4375_dai_links, msm8x16_dai,
-				sizeof(msm8x16_dai));
-		memcpy(msm8x16_ak4375_dai_links + ARRAY_SIZE(msm8x16_dai),
-			msm8x16_ak4375_dai, sizeof(msm8x16_ak4375_dai));
-
-}
-/*OPPO 2014-08-21 zhzhyon Add end*/
-
 static int msm8x16_populate_dai_link_component_of_node(
 					struct snd_soc_card *card)
 {
@@ -2984,14 +2921,6 @@ static int msm8x16_asoc_machine_probe(struct platform_device *pdev)
 		bear_cards[pdev->id].name = dev_name(&pdev->dev);
 		card = &bear_cards[pdev->id];
 	} else {
-		/*OPPO 2014-08-21 zhzhyon Add for ak4375*/
-		/*OPPO 2015-05-11 hanqing.wang Add for reason OPPO_15011 15062 OPPO_MSM_15062*/
-/*huqiao@EXP.BasicDrv.Basic add for clone 15085*/
-		if(is_project(OPPO_14045) || is_project(OPPO_15018) || is_project(OPPO_15011) || is_project(OPPO_15022) || is_project(OPPO_15085))
-		{
-			add_snd_card_dailinks(pdev);
-		}
-		/*OPPO 2014-08-21 zhzhyon Add end*/
 		card = &bear_cards[pdev->id];
 		bear_cards[pdev->id].name = dev_name(&pdev->dev);
 		card = &bear_cards[pdev->id];
