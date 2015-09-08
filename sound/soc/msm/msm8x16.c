@@ -69,9 +69,6 @@ static int msm_proxy_rx_ch = 2;
 /*OPPO 2014-07-21 zhzhyon Add for quat i2s patch*/
 static atomic_t quat_mi2s_clk_ref;
 /*OPPO 2014-07-21 zhzhyon Add end*/
-/*OPPO 2014-08-20 zhzhyon Add for share software*/
-static struct regulator * tfa9890_vdd = NULL;
-/*OPPO 2014-08-20 zhzhyon Add end*/
 
 #ifdef VENDOR_EDIT
 //John.Xu@PhoneSw.AudioDriver, 2015/04/30, Add for 15025 headset compatible
@@ -2283,12 +2280,12 @@ static struct snd_soc_dai_link msm8x16_dai[] = {
 		.cpu_dai_name = "msm-dai-q6-mi2s.3",
 		.platform_name = "msm-pcm-routing",
 		/*OPPO 2014-07-21 zhzhyon Modify for tfa9890*/
-		#if 1
+		#if 0
 		.codec_dai_name = "snd-soc-dummy-dai",
 		.codec_name = "snd-soc-dummy",
 		#else
-              .codec_name     = "tfa9890.3-0036",
-              .codec_dai_name = "tfa9890_codec",
+		.codec_name     = "tfa9890.3-0036",
+		.codec_dai_name = "tfa9890_codec_left",
 		#endif
 		/*OPPO 2014-07-21 zhzhyon Modify end*/
 		.no_pcm = 1,
@@ -3171,46 +3168,6 @@ static int msm8x16_asoc_machine_probe(struct platform_device *pdev)
 	}
 	else */
 	
-	/*OPPO 2015-05-11 hanqing.wang Add for reason OPPO_15011 15062 OPPO_MSM_15062*/
-/*huqiao@EXP.BasicDrv.Basic add for clone 15085*/
-	if((is_project(OPPO_14045) || is_project(OPPO_15018)|| is_project(OPPO_15011) || is_project(OPPO_15022) || is_project(OPPO_15085))  && (tfa9890_vdd == NULL))
-	{
-		pdata->tfa9890_rst = of_get_named_gpio(pdev->dev.of_node,
-						"nxp,reset-gpio", 0);
-		if (pdata->tfa9890_rst < 0) 
-		{
-			dev_err(&pdev->dev,
-				"property %s in node %s not found %d\n",
-				"nxp,reset-gpio", pdev->dev.of_node->full_name,
-				pdata->tfa9890_rst);
-		} 
-		if (gpio_is_valid(pdata->tfa9890_rst)) 
-		{
-			gpio_request(pdata->tfa9890_rst,"tfa9890_rst");
-			gpio_direction_output(pdata->tfa9890_rst, 0);
-		}
-
-
-		tfa9890_vdd = regulator_get(&pdev->dev, "tfa9890_vdd");
-		if(tfa9890_vdd)
-		{
-			if( regulator_count_voltages(tfa9890_vdd) > 0)
-			{
-				regulator_set_voltage(tfa9890_vdd, 1800000, 1800000);
-			}
-
-			ret = regulator_enable(tfa9890_vdd);
-			if(ret)
-			{
-				dev_err(&pdev->dev,
-					"Regulator vdd enable failed ret=%d\n", ret);
-				regulator_disable(tfa9890_vdd);		
-				tfa9890_vdd = NULL;
-
-			}
-		}
-	}
-    /*OPPO 2014-07-24 zhzhyon Add end*/
 	ret = msm8x16_populate_dai_link_component_of_node(card);
 	if (ret) {
 		ret = -EPROBE_DEFER;
@@ -3287,9 +3244,6 @@ static int msm8x16_asoc_machine_remove(struct platform_device *pdev)
 		iounmap(pdata->vaddr_gpio_mux_mic_ctl);
 	snd_soc_unregister_card(card);
 	mutex_destroy(&pdata->cdc_mclk_mutex);
-	/*OPPO 2014-08-20 zhzhyon Add for tfa9890*/
-	regulator_disable(tfa9890_vdd);
-	/*OPPO 2014-08-20 zhzhyon Add end*/
 	return 0;
 }
 
