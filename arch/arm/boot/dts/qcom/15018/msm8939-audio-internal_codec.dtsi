@@ -87,14 +87,6 @@
 //#ifndef VENDOR_EDIT //Jianfeng.Qiu@Multimedia.Audio, 2015/06/11, Delete for unuse
 		//qcom,cdc-us-euro-gpios = <&msm_gpio 120 0>;
 //#endif /* VENDOR_EDIT */
-		/*OPPO 2014-07-21 zhzhyon Add for tfa9890 resource*/
-		nxp,reset-gpio = <&msm_gpio 16 0x00>;
-		audio-vdd-enable-gpios = <&msm_gpio 102 0x00>;
-		/*spk-rec-sw-gpios = <&msm_gpio 97 0x00>;*/
-		/*OPPO 2014-07-21 zhzhyon Add end*/
-		/*OPPO 2014-08-20 zhzhyon Add for tfa9890*/
-		tfa9890_vdd-supply = <&pm8916_l6>;
-		/*OPPO 2014-08-20 zhzhyon Add end*/
 		asoc-platform = <&pcm0>, <&pcm1>, <&voip>, <&voice>,
 				<&loopback>, <&compress>, <&hostless>,
 				<&afe>, <&lsm>, <&routing>, <&lpa>;
@@ -127,4 +119,14 @@
 		asoc-codec-names = "msm-stub-codec.1", "tombak_codec";
 	};
 	/*OPPO 2014-08-30 zhzhyon Add end*/
+};
+
+&i2c_3 {
+	tfa9890@36 {
+		compatible = "nxp,tfa9890";
+		reg = <0x36>;
+		gpios = <&msm_gpio 16 0x00>;   /* RESET */
+		tfa_vdd-supply = <&pm8916_l6>;
+		nxp,tfa_max-vol-steps = <15>;
+	};
 };
