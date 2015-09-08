@@ -147,6 +147,9 @@ obj-$(CONFIG_SND_SOC_MSM_HDMI_CODEC_RX) := msm_hdmi_codec_rx.o
 snd-soc-max9877-objs := max9877.o
 snd-soc-tpa6130a2-objs := tpa6130a2.o
 
+#2014-08-22 zhzhyon Add for ak4375
+obj-y += snd-soc-ak4375.o
+#2014-08-22 zhzhyon Add end
 #2015-03-12 zhangping Add for ts4621
 obj-y += snd-soc-ts4621.o
 #2015-03-12 zhangping Add end
@@ -163,7 +166,6 @@ obj-$(CONFIG_SND_SOC_ADAU1701)  += snd-soc-adau1701.o
 obj-$(CONFIG_SND_SOC_ADAV80X)  += snd-soc-adav80x.o
 obj-$(CONFIG_SND_SOC_ADS117X)	+= snd-soc-ads117x.o
 obj-$(CONFIG_SND_SOC_AK4104)	+= snd-soc-ak4104.o
-obj-$(CONFIG_SND_SOC_AK4375)	+= snd-soc-ak4375.o
 obj-$(CONFIG_SND_SOC_AK4535)	+= snd-soc-ak4535.o
 obj-$(CONFIG_SND_SOC_AK4641)	+= snd-soc-ak4641.o
 obj-$(CONFIG_SND_SOC_AK4642)	+= snd-soc-ak4642.o
