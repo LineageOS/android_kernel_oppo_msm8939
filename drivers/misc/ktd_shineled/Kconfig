@@ -1,5 +1,0 @@
-config KTD2026_SLED
-	tristate "KTD2026_SLED breath led Driver"
-	default n
-	help
-	  Say Y here to enable breath led.

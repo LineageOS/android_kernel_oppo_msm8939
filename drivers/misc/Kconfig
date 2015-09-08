@@ -647,7 +647,4 @@ source "drivers/misc/remote/Kconfig"
 # ifdef VENDOR_EDIT //Jianfeng.Qiu@BSP.Driver, 2014/09/11, Add for breath led
 source "drivers/misc/shineled/Kconfig"
 # endif
-# ifdef VENDOR_EDIT //Tong.han@BSP.Group.Tp, 2015/04/05, Add for KTD breath led
-source "drivers/misc/ktd_shineled/Kconfig"
-# endif
 endmenu

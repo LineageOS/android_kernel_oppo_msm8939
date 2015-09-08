@@ -75,7 +75,3 @@ obj-y += remote/
 obj-$(CONFIG_SN3193_SLED)  += shineled/
 # endif
 
-# ifdef VENDOR_EDIT //Tong.han@BSP.Group.Tp, 2015/04/05, Add for KTD breath led
-obj-$(CONFIG_KTD2026_SLED)  += ktd_shineled/
-# endif
-
