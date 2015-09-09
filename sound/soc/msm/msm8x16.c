@@ -355,33 +355,25 @@ static int msm_pri_rx_be_hw_params_fixup(struct snd_soc_pcm_runtime *rtd,
 	return 0;
 }
 
-/*OPPO 2014-07-23 zhzhyon Add for tfa9890*/
-static int msm8939_mi2s_be_hw_params_fixup(struct snd_soc_pcm_runtime *rtd,
-            struct snd_pcm_hw_params *params)
+static int msm_be_tfa9890_hw_params_fixup(struct snd_soc_pcm_runtime *rtd,
+				struct snd_pcm_hw_params *params)
 {
-    struct snd_interval *rate = hw_param_interval(params,
-    SNDRV_PCM_HW_PARAM_RATE);
+	struct snd_interval *rate = hw_param_interval(params,
+					SNDRV_PCM_HW_PARAM_RATE);
 
-    struct snd_interval *channels = hw_param_interval(params,
-    SNDRV_PCM_HW_PARAM_CHANNELS);
+	struct snd_interval *channels =
+	    hw_param_interval(params, SNDRV_PCM_HW_PARAM_CHANNELS);
 
-    pr_debug("%s rate->min %d rate->max %d channels->min %u channels->max %u ()\n", __func__,
-            rate->min, rate->max, channels->min, channels->max);
+	pr_debug("%s()\n", __func__);
 
-	//
+	rate->min = rate->max = 48000;
+	param_set_mask(params, SNDRV_PCM_HW_PARAM_FORMAT, SNDRV_PCM_FORMAT_S16_LE);
 
-	param_set_mask(params, SNDRV_PCM_HW_PARAM_FORMAT,
-					SNDRV_PCM_FORMAT_S16_LE);
+	if (! channels->min)
+		channels->min = channels->max = 2;
 
-	//
-
-    rate->min = rate->max = 48000;
-    channels->min = channels->max = 1;
-
-    return 0;
+	return 0;
 }
-
-/*OPPO 2014-07-23 zhzhyon Add end*/
 
 static int msm_be_hw_params_fixup(struct snd_soc_pcm_runtime *rtd,
 				struct snd_pcm_hw_params *params)
@@ -2290,7 +2282,7 @@ static struct snd_soc_dai_link msm8x16_dai[] = {
 		/*OPPO 2014-07-21 zhzhyon Modify end*/
 		.no_pcm = 1,
 		.be_id = MSM_BACKEND_DAI_QUATERNARY_MI2S_RX,
-		.be_hw_params_fixup = msm8939_mi2s_be_hw_params_fixup,//msm_be_hw_params_fixup,
+		.be_hw_params_fixup = msm_be_tfa9890_hw_params_fixup,
 		.ops = &msm8x16_quat_mi2s_be_ops,
 		.ignore_pmdown_time = 1, /* dai link has playback support */
 		.ignore_suspend = 1,
