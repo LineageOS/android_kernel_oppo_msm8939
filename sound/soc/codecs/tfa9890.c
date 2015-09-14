@@ -394,15 +394,17 @@ static int tfa9890_dsp_transfer(struct snd_soc_codec *codec,
 	err = codec->bulk_write_raw(codec, TFA9890_CF_CONTROLS, buffer,
 						ARRAY_SIZE(buffer));
 	if (err < 0) {
-		pr_err("tfa9890: Failed to Write DSP controls req %d:", err);
+		pr_err("tfa9890: Failed to Write DSP controls req: %d\n", err);
 		return err;
 	}
 	/* check transfer type */
 	if (type == TFA9890_DSP_WRITE) {
 		/* write data to DSP memory*/
 		err = codec->bulk_write_raw(codec, TFA9890_CF_MEM, bytes, len);
-		if (err < 0)
+		if (err < 0) {
+			pr_err("tfa9890: Memory upload failed\n");
 			return err;
+		}
 	}
 
 	/* wake up the DSP to process the data */
@@ -413,7 +415,7 @@ static int tfa9890_dsp_transfer(struct snd_soc_codec *codec,
 	msleep_interruptible(1);
 	cf_status = snd_soc_read(codec, TFA9890_CF_STATUS);
 	if ((cf_status & TFA9890_STATUS_CF) == 0) {
-		pr_err("tfa9890: Failed to ack DSP CTL req %d:", err);
+		pr_err("tfa9890: Failed to ack DSP CTL req: %d\n", err);
 		return -EIO;
 	}
 	/* read the RPC Status */
@@ -425,15 +427,14 @@ static int tfa9890_dsp_transfer(struct snd_soc_codec *codec,
 	buffer[3] = (unsigned char)(cf_mad & 0xFF);
 	err = codec->bulk_write_raw(codec, TFA9890_CF_CONTROLS, buffer, 4);
 	if (err < 0) {
-		pr_err("tfa9890: Failed to Write NXP DSP CTL reg for rpc check%d",
-				err);
+		pr_err("tfa9890: Failed to Write NXP DSP CTL reg for "
+			"rpc check: %d\n", err);
 		return err;
 	}
 
 	rpc_status = snd_soc_read(codec, TFA9890_CF_MEM);
 	if (rpc_status != TFA9890_STATUS_OK) {
-		pr_err("tfa9890: RPC status check failed %d",
-				err);
+		pr_err("tfa9890: RPC status check failed: %d\n", err);
 		return -EIO;
 	}
 	if (type == TFA9890_DSP_READ) {
@@ -469,7 +470,7 @@ static int tfa9890_set_mode(struct tfa9890_priv *tfa9890)
 	int ret;
 
 	if ((fw_pst_table[tfa9890->mode])->size != TFA9890_PST_FW_SIZE) {
-		pr_err("tfa9890: Data size check failed preset file");
+		pr_err("tfa9890: Data size check failed for preset file\n");
 		return -EIO;
 	}
 
@@ -508,7 +509,7 @@ static int tfa9890_put_mode(struct snd_kcontrol *kcontrol,
 	mutex_lock(&tfa9890->dsp_init_lock);
 	/* check for boundary conditions */
 	if (mode_value > (ARRAY_SIZE(tfa9890_mode) - 1) || mode_value < 0) {
-		pr_err("%s: invalid mode set", __func__);
+		pr_err("%s: invalid mode set\n", __func__);
 		mutex_unlock(&tfa9890->dsp_init_lock);
 		mutex_unlock(&lr_lock);
 		return -EINVAL;
@@ -725,7 +726,7 @@ static int tfa9890_wait_pll_sync(struct tfa9890_priv *tfa9890)
 	} while ((++tries < PLL_SYNC_RETRIES));
 
 	if (tries == PLL_SYNC_RETRIES) {
-		pr_err("tfa9890:DSP pll sync failed!!");
+		pr_err("tfa9890: DSP pll sync failed!\n");
 		ret = -EIO;
 	}
 
@@ -751,18 +752,18 @@ static int tfa9887_load_dsp_patch(struct snd_soc_codec *codec, const u8 *fw,
 		index += 2;
 		if ((index + size) > length) {
 			/* outside the buffer, error in the input data */
-			pr_err("tfa9890: invalid length");
+			pr_err("tfa9890: invalid length\n");
 			goto out;
 		}
 		if ((size) > TFA9890_MAX_I2C_SIZE) {
 			/* too big */
-			pr_err("tfa9890: ivalid dsp patch");
+			pr_err("tfa9890: ivalid dsp patch\n");
 			goto out;
 		}
 		err = codec->bulk_write_raw(codec, *(fw_data + index),
 				(fw_data + index + 1), size);
 		if (err < 0) {
-			pr_err("tfa9890: writing dsp patch failed");
+			pr_err("tfa9890: writing dsp patch failed\n");
 			goto out;
 		}
 		index += size;
@@ -799,7 +800,7 @@ static int tfa9890_load_config(struct tfa9890_priv *tfa9890)
 				tfa9890->fw_path, tfa9890->tfa_dev);
 		ret = request_firmware(&fw_patch, fw_name, codec->dev);
 		if (ret) {
-			pr_err("tfa9890: Failed to locate tfa9890_n1c2.patch");
+			pr_err("tfa9890: Failed to locate tfa9890_n1c2.patch\n");
 			goto out;
 		}
 	} else if (tfa9890->ic_version == TFA9890_N1B12) {
@@ -808,7 +809,7 @@ static int tfa9890_load_config(struct tfa9890_priv *tfa9890)
 				tfa9890->fw_path, tfa9890->tfa_dev);
 		ret = request_firmware(&fw_patch, fw_name, codec->dev);
 		if (ret) {
-			pr_err("tfa9890: Failed to locate tfa9890_n1b12.patch");
+			pr_err("tfa9890: Failed to locate tfa9890_n1b12.patch\n");
 			goto out;
 		}
 	} /* else nothing to do for n1b4's */
@@ -817,7 +818,7 @@ static int tfa9890_load_config(struct tfa9890_priv *tfa9890)
 		ret = tfa9887_load_dsp_patch(codec, fw_patch->data,
 				fw_patch->size);
 		if (ret) {
-			pr_err("tfa9890: Failed to load dsp patch!!");
+			pr_err("tfa9890: Failed to load dsp patch!\n");
 			goto out;
 		}
 	}
@@ -826,34 +827,38 @@ static int tfa9890_load_config(struct tfa9890_priv *tfa9890)
 			tfa9890->fw_path, tfa9890->tfa_dev);
 	ret = request_firmware(&fw_speaker, fw_name, codec->dev);
 	if (ret) {
-		pr_err("tfa9890: Failed to locate speaker model!!");
+		pr_err("tfa9890: Failed to locate speaker model!\n");
 		goto out;
 	}
 	if (fw_speaker->size != TFA9890_SPK_FW_SIZE) {
-		pr_err("tfa9890: Data size check failed for spkr model");
+		pr_err("tfa9890: Data size check failed for speaker model\n");
 		goto out;
 	}
 	ret = tfa9890_dsp_transfer(codec, TFA9890_DSP_MOD_SPEAKERBOOST,
 			TFA9890_PARAM_SET_LSMODEL, fw_speaker->data,
 			fw_speaker->size, TFA9890_DSP_WRITE, 0);
-	if (ret < 0)
+	if (ret < 0) {
+		pr_err("tfa9890: Speaker model upload failed\n");
 		goto out;
+	}
 	scnprintf(fw_name, FIRMWARE_NAME_SIZE, "%s/%s.tfa9890.config",
 		tfa9890->fw_path, tfa9890->tfa_dev);
 	ret = request_firmware(&fw_config, fw_name, codec->dev);
 	if (ret) {
-		pr_err("tfa9890: Failed to locate dsp config!!");
+		pr_err("tfa9890: Failed to locate dsp config!\n");
 		goto out;
 	}
 	if (fw_config->size != TFA9890_CFG_FW_SIZE) {
-		pr_err("%s: Data size check failed for config file", __func__);
+		pr_err("tfa9890: Data size check failed for config file\n");
 		goto out;
 	}
 	ret = tfa9890_dsp_transfer(codec, TFA9890_DSP_MOD_SPEAKERBOOST,
 			TFA9890_PARAM_SET_CONFIG, fw_config->data,
 			fw_config->size, TFA9890_DSP_WRITE, 0);
-	if (ret < 0)
+	if (ret < 0) {
+		pr_err("tfa9890: Config upload failed\n");
 		goto out;
+	}
 
 
 	ret = tfa9890_set_mode(tfa9890);
@@ -959,7 +964,7 @@ static void tfa9890_load_preset(struct work_struct *work)
 				file_name,
 				codec->dev);
 		if (ret || fw_pst_table[i]->size != TFA9890_PST_FW_SIZE) {
-			pr_err("%s: Failed to locate DSP preset table %s",
+			pr_err("%s: Failed to locate DSP preset table %s\n",
 					codec->name, file_name);
 			tfa9890->dsp_init = TFA9890_DSP_INIT_FAIL;
 			break;
@@ -971,7 +976,7 @@ static void tfa9890_load_preset(struct work_struct *work)
 		ret = request_firmware(&fw_eq_table[i],
 				file_name, codec->dev);
 		if (ret || fw_eq_table[i]->size != TFA9890_COEFF_FW_SIZE) {
-			pr_err("%s: Failed to locate EQ table %s",
+			pr_err("%s: Failed to locate EQ table %s\n",
 					codec->name, file_name);
 			tfa9890->dsp_init = TFA9890_DSP_INIT_FAIL;
 			break;
@@ -991,7 +996,7 @@ static void tfa9890_monitor(struct work_struct *work)
 	mutex_lock(&lr_lock);
 	mutex_lock(&tfa9890->dsp_init_lock);
 	val = snd_soc_read(tfa9890->codec, TFA9890_SYS_STATUS_REG);
-	pr_debug("%s: status:0x%x", __func__, val);
+	pr_debug("%s: status:0x%x\n", __func__, val);
 	/* check IC status bits: cold start, amp switching, speaker error
 	 * and DSP watch dog bit to re init */
 	if ((TFA9890_STATUS_ACS & val) || (TFA9890_STATUS_WDS & val) ||
@@ -1027,18 +1032,18 @@ static void tfa9890_dsp_init(struct work_struct *work)
 
 	val = snd_soc_read(codec, TFA9890_SYS_STATUS_REG);
 
-	pr_info("tfa9890: Initializing DSP, status:0x%x", val);
+	pr_info("tfa9890: Initializing DSP, status:0x%x\n", val);
 
 	/* cold boot device before loading firmware and parameters */
 	ret = tfa9890_coldboot(codec);
 	if (ret < 0) {
-		pr_err("tfa9890: cold boot failed!!");
+		pr_err("tfa9890: cold boot failed!\n");
 		goto out;
 	}
 
 	ret = tfa9890_load_config(tfa9890);
 	if (ret < 0) {
-		pr_err("tfa9890: load dsp config failed!!");
+		pr_err("tfa9890: load dsp config failed!\n");
 		goto out;
 	}
 
@@ -1051,7 +1056,7 @@ static void tfa9890_dsp_init(struct work_struct *work)
 	 * power down/up as well.
 	 */
 	if (!(val & TFA9890_STATUS_MTPEX)) {
-		pr_info("tfa9890:Calib not completed initiating ..");
+		pr_info("tfa9890:Calib not completed, initiating...\n");
 		tfa9890_calibaration(tfa9890);
 	} else
 		/* speaker impedence available to read */
@@ -1136,7 +1141,7 @@ static int tfa9890_hw_params(struct snd_pcm_substream *substream,
 
 	/* validate and set params */
 	if (params_format(params) != SNDRV_PCM_FORMAT_S16_LE) {
-		pr_err("tfa9890: invalid pcm bit lenght\n");
+		pr_err("tfa9890: invalid pcm bit length\n");
 		return -EINVAL;
 	}
 
@@ -1182,7 +1187,7 @@ static int tfa9890_hw_params(struct snd_pcm_substream *substream,
 	bclk_ws_ratio = tfa9890->sysclk/params_rate(params);
 	if (bclk_ws_ratio != 32 && bclk_ws_ratio != 48
 			&& bclk_ws_ratio != 64) {
-		pr_err("tfa9890: invalid bit clk to ws freq ratio %d:",
+		pr_err("tfa9890: invalid bit clk to ws freq ratio: %d\n",
 			bclk_ws_ratio);
 		return -EINVAL;
 	}
@@ -1624,7 +1629,7 @@ static int tfa9890_probe(struct snd_soc_codec *codec)
 
 	if (stereo_mode) {
 		val = snd_soc_read(codec, TFA9890_I2S_CTL_REG);
-		pr_info("%s : val 0x%x\n", tfa9890->tfa_dev, val);
+		pr_info("%s: val 0x%x\n", tfa9890->tfa_dev, val);
 		/* select right/left channel input for I2S */
 		if (!strncmp(tfa9890->tfa_dev, "left", 4)) {
 			val = val & (~TFA9890_I2S_CHS12);
@@ -1645,7 +1650,7 @@ static int tfa9890_probe(struct snd_soc_codec *codec)
 
 	/* load preset tables */
 	queue_work(tfa9890->tfa9890_wq, &tfa9890->load_preset);
-	pr_info("%s codec registered", codec->name);
+	pr_info("%s: codec registered\n", codec->name);
 	return 0;
 }
 
@@ -1680,7 +1685,7 @@ tfa9890_of_init(struct i2c_client *client)
 
 	pdata = devm_kzalloc(&client->dev, sizeof(*pdata), GFP_KERNEL);
 	if (!pdata) {
-		pr_err("%s : pdata allocation failure\n", __func__);
+		pr_err("%s: pdata allocation failure\n", __func__);
 		return NULL;
 	}
 	if (of_property_read_string(np, "nxp,tfa9890_bin_path",
@@ -1793,7 +1798,7 @@ static __devinit int tfa9890_i2c_probe(struct i2c_client *i2c,
 
 	ret = regulator_enable(tfa9890->vdd);
 	if (ret < 0) {
-		pr_err("%s: Error enabling vdd regulator %d:",
+		pr_err("%s: Error enabling vdd regulator %d:\n",
 			__func__, ret);
 		goto reg_enable_fail;
 	}
@@ -1804,7 +1809,7 @@ static __devinit int tfa9890_i2c_probe(struct i2c_client *i2c,
 				&soc_codec_dev_tfa9890,
 				&tfa9890_left_dai, 1);
 		if (ret < 0) {
-			pr_err("%s: Error registering tfa9890 left codec",
+			pr_err("%s: Error registering tfa9890 left codec\n",
 				__func__);
 			goto codec_fail;
 		}
@@ -1814,14 +1819,14 @@ static __devinit int tfa9890_i2c_probe(struct i2c_client *i2c,
 				&soc_codec_dev_tfa9890,
 				&tfa9890_right_dai, 1);
 		if (ret < 0) {
-			pr_err("%s: Error registering tfa9890 right codec",
+			pr_err("%s: Error registering tfa9890 right codec\n",
 				__func__);
 			goto codec_fail;
 		}
 		stereo_mode = 1;
 	}
 
-	pr_info("tfa9890 %s probed successfully!", tfa9890->tfa_dev);
+	pr_info("tfa9890 %s probed successfully!\n", tfa9890->tfa_dev);
 
 	return ret;
 
