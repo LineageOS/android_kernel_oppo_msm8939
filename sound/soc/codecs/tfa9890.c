@@ -70,12 +70,9 @@ struct tfa9890_priv {
 	int speaker_imp;
 	int sysclk;
 	int rst_gpio;
-	int max_vol_steps;
 	int mode;
 	int mode_switched;
 	int curr_mode;
-	int vol_idx;
-	int curr_vol_idx;
 	int ic_version;
 	char const *tfa_dev;
 	char const *fw_path;
@@ -139,21 +136,25 @@ static const struct tfa9890_regs tfa9890_reg_defaults[] = {
 },
 };
 
-/* presets tables per volume step for different modes */
+/* presets tables for different modes */
 
 static char const *tfa9890_preset_tables[] = {
 	"tfa9890_music_table.preset",
 	"tfa9890_voice_table.preset",
-	"tfa9890_ringtone_table.preset",
+};
+
+static char const *tfa9890_eq_tables[] = {
+	"tfa9890_music_table.eq",
+	"tfa9890_voice_table.eq",
 };
 
 static char const *tfa9890_mode[] = {
 	"tfa9890_music",
 	"tfa9890_voice",
-	"tfa9890_ringtone",
 };
 
 static const struct firmware *fw_pst_table[ARRAY_SIZE(tfa9890_mode)];
+static const struct firmware *fw_eq_table[ARRAY_SIZE(tfa9890_mode)];
 
 /* table used by ALSA core while creating codec register
  * access debug fs.
@@ -269,8 +270,7 @@ static int tfa9890_bulk_write(struct snd_soc_codec *codec, unsigned int reg,
 	u8 chunk_buf[TFA9890_MAX_I2C_SIZE + 1];
 	int offset = 0;
 	int ret = 0;
-	/* first byte is mem address */
-	int remaining_bytes = len - 1;
+	int remaining_bytes = len;
 	int chunk_size = TFA9890_MAX_I2C_SIZE;
 
 	chunk_buf[0] = reg & 0xff;
@@ -279,7 +279,7 @@ static int tfa9890_bulk_write(struct snd_soc_codec *codec, unsigned int reg,
 		if (remaining_bytes < chunk_size)
 			chunk_size = remaining_bytes;
 
-		memcpy(chunk_buf + 1, data + 1 + offset, chunk_size);
+		memcpy(chunk_buf + 1, data + offset, chunk_size);
 		ret = tfa9890_i2c_write(codec->control_data, chunk_buf,
 					chunk_size + 1);
 		offset = offset + chunk_size;
@@ -370,7 +370,7 @@ static int tfa9890_dsp_transfer(struct snd_soc_codec *codec,
 			int module_id, int param_id, const u8 *bytes,
 			int len, int type, u8 *read)
 {
-	u8 buffer[8];
+	u8 buffer[7];
 	/* DSP mem access control */
 	u16 cf_ctrl = TFA9890_CF_CTL_MEM_REQ;
 	/* memory address to be accessed (0 : Status, 1 : ID, 2 : parameters) */
@@ -380,18 +380,17 @@ static int tfa9890_dsp_transfer(struct snd_soc_codec *codec,
 	int cf_status;
 
 	/* first the data for CF_CONTROLS */
-	buffer[0] = TFA9890_CF_CONTROLS;
-	buffer[1] = ((cf_ctrl >> 8) & 0xFF);
-	buffer[2] = (cf_ctrl & 0xFF);
+	buffer[0] = ((cf_ctrl >> 8) & 0xFF);
+	buffer[1] = (cf_ctrl & 0xFF);
 	/* write the contents of CF_MAD which is the subaddress
 	 * following CF_CONTROLS.
 	 */
-	buffer[3] = ((cf_mad >> 8) & 0xFF);
-	buffer[4] = (cf_mad & 0xFF);
+	buffer[2] = ((cf_mad >> 8) & 0xFF);
+	buffer[3] = (cf_mad & 0xFF);
 	/* write the module and RPC id into CF_MEM, which follows CF_MAD */
-	buffer[5] = 0;
-	buffer[6] = module_id + 128;
-	buffer[7] = param_id;
+	buffer[4] = 0;
+	buffer[5] = module_id + 128;
+	buffer[6] = param_id;
 	err = codec->bulk_write_raw(codec, TFA9890_CF_CONTROLS, buffer,
 						ARRAY_SIZE(buffer));
 	if (err < 0) {
@@ -419,13 +418,12 @@ static int tfa9890_dsp_transfer(struct snd_soc_codec *codec,
 	}
 	/* read the RPC Status */
 	cf_ctrl = TFA9890_CF_CTL_MEM_REQ;
-	buffer[0] = TFA9890_CF_CONTROLS;
-	buffer[1] = (unsigned char)((cf_ctrl >> 8) & 0xFF);
-	buffer[2] = (unsigned char)(cf_ctrl & 0xFF);
+	buffer[0] = (unsigned char)((cf_ctrl >> 8) & 0xFF);
+	buffer[1] = (unsigned char)(cf_ctrl & 0xFF);
 	cf_mad = TFA9890_CF_MAD_STATUS;
-	buffer[3] = (unsigned char)((cf_mad >> 8) & 0xFF);
-	buffer[4] = (unsigned char)(cf_mad & 0xFF);
-	err = codec->bulk_write_raw(codec, TFA9890_CF_CONTROLS, buffer, 5);
+	buffer[2] = (unsigned char)((cf_mad >> 8) & 0xFF);
+	buffer[3] = (unsigned char)(cf_mad & 0xFF);
+	err = codec->bulk_write_raw(codec, TFA9890_CF_CONTROLS, buffer, 4);
 	if (err < 0) {
 		pr_err("tfa9890: Failed to Write NXP DSP CTL reg for rpc check%d",
 				err);
@@ -470,27 +468,31 @@ static int tfa9890_set_mode(struct tfa9890_priv *tfa9890)
 {
 	int ret;
 
-	if ((fw_pst_table[tfa9890->mode])->size !=
-			tfa9890->max_vol_steps*TFA9890_PST_FW_SIZE) {
+	if ((fw_pst_table[tfa9890->mode])->size != TFA9890_PST_FW_SIZE) {
 		pr_err("tfa9890: Data size check failed preset file");
 		return -EIO;
 	}
 
-	pr_debug("tfa9890: switching to mode: %s vol idx: %d",
-			tfa9890_mode[tfa9890->mode], tfa9890->vol_idx);
+	pr_debug("tfa9890: switching to mode: %s\n",
+		 tfa9890_mode[tfa9890->mode]);
 
 	ret = tfa9890_dsp_transfer(tfa9890->codec, TFA9890_DSP_MOD_SPEAKERBOOST,
 			TFA9890_PARAM_SET_PRESET,
-			(fw_pst_table[tfa9890->mode])->data +
-			((TFA9890_PST_FW_SIZE)*
-				(tfa9890->max_vol_steps - tfa9890->vol_idx)),
-			TFA9890_PST_FW_SIZE, TFA9890_DSP_WRITE, 0);
+			fw_pst_table[tfa9890->mode]->data,
+			fw_pst_table[tfa9890->mode]->size,
+			TFA9890_DSP_WRITE, 0);
+	if (ret < 0)
+		return ret;
+
+	ret = tfa9890_dsp_transfer(tfa9890->codec, TFA9890_DSP_MOD_BIQUADFILTERBANK,
+			0, fw_eq_table[tfa9890->mode]->data,
+			fw_eq_table[tfa9890->mode]->size,
+			TFA9890_DSP_WRITE, 0);
 	if (ret < 0)
 		return ret;
 
 	tfa9890->mode_switched = 0;
 	tfa9890->curr_mode = tfa9890->mode;
-	tfa9890->curr_vol_idx = tfa9890->vol_idx;
 	return ret;
 }
 
@@ -501,32 +503,20 @@ static int tfa9890_put_mode(struct snd_kcontrol *kcontrol,
 	struct tfa9890_priv *tfa9890 = snd_soc_codec_get_drvdata(codec);
 	u16 val;
 	int mode_value = ucontrol->value.integer.value[0];
-	int vol_value = ucontrol->value.integer.value[1];
 
 	mutex_lock(&lr_lock);
 	mutex_lock(&tfa9890->dsp_init_lock);
 	/* check for boundary conditions */
-	if ((vol_value > tfa9890->max_vol_steps || vol_value < 0) ||
-			(mode_value > (ARRAY_SIZE(tfa9890_mode) - 1) ||
-			mode_value < 0)) {
-		pr_err("%s: invalid mode or vol index set", __func__);
+	if (mode_value > (ARRAY_SIZE(tfa9890_mode) - 1) || mode_value < 0) {
+		pr_err("%s: invalid mode set", __func__);
 		mutex_unlock(&tfa9890->dsp_init_lock);
 		mutex_unlock(&lr_lock);
 		return -EINVAL;
 	}
 
-	if (vol_value == 0)
-		/* increment vol value to 1 for index 0, vol index 0 is not
-		 * treated as mute for all streams in android, use
-		 * nxp preset 1 for vol index 0.
-		 */
-		vol_value++;
-
-	if (tfa9890->curr_mode != mode_value ||
-			tfa9890->curr_vol_idx != vol_value) {
+	if (tfa9890->curr_mode != mode_value) {
 		tfa9890->mode_switched = 1;
 		tfa9890->mode = mode_value;
-		tfa9890->vol_idx = vol_value;
 		val = snd_soc_read(codec, TFA9890_SYS_STATUS_REG);
 		/* audio session active switch the preset realtime */
 		if ((val & TFA9890_STATUS_UP_MASK) == TFA9890_STATUS_UP_MASK)
@@ -546,7 +536,7 @@ static const struct snd_kcontrol_new tfa9890_left_snd_controls[] = {
 	SOC_SINGLE_TLV("NXP VolumeL", TFA9890_VOL_CTL_REG,
 			8, 0xff, 0, tlv_step_0_5),
 	SOC_SINGLE_MULTI_EXT("NXP ModeL", SND_SOC_NOPM, 0, 255,
-				 0, 2, tfa9890_get_mode,
+				 0, 1, tfa9890_get_mode,
 				 tfa9890_put_mode),
 	/* val 1 for left channel, 2 for right and 3 for (l+r)/2 */
 	SOC_SINGLE("NXP Left Ch Select", TFA9890_I2S_CTL_REG,
@@ -575,7 +565,7 @@ static const struct snd_kcontrol_new tfa9890_right_snd_controls[] = {
 	SOC_SINGLE_TLV("NXP VolumeR", TFA9890_VOL_CTL_REG,
 			8, 0xff, 0, tlv_step_0_5),
 	SOC_SINGLE_MULTI_EXT("NXP ModeR", SND_SOC_NOPM, 0, 255,
-				 0, 2, tfa9890_get_mode,
+				 0, 1, tfa9890_get_mode,
 				 tfa9890_put_mode),
 	/* val 1 for left channel, 2 for right and 3 for (l+r)/2 */
 	SOC_SINGLE("NXP Right Ch Select", TFA9890_I2S_CTL_REG,
@@ -605,8 +595,7 @@ static const struct snd_soc_dapm_route tfa9890_right_dapm_routes[] = {
  */
 static int tfa9890_coldboot(struct snd_soc_codec *codec)
 {
-	u8 coldpatch[8] = {TFA9890_CF_CONTROLS, 0x00, 0x07, 0x81, 0x00,
-				0x00, 0x00, 0x01};
+	u8 coldpatch[7] = {0x00, 0x07, 0x81, 0x00, 0x00, 0x00, 0x01};
 	int ret;
 	u16 val;
 
@@ -771,7 +760,7 @@ static int tfa9887_load_dsp_patch(struct snd_soc_codec *codec, const u8 *fw,
 			goto out;
 		}
 		err = codec->bulk_write_raw(codec, *(fw_data + index),
-				(fw_data + index), size);
+				(fw_data + index + 1), size);
 		if (err < 0) {
 			pr_err("tfa9890: writing dsp patch failed");
 			goto out;
@@ -790,7 +779,6 @@ static int tfa9890_load_config(struct tfa9890_priv *tfa9890)
 	int ret = -EIO;
 	const struct firmware *fw_speaker = NULL;
 	const struct firmware *fw_config = NULL;
-	const struct firmware *fw_coeff = NULL;
 	const struct firmware *fw_patch = NULL;
 	u16 val;
 	char *fw_name;
@@ -871,23 +859,6 @@ static int tfa9890_load_config(struct tfa9890_priv *tfa9890)
 	ret = tfa9890_set_mode(tfa9890);
 	if (ret < 0)
 		goto out;
-	scnprintf(fw_name, FIRMWARE_NAME_SIZE, "%s/%s.tfa9890.eq",
-		tfa9890->fw_path, tfa9890->tfa_dev);
-	ret = request_firmware(&fw_coeff, fw_name, codec->dev);
-
-	if (ret) {
-		pr_err("tfa9890: Failed to locate DSP coefficients");
-		goto out;
-	}
-	if (fw_coeff->size != TFA9890_COEFF_FW_SIZE) {
-		pr_err("tfa9890: Data size check failed coefficients");
-		goto out;
-	}
-	ret = tfa9890_dsp_transfer(codec, TFA9890_DSP_MOD_BIQUADFILTERBANK,
-			0, fw_coeff->data, fw_coeff->size,
-			TFA9890_DSP_WRITE, 0);
-	if (ret < 0)
-		goto out;
 
 	/* set all dsp config loaded */
 	val = (u16)snd_soc_read(codec, TFA9890_SYS_CTL1_REG);
@@ -900,7 +871,6 @@ out:
 	kfree(fw_name);
 	/* release firmware */
 	release_firmware(fw_speaker);
-	release_firmware(fw_coeff);
 	release_firmware(fw_config);
 	release_firmware(fw_patch);
 	return ret;
@@ -969,12 +939,12 @@ static void tfa9890_load_preset(struct work_struct *work)
 	struct snd_soc_codec *codec = tfa9890->codec;
 	int ret;
 	int i;
-	char *preset_name;
+	char *file_name;
 
 	mutex_lock(&lr_lock);
 	pr_info("%s: loading presets\n", codec->name);
-	preset_name = kzalloc(FIRMWARE_NAME_SIZE, GFP_KERNEL);
-	if (!preset_name) {
+	file_name = kzalloc(FIRMWARE_NAME_SIZE, GFP_KERNEL);
+	if (!file_name) {
 		tfa9890->dsp_init = TFA9890_DSP_INIT_FAIL;
 		pr_err("tfa9890 : Load preset allocation failure\n");
 		mutex_unlock(&lr_lock);
@@ -982,21 +952,32 @@ static void tfa9890_load_preset(struct work_struct *work)
 	}
 
 	for (i = 0; i < ARRAY_SIZE(fw_pst_table); i++) {
-		scnprintf(preset_name, FIRMWARE_NAME_SIZE, "%s/%s.%s",
+		scnprintf(file_name, FIRMWARE_NAME_SIZE, "%s/%s.%s",
 				tfa9890->fw_path, tfa9890->tfa_dev,
 				tfa9890_preset_tables[i]);
 		ret = request_firmware(&fw_pst_table[i],
-				preset_name,
+				file_name,
 				codec->dev);
-		if (ret || (fw_pst_table[i]->size !=
-				tfa9890->max_vol_steps*TFA9890_PST_FW_SIZE)) {
+		if (ret || fw_pst_table[i]->size != TFA9890_PST_FW_SIZE) {
 			pr_err("%s: Failed to locate DSP preset table %s",
-					codec->name, preset_name);
+					codec->name, file_name);
+			tfa9890->dsp_init = TFA9890_DSP_INIT_FAIL;
+			break;
+		}
+
+		scnprintf(file_name, FIRMWARE_NAME_SIZE, "%s/%s.%s",
+				tfa9890->fw_path, tfa9890->tfa_dev,
+				tfa9890_eq_tables[i]);
+		ret = request_firmware(&fw_eq_table[i],
+				file_name, codec->dev);
+		if (ret || fw_eq_table[i]->size != TFA9890_COEFF_FW_SIZE) {
+			pr_err("%s: Failed to locate EQ table %s",
+					codec->name, file_name);
 			tfa9890->dsp_init = TFA9890_DSP_INIT_FAIL;
 			break;
 		}
 	}
-	kfree(preset_name);
+	kfree(file_name);
 	mutex_unlock(&lr_lock);
 }
 
@@ -1706,8 +1687,6 @@ tfa9890_of_init(struct i2c_client *client)
 				&pdata->fw_path))
 		pdata->fw_path = ".";
 
-	of_property_read_u32(np, "nxp,tfa_max-vol-steps",
-				&pdata->max_vol_steps);
 	pdata->reset_gpio = of_get_gpio(np, 0);
 
 	if (of_property_read_string(np, "nxp,tfa-dev", &pdata->tfa_dev))
@@ -1754,11 +1733,8 @@ static __devinit int tfa9890_i2c_probe(struct i2c_client *i2c,
 		return -ENOMEM;
 
 	tfa9890->rst_gpio = pdata->reset_gpio;
-	tfa9890->max_vol_steps = pdata->max_vol_steps;
 	tfa9890->control_data = i2c;
 	tfa9890->dsp_init = TFA9890_DSP_INIT_PENDING;
-	tfa9890->vol_idx = pdata->max_vol_steps;
-	tfa9890->curr_vol_idx = pdata->max_vol_steps;
 	tfa9890->tfa_dev = pdata->tfa_dev;
 	tfa9890->fw_path = pdata->fw_path;
 	i2c_set_clientdata(i2c, tfa9890);
