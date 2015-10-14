@@ -228,10 +228,6 @@ static struct device_attribute power_supply_attrs[] = {
 	POWER_SUPPLY_ATTR(BatteryNotify),
 #endif
 #ifdef VENDOR_EDIT
-//Fuchun.Liao@Mobile.BSP.CHG 2015-02-13 add for otg_switch in 14043
-	POWER_SUPPLY_ATTR(otg_switch),
-#endif
-#ifdef VENDOR_EDIT
 //Fuchun.Liao@Mobile.BSP.CHG 2015-05-27add for power_off when vbat is too low
 	POWER_SUPPLY_ATTR(power_off),
 #endif
