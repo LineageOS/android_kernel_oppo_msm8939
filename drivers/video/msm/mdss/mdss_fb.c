@@ -873,15 +873,15 @@ static struct attribute *mdss_fb_attrs[] = {
 	&dev_attr_msm_fb_src_split_info.attr,
 	&dev_attr_msm_fb_thermal_level.attr,
 	&dev_attr_always_on.attr,
+	&dev_attr_rgb.attr,
 #ifdef VENDOR_EDIT
 /* Xiaori.Yuan@Mobile Phone Software Dept.Driver, 2014/08/14  Add for ftm mode shut down lcd */
 	&dev_attr_lcdoff.attr,
 	&dev_attr_lpm.attr,
 	&dev_attr_hbm.attr,
-	&dev_attr_cabc.attr,
 	&dev_attr_closebl.attr,
+	&dev_attr_cabc.attr,
 #endif /*VENDOR_EDIT*/
-	&dev_attr_rgb.attr,
 	NULL,
 };
 
@@ -892,6 +892,16 @@ static struct attribute_group mdss_fb_attr_group = {
 static int mdss_fb_create_sysfs(struct msm_fb_data_type *mfd)
 {
 	int rc;
+
+	if(!(is_project(OPPO_15009)||is_project(OPPO_15037)||is_project(OPPO_15035))) {
+		int i;
+		for (i = 0; i < ARRAY_SIZE(mdss_fb_attrs); i++) {
+			if (mdss_fb_attrs[i] == &dev_attr_cabc.attr) {
+				mdss_fb_attrs[i] = NULL;
+				break;
+			}
+		}
+	}
 
 	rc = sysfs_create_group(&mfd->fbi->dev->kobj, &mdss_fb_attr_group);
 	if (rc)
