@@ -2144,7 +2144,7 @@ static int CheckDeadPixelInDetectZone(fpc1020_data_t *fpc1020, int index)
 	int* yp;
 	int x = 0, y = 0;
 	
-	if (fpc1020->chip.type == FPC1020_CHIP_1021A) {
+	if (fpc1020->chip.type == FPC1020_CHIP_1020A) {
 
 		ypos = index / 192;
 		xpos = index % 192;
@@ -2152,7 +2152,8 @@ static int CheckDeadPixelInDetectZone(fpc1020_data_t *fpc1020, int index)
 		yp = yp_1020;
 
 	} else if (fpc1020->chip.type == FPC1020_CHIP_1021A || 
-			fpc1020->chip.type == FPC1020_CHIP_1021B) {
+			fpc1020->chip.type == FPC1020_CHIP_1021B ||
+			fpc1020->chip.type == FPC1020_CHIP_1021F) {
 
 		ypos = index / 160;
 		xpos = index % 160;
