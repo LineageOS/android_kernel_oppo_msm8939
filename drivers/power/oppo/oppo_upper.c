@@ -800,8 +800,17 @@ int qpnp_power_get_property_mains(struct power_supply *psy,
 		break;
 		
 	case POWER_SUPPLY_PROP_CURRENT_MAX:
-		val->intval = chip->fastchg_current_max_ma * 1000;//chip->maxinput_dc_ma * 1000;
+#ifdef OPPO_USE_FAST_CHARGER
+		if (opchg_get_prop_fast_chg_started(chip)) {
+			// report a hardcoded value of 5A, as that's the theoretical VOOC limit
+			val->intval = 5000000;
+		} else
+#endif
+		{
+			val->intval = chip->max_input_current[INPUT_CURRENT_MIN] * 1000;
+		}
 		break;
+	}
 	
 	default:
 		return -EINVAL;
