@@ -810,7 +810,6 @@ int qpnp_power_get_property_mains(struct power_supply *psy,
 			val->intval = chip->max_input_current[INPUT_CURRENT_MIN] * 1000;
 		}
 		break;
-	}
 	
 	default:
 		return -EINVAL;
