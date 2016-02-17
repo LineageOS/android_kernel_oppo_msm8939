@@ -1132,8 +1132,9 @@ static long fpc1020_ioctl(struct file *file,
 
 		case FPC_ABORT:
 			dev_dbg(&fpc1020->spi->dev, "FPC_ABORT \n");
-			wake_up_interruptible(&fpc1020->g_irq_event);
 			fpc1020->tee_interrupt_done = true;
+			fpc1020->wait_abort = true;
+			wake_up_interruptible(&fpc1020->g_irq_event);
 			break;
 
 		case FPC_ENABLE_SPI_CLK:
@@ -1674,7 +1675,6 @@ irqreturn_t fpc1020_interrupt(int irq, void *_fpc1020)
 		fpc1020->interrupt_done = true;
 		wake_up_interruptible(&fpc1020->wq_irq_return);
 #ifdef FPC_TEE_INTERRUPT_ONLY
-		wake_up_interruptible(&fpc1020->g_irq_event);
 		if (fpc1020->init_done) 
 			disable_irq_nosync(irq);
 		else
@@ -1684,6 +1684,7 @@ irqreturn_t fpc1020_interrupt(int irq, void *_fpc1020)
 			fpc1020->tee_interrupt_done = true;
 			wake_lock_timeout(&fpc1020->irq_wakelock, HZ/2);
 		}
+		wake_up_interruptible(&fpc1020->g_irq_event);
 #endif	
 		return IRQ_HANDLED;
 	}
