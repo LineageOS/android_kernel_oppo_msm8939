@@ -181,6 +181,7 @@ static int kxtj9_i2c_read(struct kxtj9_data *tj9, u8 addr, u8 *data, int len)
 
 static void kxtj9_report_acceleration_data(struct kxtj9_data *tj9,int *xyz, int cali_flag)
 {
+	ktime_t ts = ktime_get_boottime();
 	s16 acc_data[3]; /* Data bytes from hardware xL, xH, yL, yH, zL, zH */
 	s16 x, y, z;
 	int err;
@@ -229,6 +230,10 @@ static void kxtj9_report_acceleration_data(struct kxtj9_data *tj9,int *xyz, int 
 	input_report_abs(tj9->input_dev, ABS_X, x);
 	input_report_abs(tj9->input_dev, ABS_Y, y);
 	input_report_abs(tj9->input_dev, ABS_Z, z);
+	input_event(tj9->input_dev, EV_SYN, SYN_TIME_SEC,
+			ktime_to_timespec(ts).tv_sec);
+	input_event(tj9->input_dev, EV_SYN, SYN_TIME_NSEC,
+			ktime_to_timespec(ts).tv_nsec);
 	input_sync(tj9->input_dev);
 }
 
