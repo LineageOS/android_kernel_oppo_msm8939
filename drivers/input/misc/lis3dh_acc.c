@@ -740,9 +740,14 @@ static int lis3dh_acc_get_acceleration_data(struct lis3dh_acc_data *acc,int *xyz
 static void lis3dh_acc_report_values(struct lis3dh_acc_data *acc,
 		int *xyz)
 {
+	ktime_t ts = ktime_get_boottime();
 	input_report_abs(acc->input_dev, ABS_X, xyz[0]);
 	input_report_abs(acc->input_dev, ABS_Y, xyz[1]);
 	input_report_abs(acc->input_dev, ABS_Z, xyz[2]);
+	input_event(acc->input_dev, EV_SYN, SYN_TIME_SEC,
+			ktime_to_timespec(ts).tv_sec);
+	input_event(acc->input_dev, EV_SYN, SYN_TIME_NSEC,
+			ktime_to_timespec(ts).tv_nsec);
 	input_sync(acc->input_dev);
 }
 
