@@ -1168,7 +1168,7 @@ static void gesture_judge(struct synaptics_ts_data *ts)
 		case DTAP_DETECT:
 			gesture = DouTap;
 			if (ts->double_enable)
-				keycode = KEY_POWER;
+				keycode = KEY_WAKEUP;
 			break;
 		case SWIPE_DETECT:
 			gesture =   (regswipe == 0x41) ? Left2RightSwip   :
@@ -2360,7 +2360,7 @@ static int	synaptics_input_init(struct synaptics_ts_data *ts)
 	set_bit(INPUT_PROP_DIRECT, ts->input_dev->propbit);
 
 #ifdef SUPPORT_GESTURE
-	set_bit(KEY_POWER, ts->input_dev->keybit); //double-tap resume
+	set_bit(KEY_WAKEUP, ts->input_dev->keybit); //double-tap resume
 	set_bit(KEY_GESTURE_CIRCLE, ts->input_dev->keybit);
 	set_bit(KEY_GESTURE_SWIPE_DOWN, ts->input_dev->keybit);
 	set_bit(KEY_GESTURE_V, ts->input_dev->keybit);
