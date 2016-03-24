@@ -1676,7 +1676,7 @@ static int lis3dh_acc_probe(struct i2c_client *client, const struct i2c_device_i
 	acc->cdev = lis3dh_acc_cdev;
 	acc->cdev.sensors_enable = lis3dh_acc_enable_set;
 	acc->cdev.sensors_poll_delay = lis3dh_acc_poll_delay_set;
-	err = sensors_classdev_register(&client->dev, &acc->cdev);
+	err = sensors_classdev_register(&acc->input_dev->dev, &acc->cdev);
 	if (err) {
 		dev_err(&client->dev,"class device create failed: %d\n", err);
 		goto err_remove_sysfs_int;
