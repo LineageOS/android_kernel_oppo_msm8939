@@ -275,7 +275,7 @@ static struct sensors_classdev lis3dh_acc_cdev = {
 	.handle = SENSORS_ACCELERATION_HANDLE,
 	.type = SENSOR_TYPE_ACCELEROMETER,
 	.max_range = "156.8",
-	.resolution = "0.01",
+	.resolution = "0.000598144", /* m/s^2 */
 	.sensor_power = "0.01",
 	.min_delay = 5000,
 	.delay_msec = 200,
@@ -700,14 +700,9 @@ static int lis3dh_acc_get_acceleration_data(struct lis3dh_acc_data *acc,int *xyz
 	if (err < 0)
 		return err;
 
-	hw_d[0] = (((s16) ((acc_data[1] << 8) | acc_data[0])) >> 4);
-	hw_d[1] = (((s16) ((acc_data[3] << 8) | acc_data[2])) >> 4);
-	hw_d[2] = (((s16) ((acc_data[5] << 8) | acc_data[4])) >> 4);
-
-	hw_d[0] = hw_d[0] * acc->sensitivity;
-	hw_d[1] = hw_d[1] * acc->sensitivity;
-	hw_d[2] = hw_d[2] * acc->sensitivity;
-
+	hw_d[0] = (s16) ((acc_data[1] << 8) | acc_data[0]);
+	hw_d[1] = (s16) ((acc_data[3] << 8) | acc_data[2]);
+	hw_d[2] = (s16) ((acc_data[5] << 8) | acc_data[4]);
 
 	xyz[0] = ((acc->pdata->negate_x) ? (-hw_d[acc->pdata->axis_map_x])
 			: (hw_d[acc->pdata->axis_map_x]));
@@ -715,6 +710,10 @@ static int lis3dh_acc_get_acceleration_data(struct lis3dh_acc_data *acc,int *xyz
 			: (hw_d[acc->pdata->axis_map_y]));
 	xyz[2] = ((acc->pdata->negate_z) ? (-hw_d[acc->pdata->axis_map_z])
 			: (hw_d[acc->pdata->axis_map_z]));
+
+	xyz[0] = xyz[0] * acc->sensitivity;
+	xyz[1] = xyz[1] * acc->sensitivity;
+	xyz[2] = xyz[2] * acc->sensitivity;
 
 #ifdef DEBUG
 	dev_dbg(&acc->client->dev, "%s read x=%d, y=%d, z=%d\n",LIS3DH_ACC_DEV_NAME, xyz[0], xyz[1], xyz[2]);
@@ -930,7 +929,7 @@ static int calculate_gsensor_cali_data(struct i2c_client *client, int data[LIS3D
 
 	calibration_buf[LIS3DH_AXIS_X] = 0-average_offset[LIS3DH_AXIS_X];
 	calibration_buf[LIS3DH_AXIS_Y] = 0-average_offset[LIS3DH_AXIS_Y] ;
-	calibration_buf[LIS3DH_AXIS_Z] = 1024-average_offset[LIS3DH_AXIS_Z] ;
+	calibration_buf[LIS3DH_AXIS_Z] = 16384-average_offset[LIS3DH_AXIS_Z] ;
 
 	if(abs(calibration_buf[LIS3DH_AXIS_X]) <= 150
 			&& abs(calibration_buf[LIS3DH_AXIS_Y]) <= 150
