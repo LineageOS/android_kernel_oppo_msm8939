@@ -1707,8 +1707,8 @@ tfa9890_of_init(struct i2c_client *client)
 }
 #endif
 
-static __devinit int tfa9890_i2c_probe(struct i2c_client *i2c,
-				      const struct i2c_device_id *id)
+static int tfa9890_i2c_probe(struct i2c_client *i2c,
+			     const struct i2c_device_id *id)
 {
 	struct tfa9890_pdata *pdata;
 	struct tfa9890_priv *tfa9890;
@@ -1844,7 +1844,7 @@ wq_fail:
 	return ret;
 }
 
-static __devexit int tfa9890_i2c_remove(struct i2c_client *client)
+static int tfa9890_i2c_remove(struct i2c_client *client)
 {
 	struct tfa9890_priv *tfa9890 = i2c_get_clientdata(client);
 
@@ -1878,7 +1878,7 @@ static struct i2c_driver tfa9890_i2c_driver = {
 		.of_match_table = of_match_ptr(tfa9890_match_tbl),
 	},
 	.probe =    tfa9890_i2c_probe,
-	.remove =   __devexit_p(tfa9890_i2c_remove),
+	.remove =   tfa9890_i2c_remove,
 	.id_table = tfa9890_i2c_id,
 };
 static int __init tfa9890_modinit(void)
