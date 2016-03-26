@@ -91,4 +91,8 @@ static inline bool qpnp_pon_check_hard_reset_stored(void)
 }
 #endif
 
+#ifdef VENDOR_EDIT
+int qpnp_silence_write(u16 addr, u8 val);
+#endif
+
 #endif

@@ -32,6 +32,10 @@
 #include <soc/qcom/restart.h>
 #include <soc/qcom/watchdog.h>
 
+#ifdef VENDOR_EDIT
+#include <soc/oppo/oppo_project.h>
+#endif
+
 #define EMERGENCY_DLOAD_MAGIC1    0x322A4F99
 #define EMERGENCY_DLOAD_MAGIC2    0xC67E4350
 #define EMERGENCY_DLOAD_MAGIC3    0x77777777
@@ -43,6 +47,12 @@
 #define SCM_EDLOAD_MODE			0X01
 #define SCM_DLOAD_CMD			0x10
 
+#ifdef VENDOR_EDIT
+#define RTC_BOOT_MODE		0x88F
+#define RTC_FASTBOOT_MODE	0x01
+#define RTC_RECOVERY_MODE	0x02
+#define RTC_SILENCE_MODE	0x03
+#endif
 
 static int restart_mode;
 void *restart_reason;
@@ -258,13 +268,30 @@ static void msm_restart_prepare(const char *cmd)
 
 	if (cmd != NULL) {
 		if (!strncmp(cmd, "bootloader", 10)) {
-			qpnp_pon_set_restart_reason(
-				PON_RESTART_REASON_BOOTLOADER);
-			__raw_writel(0x77665500, restart_reason);
+#ifdef VENDOR_EDIT
+			if (is_project(OPPO_15011)) {
+				qpnp_silence_write(RTC_BOOT_MODE,
+						   RTC_FASTBOOT_MODE);
+			} else
+#endif
+			{
+				qpnp_pon_set_restart_reason(
+					PON_RESTART_REASON_BOOTLOADER);
+				__raw_writel(0x77665500, restart_reason);
+			}
+
 		} else if (!strncmp(cmd, "recovery", 8)) {
-			qpnp_pon_set_restart_reason(
-				PON_RESTART_REASON_RECOVERY);
-			__raw_writel(0x77665502, restart_reason);
+#ifdef VENDOR_EDIT
+			if (is_project(OPPO_15011)) {
+				qpnp_silence_write(RTC_BOOT_MODE,
+						   RTC_RECOVERY_MODE);
+			} else
+#endif
+			{
+				qpnp_pon_set_restart_reason(
+					PON_RESTART_REASON_RECOVERY);
+				__raw_writel(0x77665502, restart_reason);
+			}
 		} else if (!strcmp(cmd, "rtc")) {
 			qpnp_pon_set_restart_reason(
 				PON_RESTART_REASON_RTC);
@@ -279,9 +306,14 @@ static void msm_restart_prepare(const char *cmd)
 		} else if (!strncmp(cmd, "mos", 3)) {
 			__raw_writel(0x77665507, restart_reason);
 		} else if (!strncmp(cmd, "silence", 7)) {
-			qpnp_pon_set_restart_reason(
-				PON_RESTART_REASON_SILENCE);
-			__raw_writel(0x77665508, restart_reason);
+			if (is_project(OPPO_15011)) {
+				qpnp_silence_write(RTC_BOOT_MODE,
+						   RTC_SILENCE_MODE);
+			} else {
+				qpnp_pon_set_restart_reason(
+					PON_RESTART_REASON_SILENCE);
+				__raw_writel(0x77665508, restart_reason);
+			}
 		} else if (!strncmp(cmd, "kernel", 6)) {
 			__raw_writel(0x7766550a, restart_reason);
 		} else if (!strncmp(cmd, "modem", 5)) {
