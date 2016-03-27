@@ -3177,14 +3177,14 @@ static int apds993x_probe(struct i2c_client *client,
 	data->ps_cdev.sensors_enable = apds993x_ps_set_enable;
 	data->ps_cdev.sensors_poll_delay = NULL;
 
-	err = sensors_classdev_register(&client->dev, &data->als_cdev);
+	err = sensors_classdev_register(&data->input_dev_als->dev,&data->als_cdev);
 	if (err) {
 		pr_err("%s: Unable to register to sensors class: %d\n",
 				__func__, err);
 		goto exit_unregister_als_ioctl;
 	}
 
-	err = sensors_classdev_register(&client->dev, &data->ps_cdev);
+	err = sensors_classdev_register(&data->input_dev_ps->dev,&data->ps_cdev);
 	if (err) {
 		pr_err("%s: Unable to register to sensors class: %d\n",
 			       __func__, err);
