@@ -436,10 +436,10 @@ static struct device_attribute attrs_oppo[] = {
 
 /*---------------------------------------------Fuction Apply------------------------------------------------*/
 static ssize_t cap_vk_show(struct kobject *kobj, struct kobj_attribute *attr, char *buf){
-      /* LEFT: search: CENTER: menu ,home:search 412, RIGHT: BACK */
+      /* LEFT: MENU, CENTER: HOME, RIGHT: BACK */
 	return sprintf(buf,
 		__stringify(EV_KEY) ":" __stringify(KEY_MENU)   ":%d:%d:%d:%d"
-        ":" __stringify(EV_KEY) ":" __stringify(KEY_HOMEPAGE)   ":%d:%d:%d:%d"
+        ":" __stringify(EV_KEY) ":" __stringify(KEY_HOME)   ":%d:%d:%d:%d"
         ":" __stringify(EV_KEY) ":" __stringify(KEY_BACK)   ":%d:%d:%d:%d"
         "\n",LCD_WIDTH/6,button_map[2],button_map[0],button_map[1],LCD_WIDTH/2,button_map[2],button_map[0],button_map[1],LCD_WIDTH*5/6,button_map[2],button_map[0],button_map[1]);
 }
@@ -1347,12 +1347,12 @@ static void int_key_report(struct synaptics_ts_data *ts)
 		if((ret & 0x02) && !(ts->pre_btn_state & 0x02))//home
 		{
 			if( 0 == is_touch ){
-				input_report_key(ts->input_dev, KEY_HOMEPAGE, 1);
+				input_report_key(ts->input_dev, KEY_HOME, 1);
 				input_sync(ts->input_dev);
 			}
 
 		}else if(!(ret & 0x02) && (ts->pre_btn_state & 0x02)){
-			input_report_key(ts->input_dev, KEY_HOMEPAGE, 0);
+			input_report_key(ts->input_dev, KEY_HOME, 0);
 			input_sync(ts->input_dev);
 		}
 
@@ -2366,9 +2366,6 @@ static int	synaptics_input_init(struct synaptics_ts_data *ts)
 	set_bit(KEY_GESTURE_V, ts->input_dev->keybit);
 	set_bit(KEY_GESTURE_LTR, ts->input_dev->keybit);
 	set_bit(KEY_GESTURE_GTR, ts->input_dev->keybit);
-	set_bit(KEY_MENU , ts->input_dev->keybit);
-	set_bit(KEY_HOMEPAGE , ts->input_dev->keybit);
-	set_bit(KEY_BACK , ts->input_dev->keybit);
 #endif
 	/* For multi touch */
 	input_set_abs_params(ts->input_dev, ABS_MT_TOUCH_MAJOR, 0, 255, 0, 0);
@@ -2378,11 +2375,9 @@ static int	synaptics_input_init(struct synaptics_ts_data *ts)
 	input_mt_init_slots(ts->input_dev, ts->max_num, 0);
 #endif
 	set_bit(BTN_TOUCH, ts->input_dev->keybit);
-	set_bit(KEY_SEARCH, ts->input_dev->keybit);
 	set_bit(KEY_MENU, ts->input_dev->keybit);
 	set_bit(KEY_HOME, ts->input_dev->keybit);
 	set_bit(KEY_BACK, ts->input_dev->keybit);
-	set_bit(KEY_HOMEPAGE , ts->input_dev->keybit);
 	input_set_drvdata(ts->input_dev, ts);
 
 	if(input_register_device(ts->input_dev)) {
@@ -3558,7 +3553,7 @@ static int synaptics_ts_suspend(struct device *dev)
 /***********report Up key when suspend********/
 	input_report_key(ts->input_dev, KEY_MENU, 0);
 	input_sync(ts->input_dev);
-	input_report_key(ts->input_dev, KEY_HOMEPAGE, 0);
+	input_report_key(ts->input_dev, KEY_HOME, 0);
 	input_sync(ts->input_dev);
 	input_report_key(ts->input_dev, KEY_BACK, 0);
 	input_sync(ts->input_dev);
