@@ -83,7 +83,7 @@ dtbs: scripts
 #huqiao@EXP.BasicDrv.Basic add for clone 15085
 	$(Q)$(MAKE) $(build)=$(boot)/dts/15085 dtbs
 	$(Q)$(MAKE) $(build)=$(boot)/dts/15035 dtbs
-
+	$(Q)$(MAKE) $(build)=$(boot)/dts/15109 dtbs
 PHONY += vdso_install
 vdso_install:
 	$(Q)$(MAKE) $(build)=arch/arm64/kernel/vdso $@
