@@ -40,15 +40,27 @@
 #define DEVICE_VERSION_S5K3H7		"s5k3h7"
 #define DEVICE_MANUFACUTRE_S5K3H7	"Samsung"
 
+#define DEVICE_VERSION_S5K4H8		"s5k4h8"
+#define DEVICE_MANUFACUTRE_S5K4H8	"Samsung"
+
+#define DEVICE_VERSION_S5K3L8		"s5k3l8"
+#define DEVICE_MANUFACUTRE_S5K3L8	"Samsung"
+
+
 #define DEVICE_VERSION_IMX278		"imx278"
 #define DEVICE_MANUFACUTRE_IMX278	"sony"
 
 #define DEVICE_VERSION_S5K3M2_SUNNY		"s5k3m2_sunny"
+#define DEVICE_VERSION_S5K3M2_TRULY		"s5k3m2_truly"
 #define DEVICE_VERSION_S5K3M2_SEMCO		"s5k3m2_semco"
+#define DEVICE_VERSION_S5K3M2_LITEON	"s5k3m2_liteon"
 #define DEVICE_MANUFACUTRE_S5K3M2	"Samsung"
 
 #define DEVICE_VERSION_OV8858		"ov8858"
 #define DEVICE_MANUFACUTRE_OV8858	"OmniVision"
+
+#define DEVICE_VERSION_OV8856		"ov8856"
+#define DEVICE_MANUFACUTRE_OV8856	"OmniVision"
 
 #define DEVICE_VERSION_IMX214_SUNNY		"imx214_sunny"
 #define DEVICE_VERSION_IMX214_TRULY		"imx214_truly"
@@ -61,6 +73,8 @@
 bool openloop_flag = false;
 static uint8_t deviceInfo_register_value = 0x00; /*low 4 bit represent front,high 4 bit is back*/
 extern uint16_t s5k3m2_module;
+extern uint8_t s5k4h8_module;
+extern uint8_t ov8858_module; // xiong xing add for 15062
 #endif
 
 static struct v4l2_file_operations msm_sensor_v4l2_subdev_fops;
@@ -621,7 +635,8 @@ static void register_device_info(struct msm_sensor_ctrl_t *s_ctrl)
     //front camera
     if ((strcmp(s_ctrl->sensordata->sensor_name, "ov5648_front") == 0 ||
         strcmp(s_ctrl->sensordata->sensor_name, "s5k5e2_front") == 0 ||
-        strcmp(s_ctrl->sensordata->sensor_name, "ov8858_front") == 0) &&
+        strcmp(s_ctrl->sensordata->sensor_name, "ov8858_front") == 0 ||
+        strcmp(s_ctrl->sensordata->sensor_name, "ov8856_front") == 0) &&
         ((deviceInfo_register_value & 0xF) == 0x1)) {
         pr_err("%s: front device info already register\n", __func__);
         return;
@@ -640,35 +655,65 @@ static void register_device_info(struct msm_sensor_ctrl_t *s_ctrl)
         }
         else if (strcmp(s_ctrl->sensordata->sensor_name, "ov8858_front") == 0) {
             pr_err("%s %d: device info register\n", __func__, __LINE__);
-            register_device_proc("f_camera", DEVICE_VERSION_OV8858, DEVICE_MANUFACUTRE_OV8858);
+            if( ov8858_module == 0x02 ){
+                register_device_proc("f_camera", DEVICE_VERSION_OV8858"-Truly", DEVICE_MANUFACUTRE_OV8858);
+            }else{
+                register_device_proc("f_camera", DEVICE_VERSION_OV8858"-Qtech", DEVICE_MANUFACUTRE_OV8858);
+            }
+            deviceInfo_register_value = deviceInfo_register_value | 0x1;
+            return;
+        }
+		else if (strcmp(s_ctrl->sensordata->sensor_name, "ov8856_front") == 0) {
+            pr_err("%s %d: device info register\n", __func__, __LINE__);
+            register_device_proc("f_camera", DEVICE_VERSION_OV8856, DEVICE_MANUFACUTRE_OV8856);
             deviceInfo_register_value = deviceInfo_register_value | 0x1;
             return;
         }
     }
 
     //back camera
-    if (((strcmp(s_ctrl->sensordata->sensor_name, "s5k3m2") == 0)
-		||(strcmp(s_ctrl->sensordata->sensor_name, "s5k3h7_8916") == 0)
-		||(strcmp(s_ctrl->sensordata->sensor_name, "imx278") == 0)
+    if (((strncmp(s_ctrl->sensordata->sensor_name, "s5k3m2", 6) == 0)
+		||(strncmp(s_ctrl->sensordata->sensor_name, "s5k3l8", 6) == 0)
+		||(strncmp(s_ctrl->sensordata->sensor_name, "s5k3h7", 6) == 0)
+		||(strncmp(s_ctrl->sensordata->sensor_name, "imx278", 6) == 0)
+		||(strcmp(s_ctrl->sensordata->sensor_name, "s5k4h8_8916") == 0)
 		)&&((deviceInfo_register_value >> 4 & 0xF) == 0x1)) {
         pr_err("%s: back device info already register\n", __func__);
         return;
     } else {
-        if (strcmp(s_ctrl->sensordata->sensor_name, "s5k3m2") == 0) {
-            if (s5k3m2_module == 0x3)
+        if (strncmp(s_ctrl->sensordata->sensor_name, "s5k3m2", 6) == 0) {
+            if (s5k3m2_module == 0x04)
+                register_device_proc("r_camera", DEVICE_VERSION_S5K3M2_LITEON, DEVICE_MANUFACUTRE_S5K3M2);
+            else if (s5k3m2_module == 0x03)
                 register_device_proc("r_camera", DEVICE_VERSION_S5K3M2_SEMCO, DEVICE_MANUFACUTRE_S5K3M2);
+            else if (s5k3m2_module == 0x02)
+                register_device_proc("r_camera", DEVICE_VERSION_S5K3M2_TRULY, DEVICE_MANUFACUTRE_S5K3M2);
             else
                 register_device_proc("r_camera", DEVICE_VERSION_S5K3M2_SUNNY, DEVICE_MANUFACUTRE_S5K3M2);
 
             deviceInfo_register_value = deviceInfo_register_value | 0x10;
             return;
         }
-        else if (strcmp(s_ctrl->sensordata->sensor_name, "s5k3h7_8916") == 0) {
+	    else if (strncmp(s_ctrl->sensordata->sensor_name, "s5k3h7", 6) == 0) {
             register_device_proc("r_camera", DEVICE_VERSION_S5K3H7, DEVICE_MANUFACUTRE_S5K3H7);
             deviceInfo_register_value = deviceInfo_register_value | 0x10;
             return;
         }
-        else if (strcmp(s_ctrl->sensordata->sensor_name, "imx278") == 0) {
+        else if ( strcmp(s_ctrl->sensordata->sensor_name, "s5k4h8_8916") == 0 ){
+            if ( s5k4h8_module == 0x34 ){
+                register_device_proc("r_camera", DEVICE_VERSION_S5K4H8"-EVT1", DEVICE_MANUFACUTRE_S5K4H8);
+            }else{
+                register_device_proc("r_camera", DEVICE_VERSION_S5K4H8"-EVT2", DEVICE_MANUFACUTRE_S5K4H8);
+            }
+            deviceInfo_register_value = deviceInfo_register_value | 0x10;
+            return;
+        }
+        else if (strncmp(s_ctrl->sensordata->sensor_name, "s5k3l8", 6) == 0) {
+            register_device_proc("r_camera", DEVICE_VERSION_S5K3L8, DEVICE_MANUFACUTRE_S5K3L8);
+            deviceInfo_register_value = deviceInfo_register_value | 0x10;
+            return;
+        }
+        else if (strncmp(s_ctrl->sensordata->sensor_name, "imx278", 6) == 0) {
             register_device_proc("r_camera", DEVICE_VERSION_IMX278, DEVICE_MANUFACUTRE_IMX278);
             deviceInfo_register_value = deviceInfo_register_value | 0x10;
             return;
