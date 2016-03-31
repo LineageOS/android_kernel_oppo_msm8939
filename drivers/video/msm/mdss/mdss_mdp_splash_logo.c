@@ -586,7 +586,7 @@ static __ref int mdss_mdp_splash_parse_dt(struct msm_fb_data_type *mfd)
 /* Xiaori.Yuan@Mobile Phone Software Dept.Driver, 2015/04/09  Add for ftm mode */
 /* wuyu@EXP.BaseDrv.LCM, 2015-05-18, add micro OPPO_15011, (OPPO15011=OPPO_15018) */
 /*chaoying.chen@EXP.BaseDrv.LCM,2015/07/14 modify  ftm for 15085 at sleep */
-	if(get_boot_mode() == MSM_BOOT_MODE__FACTORY && (is_project(OPPO_15011) || is_project(OPPO_15018) || is_project(OPPO_15022) || is_project(OPPO_15037) || is_project(OPPO_15085))){
+	if(get_boot_mode() == MSM_BOOT_MODE__FACTORY && (is_project(OPPO_15011) || is_project(OPPO_15018) || is_project(OPPO_15022) || is_project(OPPO_15035) || is_project(OPPO_15037) || is_project(OPPO_15085))){
 		mfd->splash_info.splash_logo_enabled = true;
 	}
 #endif /*VENDOR_EDIT*/

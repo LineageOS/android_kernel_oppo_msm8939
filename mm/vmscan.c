@@ -1106,8 +1106,12 @@ cull_mlocked:
 		if (PageSwapCache(page))
 			try_to_free_swap(page);
 		unlock_page(page);
-		putback_lru_page(page);
+#ifdef VENDOR_EDIT
+/* fanhui@PhoneSW.BSP, 2015/08/29, fix increasing nr_isolated incurred by putback unevictable pages */
+		//putback_lru_page(page);
+		list_add(&page->lru, &ret_pages);
 		continue;
+#endif
 
 activate_locked:
 		/* Not a candidate for swapping, so reclaim swap space. */

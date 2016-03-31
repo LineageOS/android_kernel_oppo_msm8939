@@ -229,10 +229,8 @@ static int F01_RMI_DATA01;
 static int F01_RMI_CMD00;
 static int F01_RMI_CTRL00;
 static int F01_RMI_CTRL01;
-//#ifdef VENDOR_EDIT
-//huqiao@EXP.driver, 2015.06.19, Add for 15062 TP
 static int F01_RMI_CTRL02;
-//#endif /* VENDOR_EDIT */
+
 static int F12_2D_CTRL08;
 static int F12_2D_CTRL32;
 static int F12_2D_DATA04;
@@ -511,6 +509,7 @@ static int Dot_report_up = 0;
 static void tpd_up(struct synaptics_ts_data *ts, int raw_x, int raw_y, int x, int y, int p) {
 	if( ts && ts->input_dev ){
 		input_report_key(ts->input_dev, BTN_TOUCH, 0);
+		input_report_key(ts->input_dev, BTN_TOOL_FINGER, 0);
 		TPD_DEBUG("Up[%4d %4d %4d]\n", x, y, p);
 		if( Dot_report_up == 150 ){
 			TPD_ERR("Up[%4d %4d %4d]\n", x, y, p);
@@ -690,6 +689,7 @@ static int synaptics_read_register_map(struct synaptics_ts_data *ts)
 	F01_RMI_QUERY11 = F12_2D_QUERY_BASE+11;
 	F01_RMI_CTRL00 = F01_RMI_CTRL_BASE;
 	F01_RMI_CTRL01 = F01_RMI_CTRL_BASE + 1;
+	F01_RMI_CTRL02 = F01_RMI_CTRL_BASE + 2;
 	F01_RMI_CMD00 = F01_RMI_CMD_BASE;
 	F01_RMI_DATA01 = F01_RMI_DATA_BASE + 1;
 //#ifdef VENDOR_EDIT
@@ -984,6 +984,12 @@ static void int_state(struct synaptics_ts_data *ts)
 		return;
 	}
 	if(ts->gesture_enable == 1) {
+		ret = i2c_smbus_write_byte_data(ts->client, 0xff, 0x00);
+		if (ret < 0){
+			TPD_ERR("%s page select failed\n", __func__);
+		}else{
+			ret = i2c_smbus_write_byte_data(ts_g->client, F01_RMI_CTRL02, 0x03);
+		}
 		synaptics_enable_interrupt_for_gesture(ts, 1);
 	}
 }
@@ -1295,8 +1301,10 @@ static void int_touch(struct synaptics_ts_data *ts)
 		}
 	}else{
 #ifdef TYPE_B_PROTOCOL
-		input_mt_slot(ts->input_dev, i);
-		input_mt_report_slot_state(ts->input_dev,MT_TOOL_FINGER, 0);
+		for (i = 0; i < ts->max_num; i++) {
+			input_mt_slot(ts->input_dev, i);
+			input_mt_report_slot_state(ts->input_dev,MT_TOOL_FINGER, 0);
+		}
 #endif
 		tpd_up(ts, points.raw_x, points.raw_y, points.x, points.y, points.z);
 	}
@@ -1305,10 +1313,16 @@ static void int_touch(struct synaptics_ts_data *ts)
 	ts->pre_finger_state = finger_state;
 
 #ifdef SUPPORT_GESTURE
-	if (ts->gesture_enable == 1) {
-		gesture_judge(ts);
+	if( ts->gesture_enable == 1) {
+		if(ts->is_suspended == 1) {
+			gesture_judge(ts);
+		} else {
+			TPD_ERR("synaptics touchpanel only goes this for get in gesture mode after resume\n");
+			ts->gesture_enable = 0;
+			int_state(ts);
+		}
 	}
-	#endif
+#endif
 }
 
 static void int_key_report(struct synaptics_ts_data *ts)
@@ -1474,38 +1488,38 @@ static ssize_t tp_double_write_func(struct file *file, const char __user *buffer
 	sscanf(buf, "%d", &ret);
 	if(!ts)
 		return count;
+
+	TPD_ERR("%s: ret=%d is_suspended=%d\n",__func__,ret,ts->is_suspended);
+	mutex_lock(&ts->mutex);
 	if( (ret == 0 )||(ret == 1) )
 			ts->double_enable = ret;
-
 	if(ts->is_suspended == 1)	{
 		switch(ret) {
 			case 0:
-				TPDTM_DMESG("%s will be disable\n",__func__);
 				ret = synaptics_enable_interrupt_for_gesture(ts, 0);
 				if( ret<0 )
 					ret = synaptics_enable_interrupt_for_gesture(ts, 0);
 				ret = synaptics_enable_interrupt(ts, 0);
 				if(ret){
 					TPD_DEBUG("%s: cannot disable interrupt\n", __func__);
-					return -1;
+					break;
 				}
 				ret = i2c_smbus_write_byte_data(ts->client, F01_RMI_CTRL00, 0x01);
 				if( ret < 0 ){
 					TPD_ERR("write F01_RMI_CTRL00 failed\n");
-					return -1;
+					break;
 				}
 				break;
 			case 1:
-				TPDTM_DMESG("%s will be enable\n",__func__);
 				ret = synaptics_rmi4_i2c_write_byte(ts->client, 0xff, 0x0);
 				if( ret < 0 ) {
 					TPD_ERR("%s: select page failed ret = %d\n", __func__, ret);
-					return -1;
+					break;
 				}
 				ret = i2c_smbus_write_byte_data(ts->client, F01_RMI_CTRL00, 0x80);
 				if( ret < 0 ){
 					TPD_ERR("write F01_RMI_CTRL00 failed\n");
-					return -1;
+					break;
 				}
 				ret = synaptics_enable_interrupt_for_gesture(ts, 1);
 				if( ret<0 )
@@ -1513,13 +1527,15 @@ static ssize_t tp_double_write_func(struct file *file, const char __user *buffer
                 ret = synaptics_enable_interrupt(ts, 1);
 				if(ret){
 					TPD_DEBUG("%s: cannot enable interrupt\n", __func__);
-					return -1;
+					break;
 				}
 				break;
 			default:
 				TPD_ERR("Please enter 0 or 1 to open or close the double-tap function\n");
 		}
 	}
+	mutex_unlock(&ts->mutex);
+	TPD_ERR("%s: End\n",__func__);
 	return count;
 }
 
@@ -2385,6 +2401,27 @@ static int	synaptics_input_init(struct synaptics_ts_data *ts)
 	return 0;
 }
 
+static int synaptics_free_fingers(struct synaptics_ts_data *ts)
+{
+	int i = 0;
+
+#ifdef TYPE_B_PROTOCOL
+	for (i = 0; i < ts->max_num; i++) {
+		input_mt_slot(ts->input_dev, i);
+		input_mt_report_slot_state(ts->input_dev,MT_TOOL_FINGER, 0);
+	}
+	input_report_key(ts->input_dev,BTN_TOUCH, 0);
+	input_report_key(ts->input_dev,BTN_TOOL_FINGER, 0);
+	input_sync(ts->input_dev);
+#else
+	input_report_key(ts->input_dev,BTN_TOUCH, 0);
+	input_report_key(ts->input_dev,BTN_TOOL_FINGER, 0);
+	input_mt_sync(ts->input_dev);
+	input_sync(ts->input_dev);
+#endif
+
+	return 0;
+}
 /*********************FW Update Func******************************************/
 static int synatpitcs_fw_update(struct device *dev, bool force)
 {
@@ -2401,6 +2438,7 @@ static int synatpitcs_fw_update(struct device *dev, bool force)
 		TPD_ERR("i2c client point is NULL\n");
 		return 0;
 	}
+
 	ret = request_firmware(&fw, ts->fw_name, dev);
 	if (ret < 0) {
 		TPD_ERR("Request firmware failed - %s (%d)\n",
@@ -2427,11 +2465,9 @@ static int synatpitcs_fw_update(struct device *dev, bool force)
 	#ifdef SUPPORT_GLOVES_MODE
 	synaptics_glove_mode_enable(ts);
 	#endif
+    synaptics_free_fingers(ts);
 	synaptics_init_panel(ts);
 	synaptics_enable_interrupt(ts,1);
-	input_report_key(ts->input_dev, BTN_TOUCH, 0);
-    input_mt_sync(ts->input_dev);
-	input_sync(ts->input_dev);
 	return 0;
 }
 
@@ -3551,16 +3587,18 @@ static int synaptics_ts_suspend(struct device *dev)
 		input_sync(ts->kpd);
 	}
 	input_report_key(ts->input_dev, BTN_TOUCH, 0);
-
-#ifndef TYPE_B_PROTOCOL
-	input_mt_sync(ts->input_dev);
-#endif
-	input_sync(ts->input_dev);
+	synaptics_free_fingers(ts);
 
 #ifndef TPD_USE_EINT
 	hrtimer_cancel(&ts->timer);
 #endif
 
+	ret = i2c_smbus_write_byte_data(ts->client, 0xff, 0x00);
+	if (ret < 0){
+		TPD_ERR("%s page select failed\n", __func__);
+	}else{
+		ret = i2c_smbus_write_byte_data(ts_g->client, F01_RMI_CTRL02, 0x03);
+	}
 #ifdef SUPPORT_GLOVES_MODE
 	if( ts->glove_enable ){
 		/* page select = 0x4 */
@@ -3602,6 +3640,7 @@ static int synaptics_ts_suspend(struct device *dev)
 		}
 //#endif /* VENDOR_EDIT */
 #endif
+
 	ret = synaptics_enable_interrupt(ts, 0);
 	if(ret){
 		TPD_DEBUG("%s: cannot disable interrupt\n", __func__);
@@ -3621,6 +3660,7 @@ static int synaptics_ts_resume(struct device *dev)
 	struct synaptics_ts_data *ts = dev_get_drvdata(dev);
 	TPD_DEBUG("%s is called\n", __func__);
 	is_touch = 0;
+	ts->is_suspended = 0;
 	if(ts->loading_fw)
 		return 0;
 	queue_work(speedup_resume_wq, &ts->speed_up_work);
@@ -3640,11 +3680,7 @@ static void speedup_synaptics_resume(struct work_struct *work)
 	}
 
 	ts->is_suspended = 0;
-	input_report_key(ts->input_dev, BTN_TOUCH, 0);
-#ifndef TYPE_B_PROTOCOL
-    input_mt_sync(ts->input_dev);
-#endif
-	input_sync(ts->input_dev);
+	synaptics_free_fingers(ts);
 	ts->pre_btn_state = 0;
 
 	if( ts->reset_gpio > 0 ) {
@@ -3666,6 +3702,7 @@ static void speedup_synaptics_resume(struct work_struct *work)
 			TPD_ERR("%s: failed for page select try again later\n", __func__);
 		}
 	}
+	ret = i2c_smbus_write_byte_data(ts_g->client, F01_RMI_CTRL02, 0x01);
 	ret = i2c_smbus_read_byte_data(ts->client, F01_RMI_DATA_BASE);
 	ret = i2c_smbus_write_byte_data(ts->client, F01_RMI_CMD_BASE, 0x01);
 	msleep(50);

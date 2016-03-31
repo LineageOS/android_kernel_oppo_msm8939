@@ -1534,8 +1534,18 @@ static int32_t q6asm_callback(struct apr_client_data *data, void *priv)
 				payload[0], payload[1],
 				data->src_port, data->dest_port);
 			if (payload[1] != 0) {
+#ifndef VENDOR_EDIT //Jianfeng.Qiu@MultiMedia.Audio, 2015/08/19, Modify for reduce log when connect Apple Phone with OTG
 				pr_err("%s: cmd = 0x%x returned error = 0x%x\n",
 					__func__, payload[0], payload[1]);
+#else /* VENDOR_EDIT */
+				if (payload[0] == ASM_STREAM_CMD_CLOSE) {
+					pr_debug("%s: cmd = 0x%x returned error = 0x%x\n",
+						__func__, payload[0], payload[1]);
+				} else {
+					pr_err("%s: cmd = 0x%x returned error = 0x%x\n",
+						__func__, payload[0], payload[1]);
+				}
+#endif /* VENDOR_EDIT */
 				if (wakeup_flag) {
 					atomic_set(&ac->cmd_state, -payload[1]);
 					wake_up(&ac->cmd_wait);
@@ -5534,9 +5544,17 @@ static int __q6asm_cmd(struct audio_client *ac, int cmd, uint32_t stream_id)
 		goto fail_cmd;
 	}
 	if (atomic_read(state) < 0) {
+#ifndef VENDOR_EDIT //Jianfeng.Qiu@MultiMedia.Audio, 2015/08/19, Modify for reduce log when connect Apple Phone with OTG
 		pr_err("%s: DSP returned error[%d] opcode %d\n",
 					__func__, atomic_read(state),
 					hdr.opcode);
+#else /* VENDOR_EDIT */
+		if (hdr.opcode == ASM_STREAM_CMD_CLOSE) {
+			pr_debug("%s: DSP returned error[%d] opcode %d\n", __func__, atomic_read(state), hdr.opcode);
+		} else {
+			pr_err("%s: DSP returned error[%d] opcode %d\n", __func__, atomic_read(state), hdr.opcode);
+		}
+#endif /* VENDOR_EDIT */
 		goto fail_cmd;
 	}
 

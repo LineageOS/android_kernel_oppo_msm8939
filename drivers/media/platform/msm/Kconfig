@@ -33,8 +33,28 @@ config MSMB_CAMERA_DEBUG
 	---help---
 	  Enable printk() debug for msm camera 2.0
 
+choice
+	prompt "Camera stack variant"
+	depends on MSMB_CAMERA
+	default MSMB_CAMERA_DEFAULT
+
+config MSMB_CAMERA_DEFAULT
+	bool "Default Qualcomm camera stack"
+
+config OPPO_CAMERA_15109
+	bool "OPPO's 15109 variant of the camera stack"
+	---help---
+	  Enable the 15109 OPPO camera code
+
+endchoice
+
 if MSMB_CAMERA
+if MSMB_CAMERA_DEFAULT
 source "drivers/media/platform/msm/camera_v2/Kconfig"
+endif
+if OPPO_CAMERA_15109
+source "drivers/media/platform/msm/camera_v2_15109/Kconfig"
+endif
 endif # MSMB_CAMERA
 
 source "drivers/media/platform/msm/vidc/Kconfig"

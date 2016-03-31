@@ -463,6 +463,18 @@ static int lowmem_shrink(struct shrinker *s, struct shrink_control *sc)
 		if (!p)
 			continue;
 
+#ifdef VENDOR_EDIT
+//Jiemin.Zhu@Swdp.Android.Stability.Memory, 2016/01/06, add for D status process issue
+		if (p->state & TASK_UNINTERRUPTIBLE) {
+			task_unlock(p);
+			continue;
+		}
+		//resolve kill coredump process, it may continue long time
+		if (p->signal != NULL && (p->signal->flags & SIGNAL_GROUP_COREDUMP) ){
+			task_unlock(p);
+			continue;
+		}
+#endif /* VENDOR_EDIT */
 		oom_score_adj = p->signal->oom_score_adj;
 		if (oom_score_adj < min_score_adj) {
 			task_unlock(p);

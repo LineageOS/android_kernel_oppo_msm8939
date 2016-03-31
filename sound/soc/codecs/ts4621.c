@@ -369,6 +369,110 @@ void  ts4621_amp_on_hph_speaker(int on, u8 gain)
     return;
 }
 /*OPPO 2015-06-12 zhangping Add for short sound clear end*/
+#ifdef VENDOR_EDIT
+//John.Xu@PhoneSw.AudioDriver, 2015/04/21, Add for MMI test
+void  ts4621_amp_on_l(int on, u8 gain)
+{
+	if (on) {
+        int iResult = 0;
+        char cValue = 0;
+        char cTemp = 0;
+
+        iResult = ts4621_reg_write(0x01, 0x00);//path disable and I2C enable
+        iResult |= ts4621_reg_read(0x03, &cValue);
+        cTemp = cValue & ~0x03;
+        iResult |= ts4621_reg_write(0x03, cTemp);//clear flag
+        iResult |= ts4621_reg_write(0x02, 0xc0);//mute and set volume
+        iResult |= ts4621_reg_read(0x01, &cValue);
+        cTemp = cValue | 0xc0;
+        iResult |= ts4621_reg_write(0x01, cTemp);//path enable
+        iResult |= ts4621_reg_read(0x02, &cValue);
+        pr_err("ts4621_amp_on_l cValue: 0x%x", cValue);
+        cValue = cValue & 0x40;
+        gain = cValue | gain;
+        iResult |= ts4621_reg_write(0x02, gain);
+        pr_err("ts4621_amp_on_l gain: 0x%x", gain);
+        if(iResult)
+        {
+            pr_err("ts4621_amp_on_l 1 Failed");
+            return;
+        }
+        pr_debug("ts4621_amp_on_l Success 1");
+
+    } else {
+        int iResult = 0;
+        char cValue = 0;
+        char cTemp = 0;
+
+        iResult = ts4621_reg_read(0x02, &cValue);
+        cTemp = cValue | 0x80;//mute
+        iResult |= ts4621_reg_write(0x02, cTemp);
+
+        iResult |= ts4621_reg_read(0x01, &cValue);
+        cTemp = (cValue & ~0x80);
+        iResult |= ts4621_reg_write(0x01, cTemp);//hpl path
+        pr_err("ts4621_amp_on_l cTemp: 0x%x", cTemp);
+        if(iResult)
+        {
+            pr_err("ts4621_amp_on_l 2 Failed");
+            return;
+        }
+        pr_debug("ts4621_amp_on_l Success 2");
+    }
+    return;
+}
+
+void  ts4621_amp_on_r(int on, u8 gain)
+{
+	if (on) {
+        int iResult = 0;
+        char cValue = 0;
+        char cTemp = 0;
+
+        iResult = ts4621_reg_write(0x01, 0x00);//path disable and I2C enable
+        iResult |= ts4621_reg_read(0x03, &cValue);
+        cTemp = cValue & ~0x03;
+        iResult |= ts4621_reg_write(0x03, cTemp);//clear flag
+        iResult |= ts4621_reg_write(0x02, 0xc0);//mute and set volume
+        iResult |= ts4621_reg_read(0x01, &cValue);
+        cTemp = cValue | 0x40;
+        iResult |= ts4621_reg_write(0x01, cTemp);//path enable
+        iResult |= ts4621_reg_read(0x02, &cValue);
+         pr_err("ts4621_amp_on_r cValue: 0x%x", cValue);
+        cValue = cValue & 0x80;
+        gain = cValue | gain;
+        iResult |= ts4621_reg_write(0x02, gain);
+         pr_err("ts4621_amp_on_r gain: 0x%x", gain);
+        if(iResult)
+        {
+            pr_err("ts4621_amp_on_r 1 Failed");
+            return;
+        }
+        pr_debug("ts4621_amp_on_r Success 1");
+
+    } else {
+        int iResult = 0;
+        char cValue = 0;
+        char cTemp = 0;
+
+        iResult = ts4621_reg_read(0x02, &cValue);
+        cTemp = cValue | 0x40;//mute
+        iResult |= ts4621_reg_write(0x02, cTemp);
+
+        iResult |= ts4621_reg_read(0x01, &cValue);
+        cTemp = (cValue & ~0x40);
+        iResult |= ts4621_reg_write(0x01, cTemp);//hpr path disable
+         pr_err("ts4621_amp_on_r cTemp: 0x%x", cTemp);
+        if(iResult)
+        {
+            pr_err("ts4621_amp_on_r 2 Failed");
+            return;
+        }
+        pr_debug("ts4621_amp_on_r Success 2");
+    }
+    return;
+}
+#endif /* VENDOR_EDIT */
 
 
 
@@ -403,6 +507,8 @@ int hp_pa_put(struct snd_kcontrol *kcontrol,
 }
 
 EXPORT_SYMBOL_GPL(ts4621_amp_on);
+EXPORT_SYMBOL_GPL(ts4621_amp_on_l);
+EXPORT_SYMBOL_GPL(ts4621_amp_on_r);
 EXPORT_SYMBOL_GPL(hp_pa_get);
 EXPORT_SYMBOL_GPL(hp_pa_put);
 EXPORT_SYMBOL_GPL(ts4621_get_gain);
@@ -440,8 +546,19 @@ static struct i2c_driver ts4621_driver = {
 static int __init ts4621_init(void)
 {
     pr_err("zp Enter %s", __func__);
-	if(is_project(OPPO_15009) || is_project(OPPO_15035)|| is_project(OPPO_15037))
+	if(is_project(OPPO_15009) || is_project(OPPO_15035) || is_project(OPPO_16000) || is_project(OPPO_15037)||is_project(OPPO_15029)||is_project(OPPO_15109))
 	{
+		if (is_project(OPPO_15035) || is_project(OPPO_16000) ||is_project(OPPO_15109))
+		{
+			// For 15035 ,2dB
+			DEFAULT_GAIN = 0x3A;
+		}
+		else
+		{
+			// Other 1dB
+			DEFAULT_GAIN = 0x38;
+		}
+
 		return i2c_add_driver(&ts4621_driver);
 	}
 	else
@@ -454,7 +571,7 @@ static int __init ts4621_init(void)
 static void __exit ts4621_exit(void)
 {
     pr_err("Enter %s", __func__);
-	if(is_project(OPPO_15009) || is_project(OPPO_15035) || is_project(OPPO_15037))
+	if(is_project(OPPO_15009) || is_project(OPPO_15035) || is_project(OPPO_16000) || is_project(OPPO_15037)||is_project(OPPO_15029)||is_project(OPPO_15109))
 	{
 		i2c_del_driver(&ts4621_driver);
 	}

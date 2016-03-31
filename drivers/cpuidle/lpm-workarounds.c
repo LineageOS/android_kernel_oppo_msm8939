@@ -142,6 +142,10 @@ static ssize_t store_clock_gating_enabled(struct kobject *kobj,
 		struct kobj_attribute *attr, const char *buf, size_t count)
 {
 	int ret = 0, val = 0;
+#ifdef VENDOR_EDIT
+//xiaocheng.li@Swdp.shanghai, 2015/11/11, Fix the logic defect of lpm-workaround module.
+	cpumask_t mask;
+#endif /* VENDOR_EDIT */
 
 	ret = kstrtoint(buf, 10, &val);
 	if (ret || !enable_dynamic_clock_gating) {
@@ -158,7 +162,15 @@ static ssize_t store_clock_gating_enabled(struct kobject *kobj,
 		return count;
 	}
 
-	store_clock_gating = true;
+#ifdef VENDOR_EDIT
+//xiaocheng.li@swdp.shanghai, 2015/11/11, Fix the logic defect of lpm-workaround module.
+	cpumask_and(&mask, cpu_online_mask, &l1_l2_offline_mask);
+	if (cpumask_empty(&mask))
+		queue_work(lpm_wa_wq, &lpm_wa_work);
+	else
+#endif
+		store_clock_gating = true;
+
 	return count;
 }
 
