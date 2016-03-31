@@ -87,11 +87,18 @@ static void __inet_put_port(struct sock *sk)
 
 	spin_lock(&head->lock);
 	tb = inet_csk(sk)->icsk_bind_hash;
-	__sk_del_bind_node(sk);
-	tb->num_owners--;
-	inet_csk(sk)->icsk_bind_hash = NULL;
-	inet_sk(sk)->inet_num = 0;
-	inet_bind_bucket_destroy(hashinfo->bind_bucket_cachep, tb);
+#ifdef VENDOR_EDIT
+/* fanhui@PhoneSW.BSP, 2016/01/04, icsk_bind_hash may be set NULL by other racing core */
+	if (tb) {
+#endif
+		__sk_del_bind_node(sk);
+		tb->num_owners--;
+		inet_csk(sk)->icsk_bind_hash = NULL;
+		inet_sk(sk)->inet_num = 0;
+		inet_bind_bucket_destroy(hashinfo->bind_bucket_cachep, tb);
+#ifdef VENDOR_EDIT
+	}
+#endif
 	spin_unlock(&head->lock);
 }
 

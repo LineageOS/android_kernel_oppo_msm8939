@@ -204,7 +204,12 @@ int msm_flash_led_init(struct msm_led_flash_ctrl_t *fctrl)
 					__func__, __LINE__);
 		}
 	}
+#ifndef VENDOR_EDIT
+/*zhengrong.zhang 2015-10-19 Modify for reduce delay */
 	msleep(20);
+#else
+	msleep(5);
+#endif
 
 	CDBG("before FL_RESET\n");
 	if (power_info->gpio_conf->gpio_num_info->
@@ -256,6 +261,8 @@ int msm_flash_led_init(struct msm_led_flash_ctrl_t *fctrl)
 	}
 #endif
 	fctrl->led_state = MSM_CAMERA_LED_INIT;
+	/*Added by Jinshui.Liu@Camera 20150925 start to delay for hardware to be prepared*/
+	msleep(5);
 	return rc;
 }
 
