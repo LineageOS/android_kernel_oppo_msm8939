@@ -141,6 +141,7 @@
 #include <oppo_battery.h>
 #include <oppo_bms.h>
 #include <oppo_charger.h>
+//#include <oppo_qpnp_charger.h>
 #include <oppo_init.h>
 #include <oppo_upper.h>
 #include <oppo_smb358.h>
@@ -151,6 +152,7 @@
 #include <oppo_bq27541.h>
 #include <oppo_bq2022a.h>
 #include <oppo_vooc.h>
+#include <oppo_vooc_stm8s.h>
 //#include <mach/oppo_boot_mode.h>
 //#include <mach/oppo_project.h>
 

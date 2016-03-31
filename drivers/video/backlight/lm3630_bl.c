@@ -23,6 +23,7 @@
 
 #include <linux/of_gpio.h>
 #include <linux/gpio.h>
+
 #ifdef VENDOR_EDIT
 /* Xiaori.Yuan@Mobile Phone Software Dept.Driver, 2014/08/27  Add for 14045 LCD */
 #include <soc/oppo/device_info.h>
@@ -55,7 +56,7 @@
 #define RUN_RAMP 0x08
 #define REG_REVISION 0x1F
 static bool pwm_flag = false;
-static int backlight_level;
+static int backlight_level = 255;
 extern int cabc_mode;
 int set_backlight_pwm(int state);
 #endif /*VENDOR_EDIT*/
@@ -65,6 +66,11 @@ static struct lm3630_chip_data *lm3630_pchip;
 static int disp_enp_gpio_15009 = 999;		//GPIO_97
 static int disp_enn_gpio_15009 = 1000;		//GPIO_98
 /* YongPeng.Yi@SWDP.MultiMedia END */
+/* goushengjun@SWDP.MultiMedia, 2015/04/20  Add for 15029 lcd +-5v START */
+static int disp_enp_gpio_15029 = 1016 ;		//GPIO_114
+static int disp_enn_gpio_15029 = 1015;		//GPIO_113
+/* goushengjun@SWDP.MultiMedia END */
+
 #endif /*VENDOR_EDIT*/
 #ifdef CONFIG_BL_REGISTER
 enum lm3630_leds {
@@ -115,6 +121,10 @@ static int lm3630_chip_init(struct lm3630_chip_data *pchip)
 	reg_val = ((pdata->bank_b_ctrl & 0x01) << 1) |
 			(pdata->bank_a_ctrl & 0x07)|0x18;//linear;
     pr_err("%s REG_CTRL:0x%x\n", __func__, reg_val);
+	if(is_project(OPPO_15035) || is_project(OPPO_15109)){
+	/* YongPeng.Yi@SWDP.MultiMedia, 2015/10/08  Add for 15035 BL SM5306 */
+		reg_val = 0x1F;
+	}
 	ret = regmap_update_bits(pchip->regmap, REG_CTRL, 0x1F, reg_val);
 	if (ret < 0)
 		goto out;
@@ -134,18 +144,6 @@ static int lm3630_chip_init(struct lm3630_chip_data *pchip)
 		ret = regmap_write(pchip->regmap, REG_MAXCU_B, 20);
 		if (ret < 0)
 			goto out;
-
-
-	if(is_project(OPPO_15035)){
-		ret = regmap_update_bits(lm3630_pchip->regmap, REG_CONFIG, 0x01, 0x19);
-		if (ret < 0)
-			goto out;
-
-		ret = regmap_write(pchip->regmap, REG_BRT_A, 0xFF);
-		if (ret < 0)
-			goto out;
-	}
-
 
 #ifdef VENDOR_EDIT
 /* Xiaori.Yuan@Mobile Phone Software Dept.Driver, 2015/06/03  Add for silence mode */
@@ -422,15 +420,11 @@ static void lm3630_backlight_unregister(struct lm3630_chip_data *pchip)
 #else
 
 extern struct regulator *vddf_2v5;
-extern void set_bl_brightness(uint bl_level);
 /* update and get brightness */
  int lm3630_bank_a_update_status(u32 bl_level)
 {
 	int ret;
-#ifdef VENDOR_EDIT
-/*lile@EXP.BasicDrv.LCD, 2015-07-10,  Add for 15069 HD JDI minimum backlight*/
 	int temp_bl = 0;
-#endif
 	struct lm3630_chip_data *pchip = lm3630_pchip;
 	pr_debug("%s: bl=%d\n", __func__,bl_level);
 
@@ -444,17 +438,9 @@ extern void set_bl_brightness(uint bl_level);
         return bl_level;
     }
 
-
-
-
-
 	/* brightness 0 means disable */
 	if (!bl_level) {
-		if(!(is_project(OPPO_15035))){
 	        ret = regmap_write(lm3630_pchip->regmap, REG_BRT_A, 0);
-		}else{
-			set_bl_brightness(0);
-		}
 		ret = regmap_update_bits(pchip->regmap, REG_CTRL, 0x80, 0x80);
 		if (ret < 0)
 			goto out;
@@ -475,6 +461,35 @@ extern void set_bl_brightness(uint bl_level);
 		}
 /* YongPeng.Yi@SWDP.MultiMedia END */
 #endif /*VENDOR_EDIT*/
+#ifdef VENDOR_EDIT
+		/* goushegnjun@SWDP.MultiMedia, 2015/08/16	Add for 15029 factory mode big current close +-5v START */
+				if(MSM_BOOT_MODE__FACTORY == get_boot_mode()&&is_project(OPPO_15029)){
+					mdelay(230);
+					if(gpio_is_valid(disp_enp_gpio_15029))
+						gpio_set_value(disp_enp_gpio_15029, 0); //GPIO_114
+					else
+						pr_err("%s: unvalid gpio disp_enp_gpio_15029 \n", __func__);
+					mdelay(3);
+					if(gpio_is_valid(disp_enn_gpio_15029))
+						gpio_set_value(disp_enn_gpio_15029, 0); //GPIO_113
+					else
+						pr_err("%s: unvalid gpio disp_enn_gpio_15029 \n", __func__);
+				}
+		/* goushengjun@SWDP.MultiMedia END */
+	            if(MSM_BOOT_MODE__FACTORY == get_boot_mode()&&is_project(OPPO_15109)){
+					mdelay(230);
+					if(gpio_is_valid(disp_enp_gpio_15029))
+						gpio_set_value(disp_enp_gpio_15029, 0); //GPIO_114
+					else
+						pr_err("%s: unvalid gpio disp_enp_gpio_15109 \n", __func__);
+					mdelay(3);
+					if(gpio_is_valid(disp_enn_gpio_15029))
+						gpio_set_value(disp_enn_gpio_15029, 0); //GPIO_113
+					else
+						pr_err("%s: unvalid gpio disp_enn_gpio_15109 \n", __func__);
+				}
+#endif /*VENDOR_EDIT*/
+
 
 		return bl_level;
 	}
@@ -491,7 +506,10 @@ extern void set_bl_brightness(uint bl_level);
 /* YongPeng.Yi@SWDP.MultiMedia, 2015/05/30  Add for 15009 disable cabc when brightness below 20 START */
 		ret = regmap_write(pchip->regmap, REG_BRT_A, bl_level);
 #else /*VENDOR_EDIT*/
-		if(is_project(OPPO_15009)){
+		if(bl_level < 4)
+			bl_level = 4;
+		if(is_project(OPPO_15009) || is_project(OPPO_15109)){
+			if(cabc_mode == 3){
 			if(bl_level>CABC_DISABLE_LEVEL_15009){
 				ret = regmap_write(pchip->regmap,
 					   REG_BRT_A, bl_level);
@@ -516,25 +534,25 @@ extern void set_bl_brightness(uint bl_level);
 				ret = regmap_write(pchip->regmap, REG_BRT_A, temp_bl);
 #endif
 				}
+			}else{
+				ret = regmap_write(pchip->regmap, REG_BRT_A, bl_level);
+			}
+		}else if(is_project(OPPO_15037)||is_project(OPPO_15035))){
+			if(cabc_mode == 3){
+			if(bl_level>CABC_DISABLE_LEVEL_15037){
+				ret = regmap_write(pchip->regmap,
+					   REG_BRT_A, bl_level);
+			}else if(bl_level<=CABC_DISABLE_LEVEL_15037){
+				temp_bl = 2+(bl_level-1)*15/20;
+				if(temp_bl < 4)
+					temp_bl = 4;
+				ret = regmap_write(pchip->regmap, REG_BRT_A, temp_bl);
+				}
+			}else{
+				ret = regmap_write(pchip->regmap, REG_BRT_A, bl_level);
+			}
 		}else{
-			if(is_project(OPPO_15037)||is_project(OPPO_15035)){
-#ifndef VENDOR_EDIT
-/* YongPeng.Yi@SWDP.MultiMedia, 2015/07/20  Delete for 15037 set 80% brightness  for ct test */
-				if(is_project(OPPO_15037)){
-				if(bl_level >= 4)
-					bl_level = bl_level*8/10;
-					pr_debug("%s:15037 bl=%d\n", __func__,bl_level);
-				}
-#endif /*VENDOR_EDIT*/
-
-				if(bl_level < 4)
-					bl_level = 4;
-				}
-				if(!(is_project(OPPO_15035))){
 					ret = regmap_write(pchip->regmap, REG_BRT_A, bl_level);
-				}else{
-					set_bl_brightness(bl_level);
-				}
 		}
 
 		backlight_level =  bl_level;
@@ -542,6 +560,14 @@ extern void set_bl_brightness(uint bl_level);
 			if(bl_level <= CABC_DISABLE_LEVEL_15009 && pwm_flag==true){
 				set_backlight_pwm(0);
 			}else if(bl_level > CABC_DISABLE_LEVEL_15009 && pwm_flag==false && cabc_mode>0){
+				set_backlight_pwm(1);
+			}
+		}
+
+		if(is_project(OPPO_15109)){
+			if(bl_level <= CABC_DISABLE_LEVEL_15009 && pwm_flag==true){
+				set_backlight_pwm(0);
+			}else if(bl_level > CABC_DISABLE_LEVEL_15009 && pwm_flag==false){
 				set_backlight_pwm(1);
 			}
 		}
@@ -649,6 +675,9 @@ static int lm3630_dt(struct device *dev, struct lm3630_platform_data *pdata)
 		    pdata->bl_en_gpio = of_get_named_gpio(np, "ti,bl-enable-gpio69", 0);
 		else
 		    pdata->bl_en_gpio = of_get_named_gpio(np, "ti,bl-enable-gpio", 0);
+	/* Goushengjun for 15029*/
+	}else if(is_project(OPPO_15029) || is_project(OPPO_15109)){
+		pdata->bl_en_gpio = of_get_named_gpio(np, "ti,bl-enable-gpio115", 0);
 	}else{
 		pdata->bl_en_gpio = of_get_named_gpio(np, "ti,bl-enable-gpio", 0);
 	}
@@ -790,10 +819,18 @@ static int lm3630_probe(struct i2c_client *client,
 	regmap_read(pchip->regmap,REG_REVISION,&revision);
     if (revision == 0x02) {
         temp = "02";
+    } else if (revision == 0x00) {
+	/* YongPeng.Yi@SWDP.MultiMedia, 2015/10/08  Add for 15035 BL SM5306 */
+        temp = "00";
     } else {
         temp = "unknown";
     }
-    register_device_proc("backlight", temp, "LM3630A");
+	if((is_project(OPPO_15035)||is_project(OPPO_15109))){
+		/* YongPeng.Yi@SWDP.MultiMedia, 2015/10/08  Add for 15035 BL SM5306 */
+	    register_device_proc("backlight", temp, "SM5306");
+	}else{
+	    register_device_proc("backlight", temp, "LM3630A");
+	}
 #endif /*VENDOR_EDIT*/
 #ifdef CONFIG_BL_REGISTER
 	switch (pdata->bank_a_ctrl) {
@@ -941,11 +978,12 @@ int set_backlight_pwm(int state)
 {
 	int rc = 0;
 
-	if(is_project(OPPO_15035))
-		return 0;
-
 	if (get_boot_mode() == MSM_BOOT_MODE__NORMAL) {
-		if( state == 1 && backlight_level <= CABC_DISABLE_LEVEL_15009 ) return rc;
+		if(is_project(OPPO_15009)){
+			if( state == 1 && backlight_level <= CABC_DISABLE_LEVEL_15009 ) return rc;
+		}else{
+			if( state == 1 && backlight_level <= CABC_DISABLE_LEVEL_15037 ) return rc;
+		}
 		if(state == 1)
 		{
 			if(pwm_flag == false){
@@ -962,6 +1000,15 @@ int set_backlight_pwm(int state)
 		}
 	}
 	return rc;
+}
+//guoling@MM.lcddriver modify for enter into CABC_CLOSE mode when backlight_level small than cabc gate value
+void set_backlight_again(int mode){
+    int rc = 0;
+    if(mode > 0)
+       return;
+    if(backlight_level <= CABC_DISABLE_LEVEL_15009){
+        rc = regmap_write(lm3630_pchip->regmap, REG_BRT_A, backlight_level);
+    }
 }
 /* YongPeng.Yi@SWDP.MultiMedia END */
 #endif /*VENDOR_EDIT*/

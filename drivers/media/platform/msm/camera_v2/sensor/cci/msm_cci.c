@@ -457,13 +457,20 @@ static int32_t msm_cci_i2c_read(struct v4l2_subdev *sd,
 #ifdef VENDOR_EDIT
 /*Added by Jinshui.Liu@Camera 20150609 start for debug cci*/
 		irq_status = msm_camera_io_r_mb(cci_dev->base + CCI_IRQ_STATUS_0_ADDR);
-		pr_err("%s %d: wait_for_completion_timeout,irq_status = 0x%X\n",
-			__func__, __LINE__, irq_status);
-		msm_cam_clk_getinfo(cci_dev->cci_clk, cci_dev->num_clk,
-			cci_clock_enabled, cci_clock_rates);
-		for (i = 0; i < cci_dev->num_clk; i++) {
-			pr_err("%s %d: the rate of %s is %ld, enable %d\n", __func__, __LINE__,
-				cci_clk_info[i].clk_name, cci_clock_rates[i], cci_clock_enabled[i]);
+		if ((irq_status & CCI_IRQ_STATUS_0_I2C_M0_RD_DONE_BMSK)
+			|| (irq_status & CCI_IRQ_STATUS_0_I2C_M1_RD_DONE_BMSK)) {
+			pr_err("%s %d:irq_status = 0x%X, consider as right\n",
+				__func__, __LINE__, irq_status);
+			rc = 1;
+		} else {
+			pr_err("%s %d: wait_for_completion_timeout,irq_status = 0x%X\n",
+				__func__, __LINE__, irq_status);
+			msm_cam_clk_getinfo(cci_dev->cci_clk, cci_dev->num_clk,
+				cci_clock_enabled, cci_clock_rates);
+			for (i = 0; i < cci_dev->num_clk; i++) {
+				pr_err("%s %d: the rate of %s is %ld, enable %d\n", __func__, __LINE__,
+					cci_clk_info[i].clk_name, cci_clock_rates[i], cci_clock_enabled[i]);
+			}
 		}
 #endif
 		if (rc == 0)
@@ -798,13 +805,19 @@ static int32_t msm_cci_init(struct v4l2_subdev *sd,
 #else
 			if (rc <= 0) {
 				irq_status = msm_camera_io_r_mb(cci_dev->base + CCI_IRQ_STATUS_0_ADDR);
-				pr_err("%s %d: wait_for_completion_timeout,irq_status = 0x%X\n",
-					__func__, __LINE__, irq_status);
-				msm_cam_clk_getinfo(cci_dev->cci_clk, cci_dev->num_clk,
-					cci_clock_enabled, cci_clock_rates);
-				for (i = 0; i < cci_dev->num_clk; i++) {
-					pr_err("%s %d: the rate of %s is %ld, enable %d\n", __func__, __LINE__,
-						cci_clk_info[i].clk_name, cci_clock_rates[i], cci_clock_enabled[i]);
+				if (irq_status & CCI_IRQ_STATUS_0_RST_DONE_ACK_BMSK) {
+					pr_err("%s %d:irq_status = 0x%X, consider as right\n",
+						__func__, __LINE__, irq_status);
+					rc = 1;
+				} else {
+					pr_err("%s %d: wait_for_completion_timeout,irq_status = 0x%X\n",
+						__func__, __LINE__, irq_status);
+					msm_cam_clk_getinfo(cci_dev->cci_clk, cci_dev->num_clk,
+						cci_clock_enabled, cci_clock_rates);
+					for (i = 0; i < cci_dev->num_clk; i++) {
+						pr_err("%s %d: the rate of %s is %ld, enable %d\n", __func__, __LINE__,
+							cci_clk_info[i].clk_name, cci_clock_rates[i], cci_clock_enabled[i]);
+					}
 				}
 			}
 #endif
@@ -869,20 +882,30 @@ static int32_t msm_cci_init(struct v4l2_subdev *sd,
 /*Added by Jinshui.Liu@Camera 20150604 start for debug cci init*/
 		pr_err("%s: wait_for_completion_timeout %d\n",
 			 __func__, __LINE__);
-#else
-		irq_status = msm_camera_io_r_mb(cci_dev->base + CCI_IRQ_STATUS_0_ADDR);
-		pr_err("%s %d: wait_for_completion_timeout,irq_status = 0x%X\n",
-			__func__, __LINE__, irq_status);
-		msm_cam_clk_getinfo(cci_dev->cci_clk, cci_dev->num_clk,
-			cci_clock_enabled, cci_clock_rates);
-		for (i = 0; i < cci_dev->num_clk; i++) {
-			pr_err("%s %d: the rate of %s is %ld, enable %d\n", __func__, __LINE__,
-				cci_clk_info[i].clk_name, cci_clock_rates[i], cci_clock_enabled[i]);
-		}
-#endif
 		if (rc == 0)
 			rc = -ETIMEDOUT;
 		goto reset_complete_failed;
+#else
+		irq_status = msm_camera_io_r_mb(cci_dev->base + CCI_IRQ_STATUS_0_ADDR);
+		if (irq_status & CCI_IRQ_STATUS_0_RST_DONE_ACK_BMSK) {
+			pr_err("%s %d:irq_status = 0x%X, consider as right\n",
+				__func__, __LINE__, irq_status);
+			rc = 1;
+		} else {
+			pr_err("%s %d: wait_for_completion_timeout,irq_status = 0x%X\n",
+				__func__, __LINE__, irq_status);
+			msm_cam_clk_getinfo(cci_dev->cci_clk, cci_dev->num_clk,
+				cci_clock_enabled, cci_clock_rates);
+			for (i = 0; i < cci_dev->num_clk; i++) {
+				pr_err("%s %d: the rate of %s is %ld, enable %d\n", __func__, __LINE__,
+					cci_clk_info[i].clk_name, cci_clock_rates[i], cci_clock_enabled[i]);
+			}
+		}
+		if (rc == 0) {
+			rc = -ETIMEDOUT;
+			goto reset_complete_failed;
+		}
+#endif
 	}
 	for (i = 0; i < MASTER_MAX; i++)
 		cci_dev->master_clk_init[i] = 0;

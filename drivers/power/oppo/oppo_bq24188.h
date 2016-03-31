@@ -89,6 +89,7 @@
 #define BQ24188_FAULT_STATUS_MASK			0x07
 #define BQ24188_POWER_GOOD					0x00
 #define BQ24188_BATTERY_OVP					0x06
+#define BQ24188_CHARGER_OVP					0x01
 
 #define BQ24188_STAT_FUNC_MASK				0x08
 #define BQ24188_STAT_FUNC_ENABLE			0x08
@@ -105,6 +106,11 @@
 #define BQ24188_VINDPM_STATUS_MASK			BIT(6)
 
 #define BQ24188_VFLOAT_STEP_MV				20
+
+#define BQ24188_BOOST_ILIM_MASK				BIT(4)
+#define BQ24188_BOOST_ILIM_500MA			0x00
+#define BQ24188_BOOST_ILIM_1000MA			BIT(4)
+
 
 OPPO_BQ24188_EXT int bq24188_get_prop_charge_type(struct opchg_charger *chip);
 OPPO_BQ24188_EXT int bq24188_get_prop_batt_status(struct opchg_charger *chip);
@@ -131,6 +137,7 @@ OPPO_BQ24188_EXT int bq24188_set_wdt_timer(struct opchg_charger *chip, bool enab
 OPPO_BQ24188_EXT int bq24188_set_wdt_reset(struct opchg_charger *chip);
 OPPO_BQ24188_EXT int bq24188_check_charging_pre_full(struct opchg_charger *chip);
 OPPO_BQ24188_EXT int bq24188_check_battovp(struct opchg_charger *chip);
+OPPO_BQ24188_EXT int bq24188_check_chargerovp(struct opchg_charger *chip);
 OPPO_BQ24188_EXT int bq24188_set_vindpm_vol(struct opchg_charger *chip, int vol);
 OPPO_BQ24188_EXT int bq24188_hw_init(struct opchg_charger *chip);
 OPPO_BQ24188_EXT int bq24188_get_initial_state(struct opchg_charger *chip);
