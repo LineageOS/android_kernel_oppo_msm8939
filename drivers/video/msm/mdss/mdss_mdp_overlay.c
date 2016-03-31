@@ -1754,7 +1754,7 @@ static int __mdss_mdp_overlay_release_all(struct msm_fb_data_type *mfd,
 
 #ifdef VENDOR_EDIT
 /* YongPeng.Yi@SWDP.MultiMedia, 2015/06/08  Add for 15009 blue screen when factory reset START */
-	if(is_project(OPPO_15009)||is_project(OPPO_15037)||is_project(OPPO_15035)){
+	if(is_project(OPPO_15009)||is_project(OPPO_15037)||is_project(OPPO_15035) || is_project(OPPO_16000)){
 		if (cnt)
 			mfd->mdp.kickoff_fnc(mfd, NULL);
 	}

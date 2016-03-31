@@ -14,6 +14,11 @@
 
 #include <linux/wait.h>
 #include "wcdcal-hwdep.h"
+/*oppo 2016-01-11 zhangping add for uevent*/
+#ifdef VENDOR_EDIT
+#include<linux/switch.h>
+#endif
+/*oppo 2016-01-11 zhangping add for uevent end*/
 
 #define TOMBAK_MBHC_NC	0
 #define TOMBAK_MBHC_NO	1
@@ -142,6 +147,14 @@ struct wcd_mbhc_config {
     int gpio_yda145_boost_en;
 #endif /* VENDOR_EDIT */
 
+	/*OPPO	2015-12-18, zhangping add for  dump log*/
+    #ifdef VENDOR_EDIT
+    int dump_status;
+	#endif
+	/*OPPO	2015-12-18, zhangping add for  dump log end*/
+
+
+
 };
 
 struct wcd_mbhc_intr {
@@ -213,6 +226,11 @@ struct wcd_mbhc {
 	/* Work to correct accessory type */
 	struct work_struct correct_plug_swch;
 	struct notifier_block nblock;
+/*oppo 2016-01-11 zhangping add for uevent*/
+#ifdef VENDOR_EDIT
+	struct switch_dev wcd9xxx_sdev;
+#endif
+/*oppo 2016-01-11 zhangping add for uevent end*/
 };
 #define WCD_MBHC_CAL_SIZE(buttons, rload) ( \
 	sizeof(struct wcd_mbhc_general_cfg) + \
