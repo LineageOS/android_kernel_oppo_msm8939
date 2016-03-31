@@ -33,6 +33,7 @@
 #include "../codecs/msm8x16-wcd.h"
 #include "../codecs/wcd9306.h"
 #include <soc/oppo/oppo_project.h>
+#include <linux/switch.h>
 #define DRV_NAME "msm8x16-asoc-wcd"
 
 #define BTSCO_RATE_8KHZ 8000
@@ -75,8 +76,6 @@ static atomic_t quat_mi2s_clk_ref;
 static void  pcb_ver_15009(struct platform_device *pdev);
 static bool  is_15009_after_evt2 = true;
 #endif /* VENDOR_EDIT */
-
-
 
 static int msm8x16_enable_codec_ext_clk(struct snd_soc_codec *codec, int enable,
 					bool dapm);
@@ -355,25 +354,27 @@ static int msm_pri_rx_be_hw_params_fixup(struct snd_soc_pcm_runtime *rtd,
 	return 0;
 }
 
+#if defined(CONFIG_MACH_14005) || defined(CONFIG_MACH_15011) || \
+    defined(CONFIG_MACH_15018) || defined(CONFIG_MACH_15022)
 static int msm_be_tfa9890_hw_params_fixup(struct snd_soc_pcm_runtime *rtd,
-				struct snd_pcm_hw_params *params)
+					  struct snd_pcm_hw_params *params)
 {
 	struct snd_interval *rate = hw_param_interval(params,
 					SNDRV_PCM_HW_PARAM_RATE);
-
-	struct snd_interval *channels =
-	    hw_param_interval(params, SNDRV_PCM_HW_PARAM_CHANNELS);
+	struct snd_interval *channels = hw_param_interval(params,
+					SNDRV_PCM_HW_PARAM_CHANNELS);
 
 	pr_debug("%s()\n", __func__);
-
 	rate->min = rate->max = 48000;
-	param_set_mask(params, SNDRV_PCM_HW_PARAM_FORMAT, SNDRV_PCM_FORMAT_S16_LE);
+	param_set_mask(params, SNDRV_PCM_HW_PARAM_FORMAT,
+					SNDRV_PCM_FORMAT_S16_LE);
 
-	if (! channels->min)
+	if (!channels->min)
 		channels->min = channels->max = 2;
 
 	return 0;
 }
+#endif
 
 static int msm_be_hw_params_fixup(struct snd_soc_pcm_runtime *rtd,
 				struct snd_pcm_hw_params *params)
@@ -1626,14 +1627,18 @@ static void *def_msm8x16_wcd_mbhc_cal(void)
 	btn_low[3] = 139;
 	btn_high[3] = 140;
 /*ping.zhang@Multimedia, 2015/06/10, Modify for selfiestick*/
-   if (is_project(OPPO_15009) || is_project(OPPO_15035) || is_project(OPPO_15037))
+   if (is_project(OPPO_15009) || is_project(OPPO_15035) || is_project(OPPO_15037)||is_project(OPPO_15109))
    {
 		btn_low[4] = 175;
    }
 /*lile@EXP.BasicDrv.Audio, 2015-07-07, add for clone 15018 15011 and 15022, 15085 clone 15011, (15089) = 15018 (15062) = 15011 (15081) = 15022*/
-   else if (is_project(OPPO_15018) || is_project(OPPO_15022) || is_project(OPPO_15011) || is_project(OPPO_15085))
+   else if (is_project(OPPO_15018) || is_project(OPPO_15011) || is_project(OPPO_15085))
    {
         btn_low[4] = 240;
+   }
+   else if (is_project(OPPO_15022))
+   {
+        btn_low[4] = 300;/*yuanyan@Multimedia, 2015/08/25, Modify for selfiestick*/
    }
 	else
 	{
@@ -2292,20 +2297,23 @@ static struct snd_soc_dai_link msm8x16_dai[] = {
 		.stream_name = "Quaternary MI2S Playback",
 		.cpu_dai_name = "msm-dai-q6-mi2s.3",
 		.platform_name = "msm-pcm-routing",
-		/*OPPO 2014-07-21 zhzhyon Modify for tfa9890*/
-		#if 0
+#if defined(CONFIG_MACH_14005) || defined(CONFIG_MACH_15011) || defined(CONFIG_MACH_15018) || defined(CONFIG_MACH_15022)
+		.codec_dai_name = "tfa9890_codec_left",
+		.codec_name = "tfa9890.3-0036",
+#else
 		.codec_dai_name = "snd-soc-dummy-dai",
 		.codec_name = "snd-soc-dummy",
-		#else
-		.codec_name     = "tfa9890.3-0036",
-		.codec_dai_name = "tfa9890_codec_left",
-		#endif
-		/*OPPO 2014-07-21 zhzhyon Modify end*/
+#endif
 		.no_pcm = 1,
 		.be_id = MSM_BACKEND_DAI_QUATERNARY_MI2S_RX,
+#if defined(CONFIG_MACH_14005) || defined(CONFIG_MACH_15011) || defined(CONFIG_MACH_15018) || defined(CONFIG_MACH_15022)
 		.be_hw_params_fixup = msm_be_tfa9890_hw_params_fixup,
+#else
+		.be_hw_params_fixup = msm_be_hw_params_fixup,
+#endif
 		.ops = &msm8x16_quat_mi2s_be_ops,
-		.ignore_pmdown_time = 1, /* dai link has playback support */
+		/* this dainlink has playback support */
+		.ignore_pmdown_time = 1,
 		.ignore_suspend = 1,
 	},
 	{
@@ -2748,7 +2756,7 @@ static void populate_ext_snd_card_dailinks(struct platform_device *pdev)
 /*OPPO 2014-08-21 zhzhyon Add for ak4375*/
 static void add_snd_card_dailinks(struct platform_device *pdev)
 {
-		pr_err("%s: CARD is ak4375\n", __func__);
+		pr_debug("%s: CARD is ak4375\n", __func__);
 
 		memcpy(msm8x16_ak4375_dai_links, msm8x16_dai,
 				sizeof(msm8x16_dai));
@@ -2892,8 +2900,8 @@ static void  pcb_ver_15009(struct platform_device *pdev){
         pr_err("pcb_ver_flag2_value is %d\n",pcb_ver_flag2_value);
     }
 //gpio 52 51 50
-//     0   0  0 EVT1º∞“‘«∞
-//     1   1  0 EVT2
+//     0   0  0
+//     1   1  0
 //
     if (((pcb_ver_flag0_value | pcb_ver_flag1_value << 1 | pcb_ver_flag2_value << 2) == 0)) {
         is_15009_after_evt2 = false;
@@ -3076,7 +3084,7 @@ static int msm8x16_asoc_machine_probe(struct platform_device *pdev)
             pr_err("%s: 15009 hw version after EVT2, hs use external micbias\n", __func__);
         }
     }
-	if(is_project(OPPO_15035) || is_project(OPPO_15037))
+	if(is_project(OPPO_15035) || is_project(OPPO_15037)||is_project(OPPO_15109))
 	{
 		mbhc_cfg.hs_ext_micbias = true;
         pr_err("%s: 15037 hw version after EVT2, hs use external micbias\n", __func__);
@@ -3136,7 +3144,7 @@ static int msm8x16_asoc_machine_probe(struct platform_device *pdev)
 		ret = -EPROBE_DEFER;
 		goto err;
 	}
-   if(is_project(OPPO_15009) || is_project(OPPO_15035) ||is_project(OPPO_15037))
+   if(is_project(OPPO_15009) || is_project(OPPO_15035) ||is_project(OPPO_15037)||is_project(OPPO_15109))
    {
       pdata->spk_pa_en = of_get_named_gpio(pdev->dev.of_node,
 					"spk-pa-en", 0);
@@ -3161,7 +3169,7 @@ static int msm8x16_asoc_machine_probe(struct platform_device *pdev)
 
 #ifdef VENDOR_EDIT
 /*add by zhangping .AudioDriver, 2015/01/09, Add for 15005 yda145 boost*/
-    if(is_project(OPPO_15009) || is_project(OPPO_15035)||is_project(OPPO_15037)) {
+    if(is_project(OPPO_15009) || is_project(OPPO_15035)||is_project(OPPO_15037)||is_project(OPPO_15109)) {
 	pdata->yda145_boost_en = of_get_named_gpio(pdev->dev.of_node,
 					"yda145_boost-en", 0);
 	pr_err("pdata->yda145_boost_en = %d\n",pdata->yda145_boost_en);

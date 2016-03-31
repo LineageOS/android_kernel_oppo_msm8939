@@ -22,13 +22,45 @@
 #endif
 
 enum {
-OPCHG_UNKOWN_ID,
+OPCHG_UNKOWN_ID=0,
 OPCHG_SMB358_ID,
 OPCHG_SMB1357_ID,
 OPCHG_BQ24196_ID,
 OPCHG_BQ24157_ID,
 OPCHG_BQ24188_ID,
+OPCHG_MAX_ID,
 };
+#define DEVICE_CHARGER_IC_VERSION		"1.0"
+#define DEVICE_CHARGER_IC_TYPE_BQ24196	"BQ24196"
+#define DEVICE_CHARGER_IC_TYPE_BQ24188	"BQ24188"
+#define DEVICE_CHARGER_IC_TYPE_BQ24157	"BQ24157"
+#define DEVICE_CHARGER_IC_TYPE_SMB358	"SMB358"
+#define DEVICE_CHARGER_IC_TYPE_SMB1357	"SMB1357"
+#define DEVICE_CHARGER_IC_TYPE_UNKOWN	"UNKOWN"
+
+enum {
+OPCHG_BMS_UNKOWN_ID=0,
+OPCHG_BMS_BQ27541_ID = OPCHG_BMS_UNKOWN_ID,
+OPCHG_BMS_BQ27411_ID,
+OPCHG_BMS_MAX_ID,
+};
+#define DEVICE_BMS_IC_VERSION		"1.0"
+#define DEVICE_BMS_IC_TYPE_BQ27541	"BQ27541"
+#define DEVICE_BMS_IC_TYPE_BQ27411	"BQ27411"
+#define DEVICE_BMS_IC_TYPE_UNKOWN	"UNKOWN"
+
+
+enum {
+OPCHG_VOOC_UNKOWN_ID=0,
+OPCHG_VOOC_PIC16F_ID,
+OPCHG_VOOC_STM8S_ID,
+OPCHG_VOOC_MAX_ID,
+};
+#define DEVICE_FASTCHARGER_MCU_VERSION		"1.0"
+#define DEVICE_FASTCHARGER_MCU_TYPE_PIC16F	"PIC16F"
+#define DEVICE_FASTCHARGER_MCU_TYPE_STM8S	"STM8S"
+#define DEVICE_FASTCHARGER_MCU_TYPE_UNKOWN	"UNKOWN"
+
 #if 0
 enum {
 OPCHG_VOOC_WATCHDOG_OUT,			// fast charging is  watchdog delay
@@ -97,6 +129,7 @@ OPPO_CHARGER_EXT void opchg_set_wdt_reset(struct opchg_charger *chip);
 OPPO_CHARGER_EXT void opchg_set_wdt_timer(struct opchg_charger *chip, bool enable);
 OPPO_CHARGER_EXT int opchg_check_charging_pre_full(struct opchg_charger *chip);
 OPPO_CHARGER_EXT int opchg_check_battovp(struct opchg_charger *chip);
+OPPO_CHARGER_EXT int opchg_check_chargerovp(struct opchg_charger *chip);
 OPPO_CHARGER_EXT irqreturn_t opchg_chg_irq_handler(int irq, void *dev_id);
 OPPO_CHARGER_EXT void opchg_dump_regs(struct opchg_charger *chip);
 OPPO_CHARGER_EXT int qpnp_charger_type_get(struct opchg_charger *chip);

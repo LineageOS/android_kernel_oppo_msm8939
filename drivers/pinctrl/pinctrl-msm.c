@@ -364,7 +364,12 @@ static void msm_dt_free_map(struct pinctrl_dev *pctldev,
 	for (idx = 0; idx < num_maps; idx++) {
 		if (map[idx].type == PIN_MAP_TYPE_CONFIGS_GROUP)
 			kfree(map[idx].data.configs.configs);
+#ifdef VENDOR_EDIT
+//xiaocheng.li@Swdp.shanghai, 2015/12/9, fix the memory leak of pinctrl
+		else if (map[idx].type == PIN_MAP_TYPE_MUX_GROUP)
+#else
 		else if (map->type == PIN_MAP_TYPE_MUX_GROUP)
+#endif
 			kfree(map[idx].data.mux.function);
 	};
 

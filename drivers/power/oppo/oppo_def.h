@@ -17,13 +17,14 @@
 
 enum {
     OPCHG_CHG_TEMP_PRESENT = 0,
-    OPCHG_CHG_TEMP_COLD,			//	t< -10
-    OPCHG_CHG_TEMP_COOL,			//	-10< t <0
-    OPCHG_CHG_TEMP_PRE_COOL,		//	0< t <10
-    OPCHG_CHG_TEMP_PRE_NORMAL,	//	10< t <20
-    OPCHG_CHG_TEMP_NORMAL,		//	20< t <45
-    OPCHG_CHG_TEMP_WARM,			//	45< t <55
-    OPCHG_CHG_TEMP_HOT,			//	>55
+    OPCHG_CHG_TEMP_COLD,			//	t< -3
+    OPCHG_CHG_TEMP_COOL,			//	-3< t <0
+    OPCHG_CHG_TEMP_PRE_COOL1,		//	0< t <5
+    OPCHG_CHG_TEMP_PRE_COOL,		//	5< t <12
+    OPCHG_CHG_TEMP_PRE_NORMAL,		//	12< t <22
+    OPCHG_CHG_TEMP_NORMAL,			//	22< t <45
+    OPCHG_CHG_TEMP_WARM,			//	45< t <53
+    OPCHG_CHG_TEMP_HOT,				//	>53
 };
 
 // batterynotify is int type ,so define max bit(14)
@@ -80,8 +81,7 @@ enum {
     FAST_CURRENT_2CHARGER,
     FAST_CURRENT_LCD,
     FAST_CURRENT_CAMERA,
-    FAST_CURRENT_CUSTOM1,
-    FAST_CURRENT_CUSTOM2,
+    FAST_CURRENT_COOL_TEMP,
     FAST_CURRENT_CMCC,
     FAST_CURRENT_MAX
 };
@@ -118,11 +118,12 @@ enum {
 
 enum {
     CHARGER_RESET_BY_TEMP_COOL      = BIT(0),
-    CHARGER_RESET_BY_TEMP_PRE_COOL  = BIT(1),
-    CHARGER_RESET_BY_TEMP_PRE_NORMAL    = BIT(2),
-    CHARGER_RESET_BY_TEMP_NORMAL    = BIT(3),
-    CHARGER_RESET_BY_TEMP_WARM      = BIT(4),
-    CHARGER_RESET_BY_VOOC           = BIT(5),
+	CHARGER_RESET_BY_TEMP_PRE_COOL1  = BIT(1),
+    CHARGER_RESET_BY_TEMP_PRE_COOL  = BIT(2),
+    CHARGER_RESET_BY_TEMP_PRE_NORMAL = BIT(3),
+    CHARGER_RESET_BY_TEMP_NORMAL    = BIT(4),
+    CHARGER_RESET_BY_TEMP_WARM      = BIT(5),
+    CHARGER_RESET_BY_VOOC           = BIT(6),
 };
 
 enum {
@@ -225,7 +226,7 @@ struct opchg_charger {
 
     int                             charging_disabled;
  //   int                             fastchg_current_max_ma;
-    int                             fastchg_current_ma;
+ //   int                             fastchg_current_ma;
  //   int                             limit_current_max_ma;
     int                             faster_normal_limit_current_max_ma;
     bool                            charging_time_out;
@@ -279,6 +280,11 @@ struct opchg_charger {
     int                             pre_cool_bat_decidegc;
     int                             temp_pre_cool_vfloat_mv;
     int                             temp_pre_cool_fastchg_current_ma;
+
+
+    int                             pre_cool1_bat_decidegc;
+    int                             temp_pre_cool1_vfloat_mv;
+    int                             temp_pre_cool1_fastchg_current_ma;
 
     int                             cool_bat_decidegc;
     int                             temp_cool_vfloat_mv;
@@ -342,7 +348,7 @@ struct opchg_charger {
     bool                            is_charger_det;
 
 	int                             charger_type;
-	int								battery_low_vol;
+	//int								battery_low_vol;
 	int								boot_mode;
 #ifdef OPPO_USE_FAST_CHARGER_RESET_MCU
 	int							   fast_charger_reset_count;
@@ -387,6 +393,8 @@ struct opchg_charger {
 	unsigned long					soc_update_pre_time;
 	bool							check_stat_again;
 	bool							power_off;
+    struct mutex                    usbin_lock; /*chaoying.chen@EXP.BaseDrv.charge,2015/08/10 add for USB recognition */
+	bool							updating_fw_flag;
 };
 
 struct opchg_gpio_control {

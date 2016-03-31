@@ -58,6 +58,10 @@ struct evdev_client {
 	struct input_event buffer[];
 };
 
+#ifdef VENDOR_EDIT /* LiuPing@Phone.BSP.Sensor, 2015/09/09, add for tp exception that the touch point y is ignore when touch virtual key in boot.  */
+int evdev_pass_touch_y_flag = 0;
+#endif /*VENDOR_EDIT*/
+
 static void __pass_event(struct evdev_client *client,
 			 const struct input_event *event)
 {
@@ -108,6 +112,14 @@ static void evdev_pass_values(struct evdev_client *client,
 		event.type = v->type;
 		event.code = v->code;
 		event.value = v->value;
+
+#ifdef VENDOR_EDIT /* LiuPing@Phone.BSP.Sensor, 2015/09/09, add for tp exception that the touch point y is ignore when touch virtual key in boot.  */
+            if (evdev_pass_touch_y_flag == 0 &&  event.type == EV_ABS && event.code == ABS_MT_POSITION_Y) {
+                evdev_pass_touch_y_flag = 1;
+                pr_err("%s the first pass y, value:%d \n", __func__, v->value);
+            }
+#endif /*VENDOR_EDIT*/
+
 		__pass_event(client, &event);
 		if (v->type == EV_SYN && v->code == SYN_REPORT)
 			wakeup = true;

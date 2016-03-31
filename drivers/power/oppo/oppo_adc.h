@@ -25,5 +25,6 @@ OPPO_ADC_EXT int opchg_get_prop_charger_voltage_now(struct opchg_charger *chip);
 OPPO_ADC_EXT int opchg_get_prop_battery_voltage_now(struct opchg_charger *chip);
 OPPO_ADC_EXT int opchg_get_prop_batt_temp(struct opchg_charger *chip);
 OPPO_ADC_EXT int opchg_get_prop_low_battery_voltage(struct opchg_charger *chip);
+OPPO_ADC_EXT int opchg_get_prop_battery_id_voltage(struct opchg_charger *chip);
 
 #endif /*_OPPO_ADC_H_*/

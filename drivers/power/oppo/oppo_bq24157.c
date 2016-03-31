@@ -338,7 +338,7 @@ void bq24157_usb_plugout_check_whenaicl(struct opchg_charger *chip)
 int bq24157_set_input_chg_current(struct opchg_charger *chip, int iusbin_mA, bool aicl_enable)
 {
 	u8 aicl_count = 0;
-	int chg_vol;
+	int chg_vol=0,rc=0;
 
     chip->is_charger_det = 1;
 
@@ -350,35 +350,44 @@ int bq24157_set_input_chg_current(struct opchg_charger *chip, int iusbin_mA, boo
 		iusbin_mA,chip->aicl_current,chip->max_fast_current[FAST_CURRENT_MIN],aicl_enable);
 
 	if(iusbin_mA <= CURRENT_500MA){
-		bq24157_iusbmax_set_noaicl(chip, iusbin_mA);
+		rc = bq24157_iusbmax_set_noaicl(chip, iusbin_mA);
 		chip->is_charger_det = 0;
 		return 0;
 	}
 	if((chip->aicl_current > 0) && (aicl_enable == false)){
-		bq24157_iusbmax_set_noaicl(chip, chip->aicl_current);
+		if(chip->aicl_current > iusbin_mA)
+		{
+			//when chip->aicl_current =2000; iusbin_mA = 1500
+			rc = bq24157_iusbmax_set_noaicl(chip, iusbin_mA);
+		}
+		else
+		{
+			//when chip->aicl_current =1500; iusbin_mA = 2000 or iusbin_mA = 1500
+			rc = bq24157_iusbmax_set_noaicl(chip, chip->aicl_current);
+		}
 		chip->is_charger_det = 0;
 		return 0;
 	}
 	if((chip->charging_opchg_temp_statu == OPCHG_CHG_TEMP_COLD) ||
 		(chip->charging_opchg_temp_statu == OPCHG_CHG_TEMP_HOT)){
 		pr_err("%s cold/hot,iusbin_mA:%d\n",__func__,iusbin_mA);
-		bq24157_iusbmax_set_noaicl(chip, iusbin_mA);
+		rc = bq24157_iusbmax_set_noaicl(chip, iusbin_mA);
 		chip->is_charger_det = 0;
 		return 0;
 	}
 
-	bq24157_iusbmax_set_noaicl(chip, CURRENT_500MA);
+	rc = bq24157_iusbmax_set_noaicl(chip, CURRENT_500MA);
 	msleep(20);
 	opchg_set_fast_chg_current(chip, chip->max_fast_current[FAST_CURRENT_MIN]);
 
 	chip->aicl_working = true;
-	bq24157_iusbmax_set_noaicl(chip, CURRENT_500MA);
+	rc = bq24157_iusbmax_set_noaicl(chip, CURRENT_500MA);
 	msleep(90);
 	for(aicl_count = 0;aicl_count < AICL_MAX_COUNT;aicl_count++){
 		chg_vol = opchg_get_prop_charger_voltage_now(chip);
 		if(chg_vol < chip->sw_aicl_point){
 			chip->aicl_current = CURRENT_500MA;
-			bq24157_iusbmax_set_noaicl(chip, chip->aicl_current);
+			rc = bq24157_iusbmax_set_noaicl(chip, chip->aicl_current);
 			chip->aicl_working = false;
 			pr_err("aicl end 500ma_1,chg_vol:%d\n",chg_vol);
 			bq24157_usb_plugout_check_whenaicl(chip);
@@ -389,19 +398,19 @@ int bq24157_set_input_chg_current(struct opchg_charger *chip, int iusbin_mA, boo
 
 	if(iusbin_mA < CURRENT_800MA){
 		chip->aicl_current = CURRENT_500MA;
-		bq24157_iusbmax_set_noaicl(chip, chip->aicl_current);
+		rc = bq24157_iusbmax_set_noaicl(chip, chip->aicl_current);
 		chip->aicl_working = false;
 		chip->is_charger_det = 0;
 		return 0;
 	}
 
-	bq24157_iusbmax_set_noaicl(chip, CURRENT_800MA);
+	rc = bq24157_iusbmax_set_noaicl(chip, CURRENT_800MA);
 	msleep(90);
 	for(aicl_count = 0;aicl_count < AICL_MAX_COUNT;aicl_count++){
 		chg_vol = opchg_get_prop_charger_voltage_now(chip);
 		if(chg_vol < chip->sw_aicl_point){
 			chip->aicl_current = CURRENT_500MA;
-			bq24157_iusbmax_set_noaicl(chip, chip->aicl_current);
+			rc = bq24157_iusbmax_set_noaicl(chip, chip->aicl_current);
 			pr_err("aicl end 500ma_2,chg_vol:%d\n",chg_vol);
 			bq24157_usb_plugout_check_whenaicl(chip);
 			chip->aicl_working = false;
@@ -410,13 +419,13 @@ int bq24157_set_input_chg_current(struct opchg_charger *chip, int iusbin_mA, boo
 		}
 	}
 
-	bq24157_iusbmax_set_noaicl(chip, BQ24157_CURRENT_NOLIMIT);
+	rc = bq24157_iusbmax_set_noaicl(chip, BQ24157_CURRENT_NOLIMIT);
 	msleep(90);
 	for(aicl_count = 0;aicl_count < AICL_MAX_COUNT;aicl_count++){
 		chg_vol = opchg_get_prop_charger_voltage_now(chip);
 		if(chg_vol < chip->sw_aicl_point){
 			chip->aicl_current = CURRENT_800MA;
-			bq24157_iusbmax_set_noaicl(chip, chip->aicl_current);
+			rc = bq24157_iusbmax_set_noaicl(chip, chip->aicl_current);
 			pr_err("aicl end 500ma_3,chg_vol:%d\n",chg_vol);
 			bq24157_usb_plugout_check_whenaicl(chip);
 			chip->aicl_working = false;
@@ -425,7 +434,7 @@ int bq24157_set_input_chg_current(struct opchg_charger *chip, int iusbin_mA, boo
 		}
 	}
 	chip->aicl_current = BQ24157_CURRENT_NOLIMIT;
-	bq24157_iusbmax_set_noaicl(chip, chip->aicl_current);
+	rc = bq24157_iusbmax_set_noaicl(chip, chip->aicl_current);
 	chip->aicl_working = false;
     chip->is_charger_det = 0;
     return 0;
@@ -668,4 +677,32 @@ void bq24157_usbin_valid_work(struct work_struct *work)
 void bq24157_usbin_valid_irq_handler(struct opchg_charger *chip)
 {
 	schedule_work(&chip->bq24157_usbin_valid_work);
+}
+
+int bq24157_get_initial_state(struct opchg_charger *chip)
+{
+    int rc = 0;
+	u8 reg = 0;
+
+
+	rc = opchg_read_reg(chip, BQ24157_STATUS_CTRL_REG, &reg);
+    if (rc) {
+        dev_err(chip->dev, "Couldn't read BQ24188_STATUS_CTRL_REG rc = %d\n", rc);
+        goto fail_init_status;
+    }
+	pr_err("%s reg:0x%x\n", __func__,reg);
+	reg &= BQ24157_CHARGE_STATUS_MASK;
+    if ((reg == BQ24157_CHARGE_IN_PROGRESS) || (reg == BQ24157_CHARGE_TERM)) {
+        bq24157_chg_uv(chip, 0);
+		dev_err(chip->dev, "oppo_charger_in_init\n");
+	} else {
+        bq24157_chg_uv(chip, 1);
+		dev_err(chip->dev, "oppo_charger_out_init\n");
+    }
+
+    return rc;
+
+fail_init_status:
+    dev_err(chip->dev, "bq24157 couldn't get intial status\n");
+    return rc;
 }

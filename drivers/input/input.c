@@ -211,6 +211,10 @@ static void input_repeat_key(unsigned long data)
 #define INPUT_FLUSH		8
 #define INPUT_PASS_TO_ALL	(INPUT_PASS_TO_HANDLERS | INPUT_PASS_TO_DEVICE)
 
+#ifdef VENDOR_EDIT /* LiuPing@Phone.BSP.Sensor, 2015/09/09, add for tp exception that the touch point y is ignore when touch virtual key in boot.  */
+extern int evdev_pass_touch_y_flag;
+#endif /*VENDOR_EDIT*/
+
 static int input_handle_abs_event(struct input_dev *dev,
 				  unsigned int code, int *pval)
 {
@@ -249,8 +253,10 @@ static int input_handle_abs_event(struct input_dev *dev,
 #ifdef VENDOR_EDIT
  /* LiuPing@Phone.BSP.Sensor, 2015/01/21, add for exception in light-sensor as input system ignore the event of same value. */
  /* Hantong@Phone.BSP.Sensor, 2015/09/19, add for exception in Touch-panel as input system ignore the event of same value.*/
+ /* LiuPing@Phone.BSP.Sensor, 2015/09/09, add for tp exception that the touch point y is ignore when touch virtual key in boot.  */
 if( get_boot_mode() != MSM_BOOT_MODE__RECOVERY ){
-		if (*pold == *pval && !(code == ABS_MISC && strcmp(dev->name, "light") == 0)&& !(code == ABS_MT_WIDTH_MAJOR && (strncmp(dev->name, "synaptics-",10) == 0)) )
+		if (*pold == *pval && !(code == ABS_MISC && strcmp(dev->name, "light") == 0)&& !(code == ABS_MT_WIDTH_MAJOR && ((strncmp(dev->name, "synaptics-",10) == 0) || (strncmp(dev->name, "goodix-ts",9) == 0)))
+                 && !((evdev_pass_touch_y_flag == 0 || *pval == 1900) && code == ABS_MT_POSITION_Y && (strncmp(dev->name, "synaptics-",10) == 0)))
 			return INPUT_IGNORE_EVENT;
 }
 #else

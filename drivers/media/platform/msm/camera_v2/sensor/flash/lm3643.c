@@ -24,6 +24,7 @@
 static struct mutex flash_mode_lock_lm3643;
 /*OPPO 2014-08-01 hufeng add for flash engineer mode test*/
 struct delayed_work led_blink_work_lm3643;
+volatile static bool blink_work_lm3643 = false;
 bool blink_test_status_lm3643;
 /*zhengrong.zhang 2014-11-08 Add for open flash problem in status bar problem when camera opening*/
 extern bool camera_power_status;
@@ -234,7 +235,7 @@ int msm_flash_lm3643_led_high(struct msm_led_flash_ctrl_t *fctrl_lm3643)
 #ifdef VENDOR_EDIT
 /*OPPO 2014-08-01 hufeng add for flash engineer mode test*/
 struct regulator *vreg_lm3643;
-static int led_test_mode_lm3643;
+volatile static int led_test_mode_lm3643;/*use volatile to insure the value can be updated realtime*/
 static int msm_led_cci_test_init(void)
 {
 	int rc = 0;
@@ -310,8 +311,8 @@ static int msm_led_cci_test_off(void)
 	flashdata = fctrl_lm3643.flashdata;
 	power_info = &flashdata->power_info;
 	LM3643_DBG("%s:%d called\n", __func__, __LINE__);
-	if (led_test_mode_lm3643 == 2)
-		cancel_delayed_work_sync(&led_blink_work_lm3643);
+	//if (led_test_mode_lm3643 == 2)
+	//	cancel_delayed_work_sync(&led_blink_work_lm3643);
 	if (fctrl_lm3643.flash_i2c_client && fctrl_lm3643.reg_setting)
 	{
 		rc = fctrl_lm3643.flash_i2c_client->i2c_func_tbl->i2c_write_table(
@@ -392,6 +393,7 @@ static ssize_t flash_proc_write(struct file *filp, const char __user *buff,
 {
 	char buf[8] = {0};
 	int new_mode = 0;
+	int i = 0;
 	if (len > 8)
 		len = 8;
 	if (copy_from_user(buf, buff, len))
@@ -405,12 +407,36 @@ static ssize_t flash_proc_write(struct file *filp, const char __user *buff,
 		pr_err("the same mode as old\n");
 		return len;
 	}
+	/*forbid any operation when camera is running*/
+	if (led_test_mode_lm3643 == 5) {
+		if (new_mode == 0) {
+			LM3643_DBG("%s camera is running, will return, new_mode %d\n", __func__, new_mode);
+			return len;
+		} else if (new_mode > 0 && new_mode <= 4){
+			//LM3643_DBG("%s wait for camera release......\n", __func__);
+			while (led_test_mode_lm3643 != 6 && i < 51) {
+				i++;
+				msleep(30);
+			}
+			LM3643_DBG("%s wait for camera release done, new_mode %d, i = %d\n", __func__, new_mode, i);
+			if (i > 50) {
+				led_test_mode_lm3643 = new_mode;
+				return len;
+			}
+		}
+	}
 	switch (new_mode) {
 	case 0:
 		mutex_lock(&flash_mode_lock_lm3643);
-		if (led_test_mode_lm3643 > 0 && led_test_mode_lm3643 <= 3)
+		if (led_test_mode_lm3643 > 0 && led_test_mode_lm3643 <= 3) {
 			msm_led_cci_test_off();
-		led_test_mode_lm3643 = 0;
+			led_test_mode_lm3643 = 0;
+		}
+
+		if (blink_work_lm3643) {
+			cancel_delayed_work_sync(&led_blink_work_lm3643);
+			blink_work_lm3643 = false;
+		}
 		mutex_unlock(&flash_mode_lock_lm3643);
 		break;
 	case 1:
@@ -424,11 +450,13 @@ static ssize_t flash_proc_write(struct file *filp, const char __user *buff,
 		break;
 	case 2:
 		mutex_lock(&flash_mode_lock_lm3643);
-		msm_led_cci_test_init();
-		led_test_mode_lm3643 = 2;
+		if (!blink_work_lm3643) {
+			msm_led_cci_test_init();
+			schedule_delayed_work(&led_blink_work_lm3643, msecs_to_jiffies(50));
+			blink_work_lm3643 = true;
+			led_test_mode_lm3643 = 2;
+		}
 		mutex_unlock(&flash_mode_lock_lm3643);
-
-		schedule_delayed_work(&led_blink_work_lm3643, msecs_to_jiffies(50));
 		break;
 	case 3:
 		mutex_lock(&flash_mode_lock_lm3643);

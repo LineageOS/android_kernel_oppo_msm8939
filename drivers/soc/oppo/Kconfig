@@ -35,6 +35,12 @@ config MACH_15022
 	help
 	  Support for the R7sf variant
 
+config MACH_15109
+	select MACH_OPPO_MSM8916
+	bool "F1f"
+	help
+	  Support for the F1f variant
+
 endmenu
 
 menu "OPPO specific options"

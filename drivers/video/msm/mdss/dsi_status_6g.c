@@ -148,6 +148,8 @@ void mdss_check_dsi_ctrl_status(struct work_struct *work, uint32_t interval)
 	 * overlay operations. Need refine this lock for command mode
 	 */
 
+#ifndef VENDOR_EDIT
+/* Xiaori.Yuan@Mobile Phone Software Dept.Driver, 2015/12/09  Modify for deadlock when blank */
 	mutex_lock(&ctl->offlock);
 	if (mipi->mode == DSI_CMD_MODE)
 		mutex_lock(&mdp5_data->ov_lock);
@@ -161,6 +163,23 @@ void mdss_check_dsi_ctrl_status(struct work_struct *work, uint32_t interval)
 							__func__);
 		return;
 	}
+#else /*VENDOR_EDIT*/
+	if (mipi->mode == DSI_CMD_MODE)
+		mutex_lock(&mdp5_data->ov_lock);
+	mutex_lock(&ctl->offlock);
+	mutex_lock(&ctrl_pdata->mutex);
+
+	if (mdss_panel_is_power_off(pstatus_data->mfd->panel_power_state) ||
+			pstatus_data->mfd->shutdown_pending) {
+		mutex_unlock(&ctrl_pdata->mutex);
+		mutex_unlock(&ctl->offlock);
+		if (mipi->mode == DSI_CMD_MODE)
+			mutex_unlock(&mdp5_data->ov_lock);
+		pr_err("%s: DSI turning off, avoiding panel status check\n",
+							__func__);
+		return;
+	}
+#endif /*VENDOR_EDIT*/
 
 	/*
 	 * For the command mode panels, we return pan display
@@ -181,9 +200,17 @@ void mdss_check_dsi_ctrl_status(struct work_struct *work, uint32_t interval)
 	ret = ctrl_pdata->check_status(ctrl_pdata);
 	mdss_mdp_clk_ctrl(MDP_BLOCK_POWER_OFF);
 
+#ifndef VENDOR_EDIT
+/* Xiaori.Yuan@Mobile Phone Software Dept.Driver, 2015/12/09  Modify for deadlock when blank  */
 	if (mipi->mode == DSI_CMD_MODE)
 		mutex_unlock(&mdp5_data->ov_lock);
 	mutex_unlock(&ctl->offlock);
+#else /*VENDOR_EDIT*/
+	mutex_unlock(&ctrl_pdata->mutex);
+	mutex_unlock(&ctl->offlock);
+	if (mipi->mode == DSI_CMD_MODE)
+		mutex_unlock(&mdp5_data->ov_lock);
+#endif /*VENDOR_EDIT*/
 
 	if ((pstatus_data->mfd->panel_power_state == MDSS_PANEL_POWER_ON)) {
 		if (ret > 0)

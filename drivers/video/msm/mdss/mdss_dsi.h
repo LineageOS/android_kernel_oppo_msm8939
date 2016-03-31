@@ -282,17 +282,25 @@ enum {
 };
 
 #ifdef VENDOR_EDIT
-/* Xiaori.Yuan@Mobile Phone Software Dept.Driver, 2015/01/09  Add for LCD driver */
+/* YongPeng.Yi@SWDP.MultiMedia, 2015/06/11  Add for LCD TYPE START */
 enum {
 	LCD_15009_JDI_NT35592=0,
 	LCD_15009_TM_NT35592,
-	LCD_TM_OTA9605A,
+	LCD_15069_TM_OTM9605A,
 	LCD_15037_TM_OTM9605,
-	LCD_15037_TRULY_HX8389C,
 	LCD_15035_TM_OTM9605,
+	LCD_15037_TRULY_HX8389C,
+	LCD_15035_TRULY_HX8389C,
+	LCD_15029_TRULY_HX8394,
+	LCD_15109_TM_NT35592,
+	LCD_15109_TRULY_HX8394F,
+	LCD_15109_BOE_ILI9881C,
+	LCD_16000_TM_OTM9605,
+	LCD_16000_TRULY_HX8389C,
 	LCD_UNKNOW,
 };
 #endif /*VENDOR_EDIT*/
+
 #define DSI_CTRL_LEFT		DSI_CTRL_0
 #define DSI_CTRL_RIGHT		DSI_CTRL_1
 #define DSI_CTRL_CLK_SLAVE	DSI_CTRL_RIGHT
@@ -364,6 +372,10 @@ struct mdss_dsi_ctrl_pdata {
 	bool panel_bias_vreg;
 	bool dsi_irq_line;
 	atomic_t te_irq_ready;
+#ifdef VENDOR_EDIT
+/* lile@EXP.BasicDrv.LCD, 2015-12-33, add for LCD 1.8v power supply change */
+	int lcd_en_gpio;
+#endif /*VENDOR_EDIT*/
 
 	bool cmd_clk_ln_recovery_en;
 	bool cmd_sync_wait_broadcast;

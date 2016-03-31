@@ -107,7 +107,7 @@ static void opchg_external_power_changed(struct power_supply *psy)
 	if(is_project(OPPO_14043) || is_project(OPPO_14037) || is_project(OPPO_14051) ||
 		is_project(OPPO_15005)|| is_project(OPPO_15057) ||is_project(OPPO_15025) ||
 		is_project(OPPO_15009)||is_project(OPPO_15037)|| is_project(OPPO_15035) ||
-        is_project(OPPO_15085) )
+		is_project(OPPO_15085) || is_project(OPPO_15109) )
 		opchg_set_input_chg_current(chip, chip->max_input_current[INPUT_CURRENT_BY_POWER], false);
 	else
 	opchg_set_input_chg_current(chip, chip->max_input_current[INPUT_CURRENT_MIN], false);
@@ -120,7 +120,7 @@ static void opchg_external_power_changed(struct power_supply *psy)
 	dev_dbg(chip->dev, "%s set charger input current=%d,online = %d, current_limit = %d\n", __func__,chip->max_input_current[INPUT_CURRENT_MIN], online, current_limit);
 
     opchg_check_status(chip);
-	opchg_set_status(chip, false);
+	opchg_set_status(chip, true);//opchg_set_status(chip, false);
 	if(chip->charging_opchg_temp_statu == OPCHG_CHG_TEMP_NORMAL)
 		opchg_set_fast_chg_current(chip, chip->max_fast_current[FAST_CURRENT_MIN]);
 
@@ -411,26 +411,16 @@ int opchg_battery_set_property(struct power_supply *psy,
 		chip->is_factory_mode= val->intval;
 		if(chip->is_factory_mode == true)
 		{
-
-		/*huqiao@EXP.BasicDrv.Basic add for clone 15085*/
-			if(is_project(OPPO_15011)  || is_project(OPPO_14045)||is_project(OPPO_15005) || is_project(OPPO_15025)||
-				is_project(OPPO_15018) || is_project(OPPO_15022)||
-				is_project(OPPO_15009) || is_project(OPPO_15037)||is_project(OPPO_15035) || is_project(OPPO_15085))
-			{
 				opchg_config_charging_disable(chip, FACTORY_MODE_DISABLE, 0);
-			}
 		}
 		else
 		{
 		/*huqiao@EXP.BasicDrv.Basic add for clone 15085*/
-
-			if(is_project(OPPO_15011) ||is_project(OPPO_14045)|| is_project(OPPO_15005) || is_project(OPPO_15025)||
-				is_project(OPPO_15018) || is_project(OPPO_15022)||
-				is_project(OPPO_15009) || is_project(OPPO_15037)||is_project(OPPO_15035) ||
-                is_project(OPPO_15085) )
+			if(is_project(OPPO_15018) ||is_project(OPPO_15022) ||is_project(OPPO_15085))
 			{
-				opchg_config_charging_disable(chip, FACTORY_MODE_DISABLE, 1);
+				opchg_set_switch_mode(NORMAL_CHARGER_MODE);
 			}
+				opchg_config_charging_disable(chip, FACTORY_MODE_DISABLE, 1);
 		}
         break;
 
@@ -517,7 +507,6 @@ int opchg_battery_get_property(struct power_supply *psy,
 	        break;
 
         case POWER_SUPPLY_PROP_ONLINE:
-			#if 1
 			// set usb charging sign
 			if((chip->chg_present) && (qpnp_charger_type_get(chip) == POWER_SUPPLY_TYPE_USB_DCP))
 			{
@@ -529,22 +518,6 @@ int opchg_battery_get_property(struct power_supply *psy,
 			}
 			#ifdef OPCHARGER_DEBUG_ENABLE
 			pr_debug("oppo_debug usb charging sign = %d\n",val->intval);
-			#endif
-			#else
-			if(is_project(OPPO_14005)||is_project(OPPO_14023)||is_project(OPPO_15011)) {
-	            if(opchg_get_prop_fast_chg_started(chip) == true) {// in fast charging
-	                val->intval = 0;
-	            }
-				else if(vooc_start_step < OPCHG_VOOC_TO_STANDARD){ // out of fast charging
-					val->intval = 0;
-				}
-	            else {										// in normal  charging
-	                val->intval = chip->chg_present;
-	            }
-	        }
-	        else {
-			val->intval = chip->chg_present;
-			}
 			#endif
 	        break;
 	case POWER_SUPPLY_PROP_CHARGING_ENABLED:
@@ -561,7 +534,6 @@ int opchg_battery_get_property(struct power_supply *psy,
 	        }
 	        break;
 	    case POWER_SUPPLY_PROP_STATUS:
-		#if 1
 			if(is_project(OPPO_14005)||is_project(OPPO_14023)||is_project(OPPO_15011)||is_project(OPPO_15018) || is_project(OPPO_15022)) {
 				if(opchg_get_prop_fast_chg_started(chip) == true) {
 					val->intval = POWER_SUPPLY_STATUS_CHARGING;
@@ -583,23 +555,6 @@ int opchg_battery_get_property(struct power_supply *psy,
 			#ifdef OPCHARGER_DEBUG_ENABLE
 			pr_debug("oppo_debug  bat_status= %d vooc_start_step= %d\r\n",val->intval,vooc_start_step);
 			#endif
-		#else
-	        if(is_project(OPPO_14005)||is_project(OPPO_14023)||is_project(OPPO_15011)) {
-	            if(opchg_get_prop_fast_chg_started(chip) == true) {// in fast charging
-				val->intval = POWER_SUPPLY_STATUS_CHARGING;
-			}
-				else if(vooc_start_step < OPCHG_VOOC_TO_STANDARD){ // out of fast charging
-					val->intval = POWER_SUPPLY_STATUS_CHARGING;
-				}
-			else {										// in normal  charging
-	                val->intval = chip->bat_status;
-	            }
-	        }
-	        else {
-	            val->intval = chip->bat_status;
-	        }
-			//pr_debug("oppo_charger_debug  bat_status= %d vooc_start_step= %d\r\n",val->intval,vooc_start_step);
-		#endif
 	        break;
 	    case POWER_SUPPLY_PROP_CHARGE_TYPE:
 			if(is_project(OPPO_14005)||is_project(OPPO_14023)||is_project(OPPO_15011)||is_project(OPPO_15018) || is_project(OPPO_15022)) {
@@ -652,7 +607,7 @@ int opchg_battery_get_property(struct power_supply *psy,
 			val->intval = chip->fast_charge_project;
 			break;
 
-		case	POWER_SUPPLY_PROP_BATTERY_FCC:			//dengnw add for battery fcc
+		case POWER_SUPPLY_PROP_BATTERY_FCC:			//dengnw add for battery fcc
 			if(is_project(OPPO_14005)||is_project(OPPO_14023)||is_project(OPPO_14045)||is_project(OPPO_15011)||is_project(OPPO_15018) || is_project(OPPO_15022))
 			{
 				if(bq27541_di == NULL)
@@ -670,7 +625,7 @@ int opchg_battery_get_property(struct power_supply *psy,
 				val->intval = 100;
 			}
 			break;
-		case	POWER_SUPPLY_PROP_BATTERY_SOH:			//dengnw add for battery soh
+		case POWER_SUPPLY_PROP_BATTERY_SOH:			//dengnw add for battery soh
 			if(is_project(OPPO_14005)||is_project(OPPO_14023)||is_project(OPPO_14045)||is_project(OPPO_15011)||is_project(OPPO_15018) || is_project(OPPO_15022))
 			{
 				if(bq27541_di == NULL)
@@ -688,7 +643,7 @@ int opchg_battery_get_property(struct power_supply *psy,
 				val->intval = 100;
 			}
 			break;
-		case	POWER_SUPPLY_PROP_BATTERY_CC:			//dengnw add for battery cc
+		case POWER_SUPPLY_PROP_BATTERY_CC:			//dengnw add for battery cc
 			if(is_project(OPPO_14005)||is_project(OPPO_14023)||is_project(OPPO_14045)||is_project(OPPO_15011)||is_project(OPPO_15018) || is_project(OPPO_15022))
 			{
 				if(bq27541_di == NULL)
@@ -706,7 +661,7 @@ int opchg_battery_get_property(struct power_supply *psy,
 				val->intval = 100;
 			}
 			break;
-		case	POWER_SUPPLY_PROP_BATTERY_CHARGER_ENABLE:
+		case POWER_SUPPLY_PROP_BATTERY_CHARGER_ENABLE:
 			val->intval = chip->is_factory_mode;
 			break;
 
@@ -743,7 +698,6 @@ int qpnp_power_get_property_mains(struct power_supply *psy,
 
 		if (chip->charging_disabled)
 			return 0;
-#if 1
 		if(is_project(OPPO_14005)||is_project(OPPO_14023)||is_project(OPPO_15011)||is_project(OPPO_15018) || is_project(OPPO_15022))
 		{
 			if((opchg_get_prop_fast_chg_started(chip) == true)
@@ -768,35 +722,6 @@ int qpnp_power_get_property_mains(struct power_supply *psy,
 		#ifdef OPCHARGER_DEBUG_ENABLE
 		pr_debug("oppo_debug dc charging and fast charging sign = %d\n",val->intval);
 		#endif
-#else
-		if(is_project(OPPO_14005)||is_project(OPPO_14023)||is_project(OPPO_15011))
-		{
-			if(opchg_get_prop_fast_chg_started(chip) == true){// in fast charging
-				val->intval = 1;
-				//pr_debug("usb_online= %d,00000 usb_check_inout = %d,vooc_start_step= %d\r\n",val->intval,chip->chg_present,vooc_start_step);
-			}
-			else if(vooc_start_step < OPCHG_VOOC_TO_STANDARD){ // out of fast charging
-				val->intval = 1;
-				//pr_debug("usb_online= %d,1111 usb_check_inout = %d,vooc_start_step= %d\r\n",val->intval,chip->chg_present,vooc_start_step);
-			}
-			else
-			{
-				if(qpnp_charger_type_get(chip) == POWER_SUPPLY_TYPE_USB_DCP)
-					val->intval = 1;
-				else
-					val->intval = 0;
-				//pr_debug("usb_online= %d,2222 usb_check_inout = %d,vooc_start_step= %d\r\n",val->intval,chip->chg_present,vooc_start_step);
-			}
-		}
-		else
-		{
-			/* jingchun.wang@Onlinerd.Driver, 2014/02/11  Modify for when no battery gauge present */
-			if(qpnp_charger_type_get(chip) == POWER_SUPPLY_TYPE_USB_DCP)
-				val->intval = 1;
-			else
-				val->intval = 0;
-		}
-#endif /*CONFIG_BATTERY_BQ27541*/
 		break;
 
 	case POWER_SUPPLY_PROP_CURRENT_MAX:

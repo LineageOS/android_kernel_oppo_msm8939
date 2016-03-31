@@ -308,6 +308,35 @@ static void sub_mainboard_verify(struct devinfo_data *devinfo_data)
 				mainboard_info.manufacture = "UNSPECIFIED";
 			break;
 		}
+		case OPPO_15022:
+		{
+			if ((id1 == 0) && (id2 == 1))
+				sprintf(mainboard_info.manufacture,
+					"%d-%d", get_project(),
+					get_Operator_Version());
+			else
+				mainboard_info.manufacture = "UNSPECIFIED";
+			break;
+		}
+		case OPPO_15109:
+		{
+			if ((id1 == 1) && (id2 == 1))
+				sprintf(mainboard_info.manufacture,
+					"15109-%d", OPERATOR_CHINA_MOBILE);
+			else if ((id1 == 0) && (id2 == 1))
+				sprintf(mainboard_info.manufacture,
+					"15109-%d", OPERATOR_ALL_CHINA_CARRIER);
+			else if ((id1 == 1) && (id2 == 0))
+				sprintf(mainboard_info.manufacture,
+					"15109-%d", get_Operator_Version());
+			else if ((id1 == 0) && (id2 == 0) &&
+				 (get_Operator_Version() != OPERATOR_FOREIGN_TAIWAN))
+				sprintf(mainboard_info.manufacture,
+					"15109-%d", get_Operator_Version());
+			else
+				mainboard_info.manufacture = "UNSPECIFIED";
+			break;
+		}
 		default: {
 			sprintf(mainboard_info.manufacture,
 				"%d-%d", get_project(), get_Operator_Version());

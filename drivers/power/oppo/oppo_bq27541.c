@@ -23,6 +23,7 @@ extern char *BQ27541_HMACSHA1_authenticate(char *Message,char *Key,char *result)
 
 /* OPPO 2013-12-20 liaofuchun add for fastchg firmware update */
 #ifdef OPPO_USE_FAST_CHARGER
+/*
 extern unsigned char Pic16F_firmware_data_14005[];
 extern int pic_fw_ver_count_14005;
 
@@ -35,11 +36,18 @@ extern int pic_fw_ver_count_15018;
 extern unsigned char Pic16F_firmware_data_15022[];
 extern int pic_fw_ver_count_15022;
 
+extern unsigned char stm8s_firmware_data_15022[];
+extern int st_fw_ver_count_15022;
+
 extern unsigned char Pic16F_firmware_data[];
 extern int pic_fw_ver_count;
-
-extern int pic_need_to_up_fw;
-extern int pic_have_updated;
+*/
+int vooc_need_to_up_fw = 0;
+int vooc_have_updated = 0;
+int vooc_fw_ver_count = 0;
+unsigned char *vooc_firmware_data = NULL;
+struct opchg_fast_charger *opchg_fast_charger_chip = NULL;
+int (*vooc_fw_update) (struct opchg_fast_charger *chip, bool enable) = NULL;
 #endif
 /* OPPO 2013-12-20 liaofuchun add end */
 
@@ -325,9 +333,10 @@ static int bq27541_soc_calibrate(struct opchg_bms_charger *di, int soc)
 	unsigned int soc_calib;
 	int counter_temp = 0;
 	int soc_load= 0;
-	int soc_temp= 0;
+	int soc_calib_temp= 0;
 	static int counter_debug = 0;
 	static int chg_present_pre = 0;//sjc20150529
+	static int soc_temp = 0;
 
 	//stap1: get init soc
 	if(!di->batt_psy){
@@ -367,7 +376,7 @@ static int bq27541_soc_calibrate(struct opchg_bms_charger *di, int soc)
 	}
 
 	//stap2: soc Smoothing
-	soc_temp= di->soc_pre;
+	soc_calib_temp= di->soc_pre;
 	soc_calib= di->soc_pre;
 	if(di->batt_psy){
 		di->batt_psy->get_property(di->batt_psy,POWER_SUPPLY_PROP_STATUS, &ret);
@@ -381,7 +390,8 @@ static int bq27541_soc_calibrate(struct opchg_bms_charger *di, int soc)
 		{
 			// when charging full and soc is not 100
 			//if((opchg_chip->batt_pre_full)&&((opchg_chip->temperature >= opchg_chip->pre_cool_bat_decidegc) && (opchg_chip->temperature < opchg_chip->warm_bat_decidegc)))
-			if ((opchg_chip->batt_pre_full)&&(opchg_chip->charging_opchg_temp_statu == OPCHG_CHG_TEMP_NORMAL || opchg_chip->charging_opchg_temp_statu == OPCHG_CHG_TEMP_PRE_NORMAL))
+			if ((opchg_chip->batt_pre_full)&&
+				(opchg_chip->charging_opchg_temp_statu >= OPCHG_CHG_TEMP_PRE_COOL1 && opchg_chip->charging_opchg_temp_statu <= OPCHG_CHG_TEMP_NORMAL))
 			{
 				di->saltate_counter++;
 				if(di->saltate_counter >= CAPACITY_SALTATE_COUNTER_CHARGING_TERM_60S)
@@ -558,11 +568,12 @@ static int bq27541_soc_calibrate(struct opchg_bms_charger *di, int soc)
 
 	//stap5: debug_log
 	counter_debug++;
-	if((counter_debug >= 9)||(soc_temp != di->soc_pre))
+	if((counter_debug >= 9)||(soc_calib_temp != soc_calib) || (soc_temp != soc))
 	{
 		pr_debug("soc:%d, soc_calib:%d,counter_temp:%d,ret.intval=%d,opchg_chip->batt_pre_full:%d,opchg_chip->batt_full:%d,di->saltate_counter:%d,di->batt_vol_pre:%d\n",
 			soc, soc_calib,counter_temp,ret.intval,opchg_chip->batt_pre_full,opchg_chip->batt_full,di->saltate_counter,di->batt_vol_pre);
 		counter_debug = 0;
+		soc_temp = soc;
 	}
 	return soc_calib;
 }
@@ -1166,9 +1177,19 @@ static void bq27541_hw_config(struct work_struct *work)
 
 #ifdef CONFIG_GAUGE_BQ27411
 	if(type == DEVICE_TYPE_BQ27411)
+	{
 		di->device_type = DEVICE_BQ27411;
-	else
+		register_device_proc("bms_ic", DEVICE_BMS_IC_VERSION, DEVICE_BMS_IC_TYPE_BQ27411);
+	}
+	else if(type == DEVICE_TYPE_BQ27541)
+	{
 		di->device_type = DEVICE_BQ27541;
+		register_device_proc("bms_ic", DEVICE_BMS_IC_VERSION, DEVICE_BMS_IC_TYPE_BQ27541);
+	}
+	else
+	{
+		register_device_proc("bms_ic", DEVICE_BMS_IC_VERSION, DEVICE_BMS_IC_TYPE_UNKOWN);
+	}
 	gauge_set_cmd_addr(di,di->device_type);
 #endif
 	qpnp_battery_gauge_register(&bq27541_batt_gauge);
@@ -1531,6 +1552,17 @@ static irqreturn_t irq_rx_handler(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
+int vooc_get_mcu_hw_type(void)
+{
+	if (is_project(OPPO_15022) && get_PCB_Version() == HW_VERSION__16) {
+		return OPCHG_VOOC_STM8S_ID;
+	} else if ( is_project(OPPO_14005) || is_project(OPPO_14023) || is_project(OPPO_15011)||
+				is_project(OPPO_15018) || is_project(OPPO_15022)) {
+		return OPCHG_VOOC_PIC16F_ID;
+	} else {
+		return OPCHG_VOOC_UNKOWN_ID;
+	}
+}
 
 static void fastcg_work_func(struct work_struct *work)
 {
@@ -1623,7 +1655,7 @@ static void fastcg_work_func(struct work_struct *work)
 	if(data == VOOC_NOTIFY_FAST_PRESENT) {
 		//request fast charging
 		wake_lock(&bq27541_di->fastchg_wake_lock);
-		pic_need_to_up_fw = 0;
+		vooc_need_to_up_fw = 0;
 		fw_ver_info = 0;
 		bq27541_di->alow_reading = false;
 		bq27541_di->fast_chg_started = true;
@@ -1632,19 +1664,11 @@ static void fastcg_work_func(struct work_struct *work)
 
 		// chang mod timer to delay tims for dengnw in 20141221
 		#ifdef OPCHG_VOOC_WATCHDOG
-		if(is_project(OPPO_15011))
-		{
 		mod_timer(&bq27541_di->watchdog,
 		  jiffies + msecs_to_jiffies(15000));
-		}
-		else
-		{
-		mod_timer(&bq27541_di->watchdog,
-		  jiffies + msecs_to_jiffies(10000));
-		}
 		#else
 		schedule_delayed_work(&bq27541_di->watchdog_delayed_work,
-                            jiffies + msecs_to_jiffies(10000));
+                            jiffies + msecs_to_jiffies(15000));
 		#endif
 
 		if(!isnot_power_on){
@@ -1661,6 +1685,15 @@ static void fastcg_work_func(struct work_struct *work)
 	// step3: Fast charge connected is unexpectly stop
 	else if(data == VOOC_NOTIFY_FAST_ABSENT)
 	{
+		// add for MMI test
+		if((opchg_chip != NULL)&&(the_chip != NULL))
+		{
+			if(opchg_chip->is_factory_mode == false)
+			{
+				msleep(1000);
+			}
+		}
+
 		//fast charge stopped
 		bq27541_di->alow_reading = true;
 		bq27541_di->fast_chg_started = false;
@@ -1686,32 +1719,10 @@ static void fastcg_work_func(struct work_struct *work)
 
 		#ifdef OPPO_USE_FAST_CHARGER
 		if(is_project(OPPO_14005)||is_project(OPPO_14023)||is_project(OPPO_15011)|| is_project(OPPO_15018) || is_project(OPPO_15022)) {
-		#if 0
-			if(opchg_chip != NULL)
-			{
-			rc = opchg_read_reg(opchg_chip, REG08_BQ24196_ADDRESS,&reg08_val);
-			if (rc < 0) {
-				pr_debug("oppo check fastcharger int Couldn't read %d rc = %d\n",REG08_BQ24196_ADDRESS, rc);
-			}
-			else {
-				pr_debug("oppo check fastcharger int reg0x%x = 0x%x\n", REG08_BQ24196_ADDRESS,reg08_val);
-			}
-
-			if((reg08_val & REG08_BQ24196_CHARGING_STATUS_POWER_MASK) == REG08_BQ24196_CHARGING_STATUS_POWER_IN) {
-				if (opchg_chip->chg_present == false) {
-				//	rc = bq24196_chg_uv(opchg_chip, 0);
-				}
-			}
-			else {
-				if (opchg_chip->chg_present == true) {
-				rc = bq24196_chg_uv(opchg_chip, 1);
-				}
-			}
-			}
-		#else
 			if((opchg_chip != NULL)&&(the_chip != NULL))
 			{
-				if(opchg_get_charger_inout() == 0)
+				// add for MMI test
+				if((opchg_get_charger_inout() == 0)&&(opchg_chip->is_factory_mode))
 				{
 					if (opchg_chip->chg_present == true) {
 						opchg_chip->chg_present = false;
@@ -1720,7 +1731,6 @@ static void fastcg_work_func(struct work_struct *work)
 					}
 				}
 			}
-		#endif
 		}
 		#endif
 
@@ -1755,19 +1765,11 @@ static void fastcg_work_func(struct work_struct *work)
 		bq27541_di->alow_reading = false;
 		// chang mod timer to delay tims for dengnw in 20141221
 		#ifdef OPCHG_VOOC_WATCHDOG
-		if(is_project(OPPO_15011))
-		{
 		mod_timer(&bq27541_di->watchdog,
 		  jiffies + msecs_to_jiffies(15000));
-		}
-		else
-		{
-		mod_timer(&bq27541_di->watchdog,
-		  jiffies + msecs_to_jiffies(10000));
-		}
 		#else
 		schedule_delayed_work(&bq27541_di->watchdog_delayed_work,
-			  jiffies + msecs_to_jiffies(10000));
+			  jiffies + msecs_to_jiffies(15000));
 		#endif
 
 		ret_info = 0x2;
@@ -1863,6 +1865,7 @@ static void fastcg_work_func(struct work_struct *work)
 	}
 	else if(fw_ver_info)
 	{
+#if 0
 		//fw in local is large than mcu1503_fw_ver
 		if(is_project(OPPO_14005))
 		{
@@ -1937,6 +1940,17 @@ static void fastcg_work_func(struct work_struct *work)
 			pr_err("local_fw:0x%x,need_to_up_fw:%d\n",Pic16F_firmware_data[pic_fw_ver_count - 4],pic_need_to_up_fw);
 		}
 		#endif
+#endif
+		if ((!vooc_have_updated) && (vooc_firmware_data[vooc_fw_ver_count - 4] > data)){
+			ret_info = 0x2;
+			vooc_need_to_up_fw = 1;	//need to update fw
+		} else {
+			ret_info = 0x1;
+			vooc_need_to_up_fw = 0;	//fw is already new,needn't to up
+		}
+		//#ifdef OPCHARGER_DEBUG_FOR_FAST_CHARGER
+		pr_err("local_fw:0x%x,need_to_up_fw:%d\n",vooc_firmware_data[vooc_fw_ver_count - 4],vooc_need_to_up_fw);
+		//#endif
 		fw_ver_info = 0;
 	}
 	else
@@ -2070,7 +2084,7 @@ out:
 	}
 
 	#ifdef OPPO_USE_FAST_CHARGER
-	if(pic_need_to_up_fw){
+	if(vooc_need_to_up_fw){
 		msleep(500);
 
 		// chang mod timer to delay tims for dengnw in 20141221
@@ -2079,24 +2093,16 @@ out:
 		#else
 		cancel_delayed_work(&bq27541_di->watchdog_delayed_work);
 		#endif
-
-		rc = pic16f_fw_update(opchg_fast_charger_chip,false);
-		pic_need_to_up_fw = 0;
+		if (vooc_fw_update != NULL && opchg_fast_charger_chip != NULL)
+		rc = vooc_fw_update(opchg_fast_charger_chip,false);
+		vooc_need_to_up_fw = 0;
 		// chang mod timer to delay tims for dengnw in 20141221
 		#ifdef OPCHG_VOOC_WATCHDOG
-		if(is_project(OPPO_15011))
-		{
 		mod_timer(&bq27541_di->watchdog,
 		  jiffies + msecs_to_jiffies(15000));
-		}
-		else
-		{
-		mod_timer(&bq27541_di->watchdog,
-		  jiffies + msecs_to_jiffies(10000));
-		}
 		#else
 		schedule_delayed_work(&bq27541_di->watchdog_delayed_work,
-                jiffies + msecs_to_jiffies(10000));
+                jiffies + msecs_to_jiffies(15000));
 		#endif
 	}
 	#endif
@@ -2538,8 +2544,14 @@ int opchg_set_reset_active(struct opchg_bms_charger  *di)
 #ifdef OPPO_USE_FAST_CHARGER
 	int rc=0;
 
+	if (opchg_chip->updating_fw_flag) {
+		printk(KERN_ERR "%s: updating_fw, return.\n", __func__);
+		return rc;
+	}
+
 	if(is_project(OPPO_14005)||is_project(OPPO_14023)||is_project(OPPO_15011)||is_project(OPPO_15018) || is_project(OPPO_15022))
 	{
+		printk(KERN_ERR "%s: reset MCU\n", __func__);
 		rc=opchg_set_gpio_dir_output(di->opchg_reset_gpio,1);	// out 1
 		#ifndef OPCHG_VOOC_WATCHDOG
 		mutex_lock(&bq27541_di->work_irq_lock);
@@ -2551,7 +2563,8 @@ int opchg_set_reset_active(struct opchg_bms_charger  *di)
 		rc=opchg_set_gpio_val(di->opchg_reset_gpio,1);
 		wait_ms(10);
 		rc=opchg_set_gpio_val(di->opchg_reset_gpio,0);
-		wait_ms(10);
+		//wait_ms(10);
+		msleep(200);
 	}
 	return rc;
 #else
@@ -3028,7 +3041,9 @@ static int bq27541_battery_resume(struct i2c_client *client)
 	if(opchg_chip != NULL && qpnp_batt_gauge && qpnp_batt_gauge->get_battery_soc)
 	{
 		pr_debug("oppo_check_rtc_time suspend_time=%d\n",suspend_time);
-		opchg_chip->bat_volt_check_point=bq27541_battery_soc(bq27541_di, suspend_time);
+		opchg_chip->bat_volt_check_point = bq27541_battery_soc(bq27541_di, suspend_time);
+		if (opchg_chip->bat_volt_check_point == 0 && bq27541_battery_voltage(bq27541_di) > LOW_POWER_VOLTAGE_3400MV)
+			opchg_chip->bat_volt_check_point = 1;
 		power_supply_changed(&opchg_chip->batt_psy);
 	}
 
