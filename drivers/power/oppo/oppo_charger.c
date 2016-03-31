@@ -527,13 +527,8 @@ int opchg_get_prop_batt_status(struct opchg_charger *chip)
 		return POWER_SUPPLY_STATUS_UNKNOWN;
 
 	if(chip->batt_full){
-		#if 0
-		if((chip->batt_authen) && (opchg_battery_temp_region_get(chip) == CV_BATTERY_TEMP_REGION__NORMAL
-			|| opchg_battery_temp_region_get(chip) == CV_BATTERY_TEMP_REGION__LITTLE_COOL))
-		#else
-		if((chip->batt_authen) && ((chip->charging_opchg_temp_statu == OPCHG_CHG_TEMP_NORMAL)
-			|| (chip->charging_opchg_temp_statu  == OPCHG_CHG_TEMP_PRE_NORMAL)))
-		#endif
+		if((chip->batt_authen) &&
+			((chip->charging_opchg_temp_statu >= OPCHG_CHG_TEMP_PRE_COOL1)&&(chip->charging_opchg_temp_statu  <= OPCHG_CHG_TEMP_NORMAL)))
 		{
 			if(chip->bat_volt_check_point >= 100)
 				chip->bat_status = POWER_SUPPLY_STATUS_FULL;
@@ -946,11 +941,20 @@ int opchg_get_initial_state(struct opchg_charger *chip)
 		break;
 
 	case OPCHG_BQ24196_ID:
-		//rc = bq24196_get_initial_state(chip);
+		if ((is_project(OPPO_15029) && get_PCB_Version() == HW_VERSION__10)||
+			(is_project(OPPO_15109) && (get_PCB_Version() == HW_VERSION__10||get_PCB_Version() == HW_VERSION__12||get_PCB_Version() == HW_VERSION__14||get_PCB_Version() == HW_VERSION__15)))
+		{
+			rc = bq24196_get_initial_state(chip);
+		}
 		break;
 
 	case OPCHG_BQ24188_ID:
 		rc = bq24188_get_initial_state(chip);
+		break;
+
+	case OPCHG_BQ24157_ID:
+		if(is_project(OPPO_15025) && get_PCB_Version() <= 1)
+			rc = bq24157_get_initial_state(chip);
 		break;
 
     default:
@@ -1054,15 +1058,15 @@ int opchg_check_battovp(struct opchg_charger *chip)
         break;
 
     case OPCHG_BQ24196_ID:
-        bq24196_check_battovp(chip);
+        rc = bq24196_check_battovp(chip);
         break;
 
 	case OPCHG_BQ24157_ID:
-        bq24157_check_battovp(chip);
+        rc = bq24157_check_battovp(chip);
         break;
 
 	case OPCHG_BQ24188_ID:
-        bq24188_check_battovp(chip);
+        rc = bq24188_check_battovp(chip);
         break;
 
     default:
@@ -1071,6 +1075,39 @@ int opchg_check_battovp(struct opchg_charger *chip)
 
     return rc;
 }
+
+int opchg_check_chargerovp(struct opchg_charger *chip)
+{
+    int rc = 0;
+
+    switch (chip->driver_id) {
+    case OPCHG_SMB358_ID:
+        //do nothing
+        break;
+
+    case OPCHG_SMB1357_ID:
+        //do nothing
+        break;
+
+    case OPCHG_BQ24196_ID:
+        //rc = bq24196_check_chargerovp(chip);
+        break;
+
+	case OPCHG_BQ24157_ID:
+        //rc = bq24157_check_chargerovp(chip);
+        break;
+
+	case OPCHG_BQ24188_ID:
+        rc = bq24188_check_chargerovp(chip);
+        break;
+
+    default:
+        break;
+    }
+
+    return rc;
+}
+
 
 irqreturn_t opchg_chg_irq_handler(int irq, void *dev_id)
 {
@@ -1086,7 +1123,10 @@ irqreturn_t opchg_chg_irq_handler(int irq, void *dev_id)
 		break;
 
 	case OPCHG_BQ24196_ID:
-		//bq24196_chg_irq_handler(irq, chip);
+		if (is_project(OPPO_15029) && get_PCB_Version() == HW_VERSION__10) {
+			//pr_err("===%s: preject is 15029, return===\n",__func__);
+			bq24196_chg_irq_handler(irq, chip);
+		}
 		break;
 
     default:
@@ -1121,6 +1161,13 @@ void opchg_usbin_valid_irq_handler(bool usb_present)
 		return;
 	}
 #endif
+
+	//add for mmi test,when charger is out status,set factory mode test charging
+	if((opchg_chip->chg_present == false) && (usb_present == 1))
+	{
+		//add for factory mode test charging for 20150325
+		opchg_chip->is_factory_mode	= 1;
+	}
 
     switch (opchg_chip->driver_id) {
     case OPCHG_SMB358_ID:
@@ -1200,11 +1247,17 @@ void opchg_dump_regs(struct opchg_charger *chip)
 
 void opchg_switch_to_usbin(struct opchg_charger *chip,bool enable)
 {
+	int rc=0;
+
 	if((get_boot_mode() == MSM_BOOT_MODE__RF) || (get_boot_mode() == MSM_BOOT_MODE__WLAN))
 		enable = 0;
-	if(chip != NULL){
-		gpio_direction_output(chip->usbin_switch_gpio,enable);
-		pr_debug("opchg usbin-switch-gpio:%d\n",gpio_get_value(chip->usbin_switch_gpio));
+	if(chip != NULL)
+	{
+		if(chip->usbin_switch_gpio > 0)
+		{
+			rc=gpio_direction_output(chip->usbin_switch_gpio,enable);
+			pr_debug("opchg usbin-switch-gpio:%d\n",gpio_get_value(chip->usbin_switch_gpio));
+		}
 	}
 }
 
