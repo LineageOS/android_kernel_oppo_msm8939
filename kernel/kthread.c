@@ -398,6 +398,11 @@ int kthread_park(struct task_struct *k)
 			if (k != current) {
 				wake_up_process(k);
 				wait_for_completion(&kthread->parked);
+#ifdef VENDOR_EDIT
+//Add by tong.han@Bsp.Group.Tp for race condition patch from case 02249334,2015-11-30
+				while (k->state != TASK_PARKED)
+					cond_resched();
+#endif/*VENDOR_EDIT*/
 			}
 		}
 		ret = 0;
