@@ -184,7 +184,7 @@ static int mdss_dsi_panel_power_on(struct mdss_panel_data *pdata)
 				pr_debug("reset enable: pinctrl not enabled\n");
 #else /*VENDOR_EDIT*/
 /* YongPeng.Yi@SWDP.MultiMedia, 2015/04/01  Add for 15009 Power on timing START */
-		if(!is_project(OPPO_15009)){
+		if(!is_project(OPPO_15009) && !is_project(OPPO_15029) && !is_project(OPPO_15109)){
 			if (mdss_dsi_pinctrl_set_state(ctrl_pdata, true))
 				pr_debug("reset enable: pinctrl not enabled\n");
 		}
@@ -485,7 +485,11 @@ static int mdss_dsi_off(struct mdss_panel_data *pdata, int power_state)
 #ifdef VENDOR_EDIT
 	/* nanwei.deng@Mobile Phone Software bsp.Driver, 2014/10/30  Add for 14045 charger */
 /*huqiao@EXP.BasicDrv.Basic add for clone 15085*/
-	if (is_project(OPPO_14005) || is_project(OPPO_15009) || is_project(OPPO_15037) || is_project(OPPO_15018) || is_project(OPPO_15022) || is_project(OPPO_14045) || is_project(OPPO_15005)|| is_project(OPPO_15011) || is_project(OPPO_15085))
+	if (is_project(OPPO_14005) || is_project(OPPO_15009) || is_project(OPPO_15037) || is_project(OPPO_15018) ||
+		is_project(OPPO_15022) || is_project(OPPO_14045) || is_project(OPPO_15005) ||
+		is_project(OPPO_15011) || is_project(OPPO_15035) || is_project(OPPO_15043) ||
+		is_project(OPPO_15085) || is_project(OPPO_15029) || is_project(OPPO_15109) ||
+		is_project(OPPO_16000))
 	{
 		opchg_check_lcd_off();
 	}
@@ -497,6 +501,15 @@ static int mdss_dsi_off(struct mdss_panel_data *pdata, int power_state)
 
 	pr_debug("%s+: ctrl=%p ndx=%d power_state=%d\n",
 		__func__, ctrl_pdata, ctrl_pdata->ndx, power_state);
+
+	/* wuyu@EXP.BaseDrv.LCM, 2015-08-13, modify for display question when connecting to WifiDisplay */
+	if (is_project(OPPO_15085)) {
+		u32 temp;
+		temp = MIPI_INP((ctrl_pdata->ctrl_base) + 0xac);
+		temp &= ~(1<<28);
+		MIPI_OUTP((ctrl_pdata->ctrl_base) + 0xac, temp);
+		wmb();
+	}
 
 	if (power_state == panel_info->panel_power_state) {
 		pr_debug("%s: No change in power state %d -> %d\n", __func__,
@@ -582,7 +595,11 @@ int mdss_dsi_on(struct mdss_panel_data *pdata)
 #ifdef VENDOR_EDIT
 	/* nanwei.deng@Mobile Phone Software bsp.Driver, 2014/10/30  Add for 14045 charger */
 /*huqiao@EXP.BasicDrv.Basic add for clone 15085*/
-	if (is_project(OPPO_14005) || is_project(OPPO_15009) || is_project(OPPO_15037) || is_project(OPPO_15018) || is_project(OPPO_15022) || is_project(OPPO_14045) || is_project(OPPO_15005)|| is_project(OPPO_15011) || is_project(OPPO_15085))
+	if (is_project(OPPO_14005) || is_project(OPPO_15009) || is_project(OPPO_15037) || is_project(OPPO_15018)||
+		is_project(OPPO_15022) || is_project(OPPO_14045) || is_project(OPPO_15005)||
+		is_project(OPPO_15011) || is_project(OPPO_15035) || is_project(OPPO_15043)||
+		is_project(OPPO_15085) || is_project(OPPO_15029) || is_project(OPPO_15109)||
+		is_project(OPPO_16000))
 	{
 		opchg_check_lcd_on();
 	}
@@ -611,6 +628,15 @@ int mdss_dsi_on(struct mdss_panel_data *pdata)
 	if (cur_power_state != MDSS_PANEL_POWER_OFF) {
 		pr_debug("%s: dsi_on from panel low power state\n", __func__);
 		goto end;
+	}
+
+	/* wuyu@EXP.BaseDrv.LCM, 2015-08-13, modify for display question when connecting to WifiDisplay */
+	if (is_project(OPPO_15085)) {
+		u32 temp;
+		temp = MIPI_INP((ctrl_pdata->ctrl_base) + 0xac);
+		temp &= ~(1<<28);
+		MIPI_OUTP((ctrl_pdata->ctrl_base) + 0xac, temp);
+		wmb();
 	}
 
 	/*
@@ -1828,6 +1854,15 @@ int dsi_panel_device_register(struct device_node *pan_node,
 	 * If disp_en_gpio has been set previously (disp_en_gpio > 0)
 	 *  while parsing the panel node, then do not override it
 	 */
+#ifdef VENDOR_EDIT
+/* lile@EXP.BasicDrv.LCD, 2015-12-33, add for LCD 1.8v power supply change */
+	if((is_project(OPPO_15109) && (get_PCB_Version() == HW_VERSION__15)) && ctrl_pdata->lcd_en_gpio <= 0){
+		ctrl_pdata->lcd_en_gpio = of_get_named_gpio(ctrl_pdev->dev.of_node, "qcom,platform-lcd-enable-gpio", 0);
+		if (!gpio_is_valid(ctrl_pdata->lcd_en_gpio))
+		    pr_err("%s:%d, LCD gpio 120 not specified\n", __func__, __LINE__);
+	}
+#endif
+
 	if (ctrl_pdata->disp_en_gpio <= 0) {
 		ctrl_pdata->disp_en_gpio = of_get_named_gpio(
 			ctrl_pdev->dev.of_node,
