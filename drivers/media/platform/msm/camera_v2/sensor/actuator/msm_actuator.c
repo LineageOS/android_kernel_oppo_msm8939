@@ -422,8 +422,30 @@ static int32_t msm_actuator_park_lens(struct msm_actuator_ctrl_t *a_ctrl)
 
 	next_lens_pos = a_ctrl->step_position_table[a_ctrl->curr_step_pos];
 	while (next_lens_pos) {
+		/*modified by Zhengrong.Zhang@Camera 20151012 start for reduce time of actuator exit*/
+		CDBG("%s:%d next_lens_pos=%d init_code=%d act_type=%d reg_size=%d\n",
+			__func__, __LINE__, next_lens_pos, a_ctrl->initial_code,
+			a_ctrl->act_type, a_ctrl->reg_tbl_size);
+
+		if (a_ctrl->act_type == ACTUATOR_VCM && a_ctrl->reg_tbl_size == 1) {
+			if (next_lens_pos > 200) {
+				next_lens_pos = 200;
+			} else {
+				next_lens_pos = (next_lens_pos > a_ctrl->park_lens.max_step) ?
+					(next_lens_pos - a_ctrl->park_lens.max_step) : 0;
+			}
+		} else if (a_ctrl->act_type == ACTUATOR_VCM && a_ctrl->reg_tbl_size == 2) {
+			if (next_lens_pos > (a_ctrl->initial_code + 50)) {
+				next_lens_pos = (a_ctrl->initial_code + 50);
+			} else {
+				next_lens_pos = 0;
+				break;
+			}
+		} else {
 		next_lens_pos = (next_lens_pos > a_ctrl->park_lens.max_step) ?
 			(next_lens_pos - a_ctrl->park_lens.max_step) : 0;
+		}
+
 		a_ctrl->func_tbl->actuator_parse_i2c_params(a_ctrl,
 			next_lens_pos, a_ctrl->park_lens.hw_params,
 			a_ctrl->park_lens.damping_delay);
@@ -441,8 +463,9 @@ static int32_t msm_actuator_park_lens(struct msm_actuator_ctrl_t *a_ctrl)
 			return rc;
 		}
 		a_ctrl->i2c_tbl_index = 0;
+
 		/* Use typical damping time delay to avoid tick sound */
-		usleep_range(10000, 12000);
+		usleep_range(5000, 5000);
 	}
 
 	return 0;
