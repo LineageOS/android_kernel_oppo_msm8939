@@ -940,6 +940,8 @@ static int eeprom_config_read_cal_data32(struct msm_eeprom_ctrl_t *e_ctrl,
 		cdata.cfg.read_data.num_bytes);
 
 #ifndef VENDOR_EDIT
+/*deleted by Jinshui.Liu@Camera 20141018 start for need it after kill daemon*/
+	/* should only be called once.  free kernel resource */
 	if (!rc) {
 		kfree(e_ctrl->cal_data.mapdata);
 		kfree(e_ctrl->cal_data.map);
@@ -1218,7 +1220,106 @@ static int read_eeprom_memory_3h7(struct msm_eeprom_ctrl_t *e_ctrl,
 	}
 	return rc;
 }
+
 #endif
+
+#ifdef VENDOR_EDIT
+//xiongxing add for compability of evt1 and evt2 of s5k4h8
+uint8_t s5k4h8_module = 0;
+#define CHECK_SUM_OFFSET        17
+#define FLAG_OFFSET             16
+#define SENSOR_ID_OFFSET        7
+#define GROUP_SEP               28
+#define OTP_PAGE                (1)//(4)
+#define OTP_PAGE_SIZE           (64)
+#define OTP_BASE                ((OTP_PAGE-1)*OTP_PAGE_SIZE)
+static void msm_eeprom_s5k4h8_read_vendorInfo(struct msm_eeprom_ctrl_t * e_ctrl){
+
+    uint8_t *buffer = (uint8_t *)e_ctrl->cal_data.mapdata;
+    uint32_t size = e_ctrl->cal_data.num_data;
+    int i = 0, j = 0;
+    uint32_t sum = 0;
+
+    if ( size < OTP_PAGE_SIZE*OTP_PAGE ){
+        pr_err("%s size is %d \n", __func__, size);
+        return;
+    }
+
+    for( i = 0; i < 2; i++ ){
+        if( buffer[OTP_BASE + FLAG_OFFSET + i*GROUP_SEP] == 0x40 ){
+            s5k4h8_module = buffer[OTP_BASE + SENSOR_ID_OFFSET + i*GROUP_SEP];
+            sum = 0;
+            for( j = 0; j < (0x0A0F - 0x0A04 + 1); j++ ){
+                sum += buffer[OTP_BASE + j + i*GROUP_SEP];
+                CDBG("%s checksum addr 0x%x \n", __func__, 0x0A04 + j + i*GROUP_SEP);
+            }
+
+            CDBG("%s checksum is 0x%x, should be 0x%x \n", __func__, sum%255, buffer[OTP_BASE + i*GROUP_SEP + CHECK_SUM_OFFSET]);
+
+            if( sum%255 == buffer[OTP_BASE + i*GROUP_SEP + CHECK_SUM_OFFSET] ){
+                break;
+            }else{
+                pr_err("%s checksum is not right\n", __func__);
+                s5k3m2_module = 0;
+            }
+
+        }else{
+            CDBG("%s group %d is invalid \n", __func__, i);
+            s5k3m2_module = 0;
+        }
+    }
+
+    if( i == 2){
+        pr_err("%s no availble group \n",__func__);
+    }
+
+    CDBG("%s EVT1:0x34 EVT2:0x35  found id [0x%x] \n", __func__, s5k4h8_module);
+
+}
+#endif
+
+#define OV8858_OTP_PAGE_SIZE 16
+uint8_t ov8858_module = 0;
+static void msm_eeprom_ov8858_read_vendorInfo(struct msm_eeprom_ctrl_t *e_ctrl)
+{
+    uint8_t *buffer = (uint8_t *) e_ctrl->cal_data.mapdata;
+    uint32_t size = e_ctrl->cal_data.num_data;
+    uint8_t flag = 0;
+    int i;
+
+    CDBG("%s E\n", __func__);
+
+    if( size < OV8858_OTP_PAGE_SIZE ){
+        pr_err("%s size is %d \n", __func__, size);
+        return;
+    }
+
+    flag = buffer[0];
+
+    if( flag == 0){
+        pr_err("%s err flag is zero\n",__func__);
+        return;
+    }
+
+    for( i = 0; i < 3; i++ ){
+
+        if( (flag & 0xC0) == 0x40 ){
+            break;
+        }
+
+        flag <<= 2;
+    }
+
+    if( i == 3 ){
+        pr_err("%s no valid group\n", __func__);
+        return;
+    }
+
+    ov8858_module = buffer[ 1 + i*5 ];
+
+    CDBG("%s module is 0x%x\n", __func__, ov8858_module);
+}
+
 #endif
 
 static int msm_eeprom_platform_probe(struct platform_device *pdev)
@@ -1364,6 +1465,18 @@ static int msm_eeprom_platform_probe(struct platform_device *pdev)
 	for (j = 0; j < e_ctrl->cal_data.num_data; j++)
 		CDBG("memory_data[%d] = 0x%X\n", j,
 			e_ctrl->cal_data.mapdata[j]);
+
+#ifdef VENDOR_EDIT
+    /*xiongxing add for 15095 s5k4h8*/
+    if ( strcmp( eb_info->eeprom_name, "qtech_s5k4h8") == 0){
+        msm_eeprom_s5k4h8_read_vendorInfo(e_ctrl);
+    }
+
+    if ( strcmp( eb_info->eeprom_name, "truly_ov8858" ) == 0 )
+    {
+        msm_eeprom_ov8858_read_vendorInfo(e_ctrl);
+    }
+#endif
 
 	e_ctrl->is_supported |= msm_eeprom_match_crc(&e_ctrl->cal_data);
 
