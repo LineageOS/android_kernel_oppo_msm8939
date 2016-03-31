@@ -119,6 +119,10 @@ int opchg_parse_dt(struct opchg_charger *chip)
     if (!gpio_is_valid(chip->batt_id_gpio)) {
         dev_dbg(chip->dev, "Invalid batt-id-gpio");
     }
+	else
+	{
+		dev_dbg(chip->dev, "batt-id-gpio = %d",chip->batt_id_gpio);
+	}
     #elif defined(OPPO_USE_MTK)
     //
     #endif
@@ -189,8 +193,8 @@ int opchg_parse_dt(struct opchg_charger *chip)
     #ifdef OPPO_USE_QCOMM
     rc = of_property_read_u32(node, "qcom,fast-charger-project-sign", &chip->fast_charge_project);
     if (rc) {
-	/*#hanqing.wang@EXP.BasicDrv.Audio add for clone 15089 and add the macor MSM_15062 and OPPO_15011 = OPPO_15018*/
-		if(is_project(OPPO_14005)||is_project(OPPO_14023)||is_project(OPPO_15011)||is_project(OPPO_15018) || is_project(OPPO_15022))
+		if( is_project(OPPO_14005)||is_project(OPPO_14023)||is_project(OPPO_15011)||
+			is_project(OPPO_15018)||is_project(OPPO_15022)||is_project(OPPO_15043))
 		{
 			chip->fast_charge_project = true;
 		}
@@ -232,7 +236,7 @@ int opchg_parse_dt(struct opchg_charger *chip)
     if (rc) {
 		chip->fastchg_current_max_ma = OPCHG_FAST_CHG_MAX_MA;
     }
-    chip->fastchg_current_ma = chip->fastchg_current_max_ma;
+    //chip->fastchg_current_ma = chip->fastchg_current_max_ma;
     #elif defined(OPPO_USE_MTK)
     chip->fastchg_current_max_ma = OPCHG_FAST_CHG_MAX_MA;
     #endif
@@ -357,7 +361,7 @@ int opchg_parse_dt(struct opchg_charger *chip)
         chip->temp_pre_cool_vfloat_mv = -EINVAL;
     }
     #elif defined(OPPO_USE_MTK)
-    chip->temp_pre_cool_vfloat_mv = 4200;
+    chip->temp_pre_cool_vfloat_mv = 4320;
     #endif
 
     #ifdef OPPO_USE_QCOMM
@@ -369,6 +373,35 @@ int opchg_parse_dt(struct opchg_charger *chip)
     #elif defined(OPPO_USE_MTK)
     chip->temp_pre_cool_fastchg_current_ma = 750;
     #endif
+
+
+#ifdef OPPO_USE_QCOMM
+    rc = of_property_read_u32(node, "qcom,pre_cool1_bat_decidegc", &chip->pre_cool1_bat_decidegc);
+    if (rc < 0) {
+        chip->pre_cool1_bat_decidegc = -EINVAL;
+    }
+#elif defined(OPPO_USE_MTK)
+    chip->pre_cool1_bat_decidegc = 50;
+#endif
+
+#ifdef OPPO_USE_QCOMM
+    rc = of_property_read_u32(node, "qcom,temp_pre_cool1_vfloat_mv", &chip->temp_pre_cool1_vfloat_mv);
+    if (rc < 0) {
+        chip->temp_pre_cool1_vfloat_mv = -EINVAL;
+    }
+#elif defined(OPPO_USE_MTK)
+    chip->temp_pre_cool_vfloat_mv = 4320;
+#endif
+
+#ifdef OPPO_USE_QCOMM
+    rc = of_property_read_u32(node, "qcom,temp_pre_cool1_fastchg_current_ma",
+                            &chip->temp_pre_cool1_fastchg_current_ma);
+    if (rc < 0) {
+        chip->temp_pre_cool1_fastchg_current_ma = -EINVAL;
+    }
+#elif defined(OPPO_USE_MTK)
+    chip->temp_pre_cool1_fastchg_current_ma = 300;
+#endif
 
     #ifdef OPPO_USE_QCOMM
     rc = of_property_read_u32(node, "qcom,cool_bat_decidegc", &chip->cool_bat_decidegc);
@@ -501,17 +534,51 @@ static int opcharger_charger_probe(struct i2c_client *client, const struct i2c_d
     chip->dev = &client->dev;
     chip->usb_psy = usb_psy;
     chip->fake_battery_soc = -EINVAL;
-
 	chip->boot_mode = get_boot_mode();
 	chip->driver_id = id->driver_data;
-	if(is_project(OPPO_15035)){
+
+	dev_dbg(chip->dev, "opcharger_i2c_id=%d\n",chip->driver_id);
+	if(( is_project(OPPO_15109)&&(get_PCB_Version() == HW_VERSION__11||get_PCB_Version() == HW_VERSION__13 ) ) ||
+        is_project(OPPO_16000) ){
 		chip->driver_id = OPCHG_BQ24188_ID;
 		dev_dbg(chip->dev, "opcharger_i2c_id=%d\n",chip->driver_id);
 	}
 
-	if(is_project(OPPO_15005) || is_project(OPPO_15025)|| is_project(OPPO_15035)){
+    /* probe the device to check if its actually connected */
+	if(is_project(OPPO_15005)){
+		if(get_PCB_Version() == 6 && chip->driver_id == OPCHG_SMB358_ID){
+			pr_err("15005 no smb358 device\n");
+			return -ENODEV;
+		} else if(get_PCB_Version() != 6 && chip->driver_id == OPCHG_BQ24188_ID){
+			pr_err("15005 no bq24188 device\n");
+			return -ENODEV;
+		}
+	} else if(is_project(OPPO_15025)){
+		if(get_PCB_Version() <= 5 && chip->driver_id == OPCHG_SMB358_ID){
+			pr_err("15025 no smb358 device\n");
+			return -ENODEV;
+		} else if(get_PCB_Version() > 5 && chip->driver_id == OPCHG_BQ24157_ID){
+			pr_err("15025 no bq24157 device\n");
+			return -ENODEV;
+		}
+	}
+	else if(is_project(OPPO_15109)){
+		// 15109 TO/EVT use bq24196 15109 DVT use bq24188
+		if((get_PCB_Version() == HW_VERSION__10||get_PCB_Version() == HW_VERSION__12||get_PCB_Version() == HW_VERSION__14||get_PCB_Version() == HW_VERSION__15) && chip->driver_id == OPCHG_BQ24188_ID){
+			pr_err("15109 no bq24188 device\n");
+			return -ENODEV;
+		} else if((get_PCB_Version() == HW_VERSION__11||get_PCB_Version() == HW_VERSION__13)&& chip->driver_id == OPCHG_BQ24196_ID){
+			pr_err("15109 no bq24196 device\n");
+			return -ENODEV;
+		}
+	}
 
-	} else {
+	if( is_project(OPPO_15005) || is_project(OPPO_15025)|| is_project(OPPO_15035)||
+		is_project(OPPO_15109)|| is_project(OPPO_16000))
+	{
+		// do noting
+	}
+	else {
 		opchg_chip = chip;
 	}
     dev_dbg(chip->dev, "opcharger_i2c_id=%d,boot_mode =%d\n",chip->driver_id,chip->boot_mode);
@@ -558,28 +625,13 @@ static int opcharger_charger_probe(struct i2c_client *client, const struct i2c_d
     }
 
     mutex_init(&chip->read_write_lock);
-    /* probe the device to check if its actually connected */
-	if(is_project(OPPO_15005)){
-		if(get_PCB_Version() == 6 && chip->driver_id == OPCHG_SMB358_ID){
-			pr_err("15005 no smb358 device\n");
-			return -ENODEV;
-		} else if(get_PCB_Version() != 6 && chip->driver_id == OPCHG_BQ24188_ID){
-			pr_err("15005 no bq24188 device\n");
-			return -ENODEV;
-		}
-	} else if(is_project(OPPO_15025)){
-		if(get_PCB_Version() <= 5 && chip->driver_id == OPCHG_SMB358_ID){
-			pr_err("15025 no smb358 device\n");
-			return -ENODEV;
-		} else if(get_PCB_Version() > 5 && chip->driver_id == OPCHG_BQ24157_ID){
-			pr_err("15025 no bq24157 device\n");
-			return -ENODEV;
-		}
-	}
+    mutex_init(&chip->usbin_lock);/*chaoying.chen@EXP.BaseDrv.charge,2015/08/10 add for USB recognition */
 
-
-	if(is_project(OPPO_15005) || is_project(OPPO_15025)|| is_project(OPPO_15035))
+	if(is_project(OPPO_15005) || is_project(OPPO_15025)|| is_project(OPPO_15035)||is_project(OPPO_15109)
+        || is_project(OPPO_16000) )
+	{
 		opchg_chip = chip;
+	}
 
 	rc = opchg_read_reg(chip, 0x00, &reg);
 	if (rc) {
@@ -599,8 +651,8 @@ static int opcharger_charger_probe(struct i2c_client *client, const struct i2c_d
 /*chaoying.chen@EXP.BaseDrv.charge,2015/07/02  modify  for 15085*/
 	if(is_project(OPPO_14043)  || is_project(OPPO_14037) || is_project(OPPO_14051)||
 		is_project(OPPO_15005) || is_project(OPPO_15057) || is_project(OPPO_15025)||
-		is_project(OPPO_15009) || is_project(OPPO_15037) || is_project(OPPO_15035)||
-        is_project(OPPO_15085) ) {
+		is_project(OPPO_15009) || is_project(OPPO_15037) || is_project(OPPO_15085)||
+		is_project(OPPO_15109) || (is_project(OPPO_15029) && get_PCB_Version() != HW_VERSION__10)) {
 		if(gpio_is_valid(chip->usbin_switch_gpio)){
 			rc = gpio_request(chip->usbin_switch_gpio,"opcharger_usbin_switch");
 			if(rc)
@@ -656,7 +708,7 @@ static int opcharger_charger_probe(struct i2c_client *client, const struct i2c_d
     }
 
     /* STAT irq configuration */
-    if (gpio_is_valid(chip->irq_gpio) && (chip->driver_id == OPCHG_SMB358_ID)) {
+    if ((gpio_is_valid(chip->irq_gpio) && (chip->driver_id == OPCHG_SMB358_ID)) || (gpio_is_valid(chip->irq_gpio) && is_project(OPPO_15029) && get_PCB_Version() == HW_VERSION__10)) {
         rc = gpio_request(chip->irq_gpio, "opcharger_stat");
         if (rc) {
             dev_err(&client->dev, "gpio_request for %d failed rc=%d\n", chip->irq_gpio, rc);
@@ -741,11 +793,20 @@ static int opcharger_charger_probe(struct i2c_client *client, const struct i2c_d
 	}
     #endif
 
-	if(is_project(OPPO_14043) || is_project(OPPO_14037) || is_project(OPPO_15057) || is_project(OPPO_15025)){
+	if( is_project(OPPO_14043) || is_project(OPPO_14037) || is_project(OPPO_15057) ||
+		is_project(OPPO_15025) || is_project(OPPO_15035) || is_project(OPPO_16000))
+	{
 		if(gpio_is_valid(chip->batt_id_gpio)){
 			rc = gpio_request(chip->batt_id_gpio,"opcharger_batt_id");
 			if(rc)
+			{
 				dev_err(&client->dev, "gpio_request for %d failed rc=%d\n", chip->batt_id_gpio, rc);
+			}
+			else
+			{
+				dev_err(&client->dev, "gpio_request for %d success rc=%d\n", chip->batt_id_gpio, rc);
+			}
+
 			chip->batt_authen = oppo_battery_status_init(chip->batt_id_gpio);
 			if(!chip->batt_authen){
 				msleep(30);
@@ -754,6 +815,31 @@ static int opcharger_charger_probe(struct i2c_client *client, const struct i2c_d
 		}
 	} else {
 		chip->batt_authen = 1;
+	}
+
+	if(chip->driver_id == OPCHG_BQ24196_ID)
+	{
+		register_device_proc("charger_ic", DEVICE_CHARGER_IC_VERSION, DEVICE_CHARGER_IC_TYPE_BQ24196);
+	}
+	else if(chip->driver_id == OPCHG_BQ24157_ID)
+	{
+		register_device_proc("charger_ic", DEVICE_CHARGER_IC_VERSION, DEVICE_CHARGER_IC_TYPE_BQ24157);
+	}
+	else if(chip->driver_id == OPCHG_BQ24188_ID)
+	{
+		register_device_proc("charger_ic", DEVICE_CHARGER_IC_VERSION, DEVICE_CHARGER_IC_TYPE_BQ24188);
+	}
+	else if(chip->driver_id == OPCHG_SMB358_ID)
+	{
+		register_device_proc("charger_ic", DEVICE_CHARGER_IC_VERSION, DEVICE_CHARGER_IC_TYPE_SMB358);
+	}
+	else if(chip->driver_id == OPCHG_SMB1357_ID)
+	{
+		register_device_proc("charger_ic", DEVICE_CHARGER_IC_VERSION, DEVICE_CHARGER_IC_TYPE_SMB1357);
+	}
+	else
+	{
+		register_device_proc("charger_ic", DEVICE_CHARGER_IC_VERSION, DEVICE_CHARGER_IC_TYPE_UNKOWN);
 	}
 	pr_debug("opcharger end========================= success,charger_present:%d\n",chip->chg_present);
     return 0;
@@ -865,7 +951,10 @@ static void opcharger_charger_shutdown(struct i2c_client *client)
 			msleep(20);
 			pr_err("%s 15025 reset charger\n",__func__);
 		}
-	} else if(is_project(OPPO_15005)){
+	}
+	else if(is_project(OPPO_15005)||is_project(OPPO_15035)||
+	         (is_project(OPPO_15109)&&(get_PCB_Version() == HW_VERSION__11||get_PCB_Version() == HW_VERSION__13)) ||
+             is_project(OPPO_16000) ){
 		if(chip->driver_id == OPCHG_BQ24188_ID){
 			opchg_get_charging_status(chip);
 			msleep(20);
