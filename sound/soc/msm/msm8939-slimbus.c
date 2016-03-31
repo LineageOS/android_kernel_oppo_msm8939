@@ -641,23 +641,27 @@ static int msm_be_hw_params_fixup(struct snd_soc_pcm_runtime *rtd,
 	return 0;
 }
 
+#if defined(CONFIG_MACH_14005) || defined(CONFIG_MACH_15011) || \
+    defined(CONFIG_MACH_15018) || defined(CONFIG_MACH_15022)
 static int msm_be_tfa9890_hw_params_fixup(struct snd_soc_pcm_runtime *rtd,
 					  struct snd_pcm_hw_params *params)
 {
 	struct snd_interval *rate = hw_param_interval(params,
-		SNDRV_PCM_HW_PARAM_RATE);
-	struct snd_interval *channels =
-		hw_param_interval(params, SNDRV_PCM_HW_PARAM_CHANNELS);
+					SNDRV_PCM_HW_PARAM_RATE);
+	struct snd_interval *channels = hw_param_interval(params,
+					SNDRV_PCM_HW_PARAM_CHANNELS);
 
 	pr_debug("%s()\n", __func__);
 	rate->min = rate->max = 48000;
-	param_set_mask(params, SNDRV_PCM_HW_PARAM_FORMAT, SNDRV_PCM_FORMAT_S16_LE);
+	param_set_mask(params, SNDRV_PCM_HW_PARAM_FORMAT,
+					SNDRV_PCM_FORMAT_S16_LE);
 
 	if (!channels->min)
 		channels->min = channels->max = 2;
 
 	return 0;
 }
+#endif
 
 static int msm_btsco_be_hw_params_fixup(struct snd_soc_pcm_runtime *rtd,
 					struct snd_pcm_hw_params *params)
@@ -2320,13 +2324,23 @@ static struct snd_soc_dai_link msm8x16_dai[] = {
 		.stream_name = "Quaternary MI2S Playback",
 		.cpu_dai_name = "msm-dai-q6-mi2s.3",
 		.platform_name = "msm-pcm-routing",
+#if defined(CONFIG_MACH_14005) || defined(CONFIG_MACH_15011) || defined(CONFIG_MACH_15018) || defined(CONFIG_MACH_15022)
 		.codec_dai_name = "tfa9890_codec_left",
 		.codec_name = "tfa9890.3-0036",
+#else
+		.codec_dai_name = "snd-soc-dummy-dai",
+		.codec_name = "snd-soc-dummy",
+#endif
 		.no_pcm = 1,
 		.be_id = MSM_BACKEND_DAI_QUATERNARY_MI2S_RX,
+#if defined(CONFIG_MACH_14005) || defined(CONFIG_MACH_15011) || defined(CONFIG_MACH_15018) || defined(CONFIG_MACH_15022)
 		.be_hw_params_fixup = msm_be_tfa9890_hw_params_fixup,
+#else
+		.be_hw_params_fixup = msm_be_hw_params_fixup,
+#endif
 		.ops = &msm8x16_quat_mi2s_be_ops,
-		.ignore_pmdown_time = 1, /* dai link has playback support */
+		/* this dainlink has playback support */
+		.ignore_pmdown_time = 1,
 		.ignore_suspend = 1,
 	},
 	{

@@ -196,7 +196,11 @@ static void msm_wfi_cpu_die(unsigned int cpu)
 			break;
 		}
 		pr_debug("CPU%u: spurious wakeup call\n", cpu);
+	#ifndef VENDOR_EDIT //yixue.ge@bsp.drv modify msm_wfi_cpu_die bug
 		BUG();
+	#else
+		WARN(1,"msm_wfi_cpu_die bug\n");
+	#endif
 	}
 }
 #endif

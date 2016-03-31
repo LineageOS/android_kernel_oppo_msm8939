@@ -312,6 +312,13 @@ int generic_handle_irq(unsigned int irq)
 
 	if (!desc)
 		return -EINVAL;
+
+	#ifdef VENDOR_EDIT//yixue.ge@bsp.drv add for if handle_irq is null pc will be 0
+	if (!desc->handle_irq){
+		return -EINVAL;
+	}
+	#endif
+
 	generic_handle_irq_desc(irq, desc);
 	return 0;
 }

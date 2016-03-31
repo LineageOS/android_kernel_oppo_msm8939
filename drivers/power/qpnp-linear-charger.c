@@ -2069,7 +2069,7 @@ static irqreturn_t qpnp_lbc_usbin_valid_irq_handler(int irq, void *_chip)
 	unsigned long flags;
 #endif
 
-	if(is_project(OPPO_15005)||is_project(OPPO_15035))
+	if(is_project(OPPO_15005)||is_project(OPPO_15035)||is_project(OPPO_15109)|| is_project(OPPO_16000))
 		return IRQ_HANDLED;
 
 	usb_present = qpnp_lbc_is_usb_chg_plugged_in(chip);
@@ -2461,7 +2461,8 @@ static void determine_initial_status(struct qpnp_lbc_chip *chip)
 	int rc;
 #endif
 
-	if(is_project(OPPO_15005)||is_project(OPPO_15035))
+	if( is_project(OPPO_15005)||is_project(OPPO_15035) || is_project(OPPO_15109)||
+		(is_project(OPPO_15029) && get_PCB_Version() == HW_VERSION__10)||is_project(OPPO_16000))
 		return ;
 
 	chip->usb_present = qpnp_lbc_is_usb_chg_plugged_in(chip);

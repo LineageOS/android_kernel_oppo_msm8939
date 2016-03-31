@@ -67,6 +67,11 @@ static int headset_detect_inited = 0;
 #endif /* VENDOR_EDIT */
 
 #ifdef VENDOR_EDIT
+//John.Xu@PhoneSw.AudioDriver, 2015/09/08, Add for 5 seconds delay for slow insert
+unsigned long delay_correct;
+#endif /* VENDOR_EDIT */
+
+#ifdef VENDOR_EDIT
 //John.Xu@PhoneSw.AudioDriver, 2015/04/30, Add for 15025 headset compatible
 extern int pcb_ver(void);
 #endif /* VENDOR_EDIT */
@@ -192,9 +197,9 @@ static void wcd_program_hs_vref(const struct wcd_mbhc *mbhc)
 	reg_val = ((plug_type_cfg->v_hs_max - HS_VREF_MIN_VAL) / 100);
 
 	dev_dbg(card->dev, "%s: reg_val  = %x\n", __func__, reg_val);
-#ifndef VENDOR_EDIT //Jianfeng.Qiu@Multimedia.Audio, 2015/05/26, Modify for compatible selfiestick
+#ifdef VENDOR_EDIT //Jianfeng.Qiu@Multimedia.Audio, 2015/05/26, Modify for compatible selfiestick
 	snd_soc_update_bits(codec, MSM8X16_WCD_A_ANALOG_MBHC_BTN3_CTL,
-			0x03, reg_val);
+			0x03, 0x03);
 #else /* VENDOR_EDIT */
     //lile@EXP.BasicDrv.Audio, 2015-06-09 add for 15011 selfie stick
 	/*OPPO 2015-06-24 hanqing.wang Add for add OPPO_15085 = OPPO_15018, 15085 OPPO_MSM_15085 */
@@ -516,7 +521,7 @@ static void wcd_mbhc_set_and_turnoff_hph_padac(struct wcd_mbhc *mbhc)
 	snd_soc_update_bits(codec, MSM8X16_WCD_A_ANALOG_RX_HPH_CNP_EN,
 		    0x30, 0x00);
 	#else
-	if(is_project(OPPO_14051) || is_project(OPPO_15005) || is_project(OPPO_15057) || is_project(OPPO_15009) || is_project(OPPO_15035)||is_project(OPPO_15037))
+	if(is_project(OPPO_14051) || is_project(OPPO_15005) || is_project(OPPO_15057) || is_project(OPPO_15009) || is_project(OPPO_15035)||is_project(OPPO_15037)||is_project(OPPO_15109))
 	{
 	    pr_err("%s mbhc->mbhc_cfg->spk_pa_en_state=%d\n", __func__, mbhc->mbhc_cfg->spk_pa_en_state);
 	    if(mbhc->mbhc_cfg->spk_pa_en_state)
@@ -737,6 +742,31 @@ int wcd_mbhc_get_impedance(struct wcd_mbhc *mbhc, uint32_t *zl,
 	else
 		return -EINVAL;
 }
+/*OPPO	2015-10-15, yuanyan add to support ICBC bank USB key start */
+#ifdef VENDOR_EDIT
+static void enable_micbias_and_source(struct wcd_mbhc *mbhc, int plug_type){
+	int micbias2=0;
+	struct snd_soc_codec *codec = mbhc->codec;
+
+	micbias2 = (snd_soc_read(codec, MSM8X16_WCD_A_ANALOG_MICB_2_EN) & 0x80);
+	pr_debug("%s: plug_type:%d micbias2:%d\n", __func__,plug_type,micbias2);
+	if(MBHC_PLUG_TYPE_NONE == plug_type || MBHC_PLUG_TYPE_HEADPHONE == plug_type){
+		if(0 != micbias2){
+			wcd_enable_curr_micbias(mbhc, WCD_MBHC_EN_NONE);
+		}
+		if (mbhc->mbhc_cb && mbhc->mbhc_cb->enable_mb_source)
+				mbhc->mbhc_cb->enable_mb_source(codec, false);
+	}
+	if(MBHC_PLUG_TYPE_HEADSET == plug_type){
+		if(0 == micbias2){
+			wcd_enable_curr_micbias(mbhc, WCD_MBHC_EN_MB);
+		}
+		if (mbhc->mbhc_cb && mbhc->mbhc_cb->enable_mb_source)
+				mbhc->mbhc_cb->enable_mb_source(codec, true);
+	}
+}
+#endif //VENDOR_EDIT
+/*OPPO	2015-10-15, yuanyan add to support ICBC bank USB key end */
 
 static void wcd_mbhc_report_plug(struct wcd_mbhc *mbhc, int insertion,
 				enum snd_jack_types jack_type)
@@ -783,6 +813,14 @@ static void wcd_mbhc_report_plug(struct wcd_mbhc *mbhc, int insertion,
 		mbhc->zl = mbhc->zr = 0;
 		pr_debug("%s: Reporting removal %d(%x)\n", __func__,
 			 jack_type, mbhc->hph_status);
+/*oppo 2016-01-11 zhangping add for uevent*/
+#ifdef VENDOR_EDIT
+		if(is_project(OPPO_15029))
+		{
+			switch_set_state(&mbhc->wcd9xxx_sdev,0);
+		}
+#endif
+/*oppo 2016-01-11 zhangping add for uevent end*/
 		wcd_mbhc_jack_report(mbhc, &mbhc->headset_jack,
 				mbhc->hph_status, WCD_MBHC_JACK_MASK);
 		wcd_mbhc_set_and_turnoff_hph_padac(mbhc);
@@ -791,7 +829,7 @@ static void wcd_mbhc_report_plug(struct wcd_mbhc *mbhc, int insertion,
 		mbhc->current_plug = MBHC_PLUG_TYPE_NONE;
 		/*OPPO	2015-05-08, zhangping add for  pop noise*/
 		#ifdef VENDOR_EDIT
-		if(is_project(OPPO_15009) || is_project(OPPO_15035) ||is_project(OPPO_15037))
+		if(is_project(OPPO_15009) || is_project(OPPO_15035) ||is_project(OPPO_15037)||is_project(OPPO_15109))
 		{
 			if(((test_bit(WCD_MBHC_EVENT_PA_HPHL,&mbhc->event_state)) ||(test_bit(WCD_MBHC_EVENT_PA_HPHR,
 				           &mbhc->event_state)))&&wcd_swch_level_remove(mbhc))
@@ -864,11 +902,41 @@ static void wcd_mbhc_report_plug(struct wcd_mbhc *mbhc, int insertion,
 					&mbhc->zl, &mbhc->zr);
 		pr_err("%s: Reporting insertion %d(%x)\n", __func__,
 			 jack_type, mbhc->hph_status);
+/*oppo 2016-01-11 zhangping add for uevent*/
+#ifdef VENDOR_EDIT
+		if(is_project(OPPO_15029))
+		{
+		switch(mbhc->current_plug)
+			{
+			case MBHC_PLUG_TYPE_HEADPHONE:
+				case MBHC_PLUG_TYPE_HIGH_HPH:
+					switch_set_state(&mbhc->wcd9xxx_sdev,2);
+					break;
+			case MBHC_PLUG_TYPE_GND_MIC_SWAP:
+					switch_set_state(&mbhc->wcd9xxx_sdev,1);
+					break;
+			case MBHC_PLUG_TYPE_HEADSET:
+					switch_set_state(&mbhc->wcd9xxx_sdev,1);
+					break;
+				default:
+					switch_set_state(&mbhc->wcd9xxx_sdev,0);
+					break;
+			}
+		}
+#endif
+/*oppo 2016-01-11 zhangping add for uevent end*/
 		wcd_mbhc_jack_report(mbhc, &mbhc->headset_jack,
 				    mbhc->hph_status, WCD_MBHC_JACK_MASK);
 		wcd_mbhc_clr_and_turnon_hph_padac(mbhc);
 
 	}
+	/*OPPO	2015-10-15, yuanyan add to support ICBC bank USB key start */
+	#ifdef VENDOR_EDIT
+	if(is_project(OPPO_15022)||is_project(OPPO_15029)){
+		enable_micbias_and_source(mbhc,mbhc->current_plug);
+	}
+	#endif //VENDOR_EDIT
+	/*OPPO	2015-10-15, yuanyan add to support ICBC bank USB key end */
 	pr_err("%s: leave hph_status %x\n", __func__, mbhc->hph_status);
 }
 
@@ -1261,7 +1329,7 @@ static void wcd_correct_swch_plug(struct work_struct *work)
 	/* Enable micbias for detection in correct work*/
 	/*OPPO	2015-05-08, zhangping add for  pop noise*/
 	#ifdef VENDOR_EDIT
-	if(!(is_project(OPPO_15009) || is_project(OPPO_15035)||is_project(OPPO_15037)))
+	if(!(is_project(OPPO_15009) || is_project(OPPO_15035)||is_project(OPPO_15037)||is_project(OPPO_15022)||is_project(OPPO_15109)))
 		wcd_enable_curr_micbias(mbhc, WCD_MBHC_EN_MB);
 	else
 	{
@@ -1286,7 +1354,7 @@ static void wcd_correct_swch_plug(struct work_struct *work)
 		}
 	/*OPPO 2015-06-24 hanqing.wang Add for reason OPPO_15011 = OPPO_15018, 15062 OPPO_MSM_15062 */
 	/*OPPO 2015-06-24 hanqing.wang Add for add OPPO_15085 = OPPO_15018, 15085 OPPO_MSM_15085 */
-    if (is_project(OPPO_15009) || is_project(OPPO_15035) || is_project(OPPO_15037) || is_project(OPPO_15011) || is_project(OPPO_15085) || is_project(OPPO_15018)) {
+    if (is_project(OPPO_15009) || is_project(OPPO_15035) || is_project(OPPO_15037) || is_project(OPPO_15011) || is_project(OPPO_15085) || is_project(OPPO_15018) || is_project(OPPO_15022)||is_project(OPPO_15109)) {
         #ifdef VENDOR_EDIT
         //John.Xu@PhoneSw.AudioDriver, 2015/06/11, Add for Qcom patch for slow insert headset
             if (mbhc->btn_press_intr) {
@@ -1336,7 +1404,7 @@ static void wcd_correct_swch_plug(struct work_struct *work)
 			/*OPPO	2015-05-08, zhangping add for  detect start*/
 /*OPPO 2015-06-24 hanqing.wang Add for reason OPPO_15011 = OPPO_15018, 15062 OPPO_MSM_15062 */
 /*OPPO 2015-06-24 hanqing.wang Add for add OPPO_15085 = OPPO_15018, 15085 OPPO_MSM_15085 */
-			if ((hph_count == 6) && ((is_project(OPPO_15011)) || (is_project(OPPO_15085)) || (is_project(OPPO_15009)) || (is_project(OPPO_15035)) || (is_project(OPPO_15018)) || (is_project(OPPO_15037)) || (is_project(OPPO_15022))))
+			if ((hph_count == 6) && ((is_project(OPPO_15011)) || (is_project(OPPO_15085)) || (is_project(OPPO_15009)) || (is_project(OPPO_15035)) || (is_project(OPPO_15018)) || (is_project(OPPO_15037)) || (is_project(OPPO_15022))||is_project(OPPO_15109))))
 			{
 				pr_err("%s:HPH will detected as headset\n",__func__);
 				plug_type = MBHC_PLUG_TYPE_HEADSET;
@@ -1356,16 +1424,23 @@ static void wcd_correct_swch_plug(struct work_struct *work)
 			 * and if there is not button press without
 			 * release
 			 */
+			#ifndef VENDOR_EDIT
+			//John.Xu@PhoneSw.AudioDriver, 2015/09/09, Modify for 5 seconds delay for slow insert
+			/*
 			if (mbhc->current_plug !=
 					MBHC_PLUG_TYPE_HEADSET &&
 					!mbhc->btn_press_intr)
+			*/
+			#else /* VENDOR_EDIT */
+			if (!mbhc->btn_press_intr)
+			#endif /* VENDOR_EDIT */
 			{
 				pr_err("%s: cable is headset\n",
 						__func__);
                 //John.Xu@PhoneSw.AudioDriver, 2015/06/11, Add for for slow insert headset
 				/*OPPO 2015-06-24 hanqing.wang Add for reason OPPO_15011 = OPPO_15018, 15062 OPPO_MSM_15062 */
 	/*OPPO 2015-06-24 hanqing.wang Add for add OPPO_15085 = OPPO_15018, 15085 OPPO_MSM_15085 */
-                if (is_project(OPPO_15009) || is_project(OPPO_15035) || is_project(OPPO_15037) || is_project(OPPO_15085) || is_project(OPPO_15011) || is_project(OPPO_15018)) {
+                if (is_project(OPPO_15009) || is_project(OPPO_15035) || is_project(OPPO_15037) || is_project(OPPO_15085) || is_project(OPPO_15011) || is_project(OPPO_15018) || is_project(OPPO_15022)||is_project(OPPO_15109)) {
                     if(++headset_count == 2) {
                          goto report;
                     } else {
@@ -1388,7 +1463,7 @@ static void wcd_correct_swch_plug(struct work_struct *work)
         //John.Xu@PhoneSw.AudioDriver, 2015/06/11, Add for Qcom patch for slow insert headset
 /*OPPO 2015-06-24 hanqing.wang Add for reason OPPO_15011 = OPPO_15018, 15062 OPPO_MSM_15062 */
 /*OPPO 2015-06-24 hanqing.wang Add for add OPPO_15085 = OPPO_15018, 15085 OPPO_MSM_15085 */
-        if (is_project(OPPO_15009) || is_project(OPPO_15035) || is_project(OPPO_15037) || is_project(OPPO_15011) || is_project(OPPO_15085) || is_project(OPPO_15018)) {
+        if (is_project(OPPO_15009) || is_project(OPPO_15035) || is_project(OPPO_15037) || is_project(OPPO_15011) || is_project(OPPO_15085) || is_project(OPPO_15018) || is_project(OPPO_15022)||is_project(OPPO_15109)) {
         #ifdef VENDOR_EDIT
         /*
          * instead of hogging system by contineous polling, wait for
@@ -1453,7 +1528,7 @@ static void wcd_correct_swch_plug(struct work_struct *work)
 report:
 	/*OPPO	2015-05-11, zhangping add for  pop noise*/
 	#ifdef VENDOR_EDIT
-	if(is_project(OPPO_15009) || is_project(OPPO_15035)||is_project(OPPO_15037))
+	if(is_project(OPPO_15009) || is_project(OPPO_15035)||is_project(OPPO_15037)||is_project(OPPO_15109))
 	{
 		if(((test_bit(WCD_MBHC_EVENT_PA_HPHL,&mbhc->event_state)) ||(test_bit(WCD_MBHC_EVENT_PA_HPHR,
 			&mbhc->event_state)))&& (!wcd_swch_level_remove(mbhc))&&(plug_type == MBHC_PLUG_TYPE_HEADPHONE || plug_type == MBHC_PLUG_TYPE_HEADSET))
@@ -1464,7 +1539,7 @@ report:
 	/* Write back current source value */
 	/*OPPO	2015-05-11, zhangping add for  slow insert headset*/
 	#ifdef VENDOR_EDIT
-	if(is_project(OPPO_15009) || is_project(OPPO_15035) ||is_project(OPPO_15037))
+	if(is_project(OPPO_15009) || is_project(OPPO_15035) ||is_project(OPPO_15037)||is_project(OPPO_15109))
 	{
 	   snd_soc_write(codec, MSM8X16_WCD_A_ANALOG_MBHC_FSM_CTL, reg);
 	}
@@ -1503,7 +1578,24 @@ report:
 #endif
 /*OPPO 2015-05-12 Jianfeng.Qiu delete for selfiestick*/
 	WCD_MBHC_RSC_LOCK(mbhc);
-	wcd_mbhc_find_plug_and_report(mbhc, plug_type);
+	#ifdef VENDOR_EDIT
+    //John.Xu@PhoneSw.AudioDriver, 2015/09/08, Add for 5 seconds delay for slow insert
+    if(mbhc->current_plug != plug_type){
+        if(mbhc->current_plug == MBHC_PLUG_TYPE_HEADSET && plug_type == MBHC_PLUG_TYPE_HEADPHONE){
+		/*OPPO	2015-10-16, zhangping add for  headphone detect*/
+			msleep(200);
+			if(!wcd_swch_level_remove(mbhc))
+			{
+		wcd_mbhc_report_plug(mbhc, 0, SND_JACK_HEADSET);
+			}
+        }
+		if(!wcd_swch_level_remove(mbhc))
+		{
+		wcd_mbhc_find_plug_and_report(mbhc, plug_type);
+		}
+		/*OPPO	2015-10-16, zhangping add for  headphone detect end*/
+    }
+    #endif /* VENDOR_EDIT */
 	WCD_MBHC_RSC_UNLOCK(mbhc);
 exit:
 	micbias2 = snd_soc_read(codec, MSM8X16_WCD_A_ANALOG_MICB_2_EN);
@@ -1512,7 +1604,7 @@ exit:
 	pr_err("%s: leave\n", __func__);
 	/*OPPO	2015-05-12, zhangping add for  pop noise*/
 	#ifdef VENDOR_EDIT
-	if(is_project(OPPO_15009) || is_project(OPPO_15035)||is_project(OPPO_15037))
+	if(is_project(OPPO_15009) || is_project(OPPO_15035)||is_project(OPPO_15037)||is_project(OPPO_15109))
 	{
 		if(((test_bit(WCD_MBHC_EVENT_PA_HPHL,&mbhc->event_state)) ||(test_bit(WCD_MBHC_EVENT_PA_HPHR,
 				&mbhc->event_state)))&& (!wcd_swch_level_remove(mbhc))&&(plug_type == MBHC_PLUG_TYPE_HEADPHONE || plug_type == MBHC_PLUG_TYPE_HEADSET))
@@ -1522,6 +1614,14 @@ exit:
 	}
 	#endif
 	/*OPPO	2015-05-12, zhangping add for end*/
+	#ifdef VENDOR_EDIT
+    //John.Xu@PhoneSw.AudioDriver, 2015/09/08, Add for 5 seconds delay for slow insert
+    msleep(500);
+	if(!time_after(jiffies, delay_correct)){
+        pr_err("%s: before call correct_plug_swch again\n", __func__);
+        wcd_schedule_hs_detect_plug(mbhc, &mbhc->correct_plug_swch);
+	}
+    #endif /* VENDOR_EDIT */
 }
 #endif
 /*OPPO 2014-09-10 zhzhyon Modify end*/
@@ -1686,7 +1786,7 @@ static void wcd_mbhc_detect_plug_type(struct wcd_mbhc *mbhc)
 exit:
 	/*OPPO	2015-07-03, zhangping add for  pop noise && turn off voltage source*/
 	#ifdef VENDOR_EDIT
-	if(is_project(OPPO_15009) || is_project(OPPO_15035)||is_project(OPPO_15037))
+	if(is_project(OPPO_15009) || is_project(OPPO_15035)||is_project(OPPO_15037)||is_project(OPPO_15022)||is_project(OPPO_15109))
 	{
 		snd_soc_update_bits(codec,MSM8X16_WCD_A_ANALOG_MICB_2_EN,0x80, 0x00);
 		/* Disable external voltage source to micbias if present */
@@ -1698,12 +1798,16 @@ exit:
 
 	pr_err("%s: Valid plug found, plug type is %d\n",
 			 __func__, plug_type);
+    #ifdef VENDOR_EDIT
+    //John.Xu@PhoneSw.AudioDriver, 2015/09/08, Add for 5 seconds delay for slow insert
+    delay_correct = jiffies + msecs_to_jiffies(5000);
+    #endif /* VENDOR_EDIT */
 	if (plug_type == MBHC_PLUG_TYPE_HEADPHONE) {
 		wcd_schedule_hs_detect_plug(mbhc, &mbhc->correct_plug_swch);
 	} else if (plug_type == MBHC_PLUG_TYPE_HEADSET) {
 	/*OPPO	2015-05-11, zhangping add for  pop noise*/
 	#ifdef VENDOR_EDIT
-	if(is_project(OPPO_15009) || is_project(OPPO_15035)||is_project(OPPO_15037))
+	if(is_project(OPPO_15009) || is_project(OPPO_15035)||is_project(OPPO_15037)||is_project(OPPO_15109))
 	{
 		if(((test_bit(WCD_MBHC_EVENT_PA_HPHL,&mbhc->event_state)) ||(test_bit(WCD_MBHC_EVENT_PA_HPHR,
 			&mbhc->event_state)))&& (!wcd_swch_level_remove(mbhc)))
@@ -1714,7 +1818,7 @@ exit:
 		wcd_mbhc_find_plug_and_report(mbhc, plug_type);
 	/*OPPO	2015-05-12, zhangping add for  pop noise*/
 		#ifdef VENDOR_EDIT
-		if(is_project(OPPO_15009) || is_project(OPPO_15035)||is_project(OPPO_15037))
+		if(is_project(OPPO_15009) || is_project(OPPO_15035)||is_project(OPPO_15037)||is_project(OPPO_15109))
 		{
 			if(((test_bit(WCD_MBHC_EVENT_PA_HPHL,&mbhc->event_state)) ||(test_bit(WCD_MBHC_EVENT_PA_HPHR,
 				&mbhc->event_state)))&& (!wcd_swch_level_remove(mbhc)))
@@ -2574,7 +2678,7 @@ int wcd_mbhc_init(struct wcd_mbhc *mbhc, struct snd_soc_codec *codec,
 
 #ifdef VENDOR_EDIT
 //John.Xu@PhoneSw.AudioDriver, 2015/04/30, Add for 15025 headset compatible
-   if(is_project(OPPO_15009) || is_project(OPPO_15035)||is_project(OPPO_15037)){
+   if(is_project(OPPO_15009) || is_project(OPPO_15035)||is_project(OPPO_15037)||is_project(OPPO_15109)){
        if(pcb_ver() != 0 && pcb_ver() != 1){
            pr_err("%s: 15009 hw version after EVT2, set MICBIAS_EXT_BYP_CAP mode\n", __func__);
            mbhc->micbias2_cap_mode = MICBIAS_EXT_BYP_CAP;
