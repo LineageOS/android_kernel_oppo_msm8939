@@ -132,5 +132,6 @@ OPPO_BQ24157_EXT int bq24157_check_charging_pre_full(struct opchg_charger *chip)
 OPPO_BQ24157_EXT void bq24157_usbin_valid_work(struct work_struct *work);
 OPPO_BQ24157_EXT void  bq24157_usbin_valid_irq_handler(struct opchg_charger *chip);
 OPPO_BQ24157_EXT void  bq24157_dump_regs(struct opchg_charger *chip);
+OPPO_BQ24157_EXT int bq24157_get_initial_state(struct opchg_charger *chip);
 
 #endif /*_OPPO_BQ24196_H_*/
