@@ -69,6 +69,9 @@ static void log_modem_sfr(void)
 	wmb();
 }
 #else
+#ifdef CONFIG_RECORD_MDMRST
+extern void mdmreason_set(char * buf);
+#endif
 static int log_modem_sfr(void)
 {
 	u32 size;
@@ -85,8 +88,10 @@ static int log_modem_sfr(void)
 		pr_err("modem subsystem failure reason: (unknown, empty string found).\n");
 		return rc;
 	}
-
 	strlcpy(reason, smem_reason, min(size, MAX_SSR_REASON_LEN));
+#ifdef CONFIG_RECORD_MDMRST
+	mdmreason_set(reason);
+#endif
 	pr_err("modem subsystem failure reason: %s.\n", reason);
 
 	if(strstr(reason, "OPPO_MODEM_NO_RAMDUMP_EXPECTED")){
@@ -102,8 +107,9 @@ static int log_modem_sfr(void)
 #endif
 
 #ifdef CONFIG_RECORD_MDMRST
-extern wait_queue_head_t mdmrst_wq;
-extern unsigned int mdmrest_flg;
+//extern wait_queue_head_t mdmrst_wq;
+//extern unsigned int mdmrest_flg;
+extern unsigned int mdmrest_count;
 #endif
 static void restart_modem(struct modem_data *drv)
 {
@@ -113,8 +119,9 @@ static void restart_modem(struct modem_data *drv)
 	log_modem_sfr();
 	#endif
 #ifdef CONFIG_RECORD_MDMRST
-    mdmrest_flg = 1;
-    wake_up(&mdmrst_wq);
+    //mdmrest_flg = 1;
+    //wake_up(&mdmrst_wq);
+	mdmrest_count++;
 #endif
 	drv->ignore_errors = true;
 	#ifndef VENDOR_EDIT //yixue.ge modify

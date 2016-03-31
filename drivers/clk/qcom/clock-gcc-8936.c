@@ -1253,6 +1253,11 @@ static struct rcg_clk csi1phytimer_clk_src = {
 };
 
 static struct clk_freq_tbl ftbl_gcc_camss_cpp_clk[] = {
+#ifdef VENDOR_EDIT
+	F( 80000000,	   gpll0_out_main,  10,	  0,	0),
+	F( 100000000,	   gpll0_out_main,   8,	  0,	0),
+	F( 133340000,	   gpll0_out_main,   6,	  0,	0),
+#endif
 	F( 160000000,	   gpll0_out_main,   5,	  0,	0),
 	F( 200000000,      gpll0_out_main,   4,   0,    0),
 	F( 228570000,      gpll0_out_main, 3.5,   0,    0),

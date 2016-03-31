@@ -63,6 +63,10 @@ struct qpnp_external_charger {
 #define BATTERY_1800MAH_XWD		1
 #define BATTERY_2020MAH_SONY	2
 #define BATTERY_2020MAH_ATL		3
+#define BATTERY_2420MAH_SONY	4
+#define BATTERY_2420MAH_ATL		5
+#define BATTERY_2420MAH_SDI		6
+#define BATTERY_2420MAH_LG		7
 extern int opchg_get_bq2022_manufacture_id(void);
 
 

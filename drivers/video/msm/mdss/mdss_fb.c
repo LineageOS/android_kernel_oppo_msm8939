@@ -59,6 +59,7 @@
 /* Xiaori.Yuan@Mobile Phone Software Dept.Driver, 2014/08/27  Add for 14045 LCD */
 #include <soc/oppo/oppo_project.h>
 #include "mdss_dsi.h"
+#include "mdss_mdp.h"
 #ifdef VENDOR_EDIT
 /* YongPeng.Yi@SWDP.MultiMedia, 2015/04/01  Add for 15009 lcd-backlight ctrl in factory mode START */
 #include <soc/oppo/boot_mode.h>
@@ -692,7 +693,7 @@ static ssize_t mdss_mdp_lcdoff_event(struct device *dev,
 	   if(is_project(OPPO_15011) || is_project(OPPO_15018) || is_project(OPPO_15022) || is_project(OPPO_15085)){
 			return sprintf(buf,"mdss_fb_suspend_sub is called\n");
 	   }
-		if(is_project(OPPO_15037))
+		if(is_project(OPPO_15037) || is_project(OPPO_15035))
 		{
 			mdss_fb_suspend_sub(mfd);
 			return sprintf(buf,"mdss_fb_suspend_sub is called\n");
@@ -732,7 +733,7 @@ extern int cabc_mode;
 static ssize_t mdss_get_cabc(struct device *dev,
 		struct device_attribute *attr, char *buf)
 {
-	if(!(is_project(OPPO_15009)||is_project(OPPO_15037)||is_project(OPPO_15035))){
+	if(!(is_project(OPPO_15009)||is_project(OPPO_15037)||is_project(OPPO_15035) || is_project(OPPO_16000) ||is_project(OPPO_15029)||is_project(OPPO_15109))){
 		return 0;
 	}
 	printk(KERN_INFO "get cabc mode = %d\n",cabc_mode);
@@ -1049,9 +1050,20 @@ static int mdss_fb_probe(struct platform_device *pdev)
 #endif /*VENDOR_EDIT*/
 
 #ifdef VENDOR_EDIT
-/* YongPeng.Yi@SWDP.MultiMedia, 2015/03/12  Add for 15009 START */
+/* YongPeng.Yi@SWDP.MultiMedia, 2015/03/12  Add for 15009 15035 clear power by android START */
 	if(is_project(OPPO_15009)){
 		memset(phys_to_virt(0x83200000 + 1080*720*3), 0x00, 200*720*3);
+	}else if(is_project(OPPO_15035) || is_project(OPPO_16000)){
+		memset(phys_to_virt(0x83200000 + 800*540*3), 0x00, 160*540*3);
+	}
+	if(is_project(OPPO_15022) && (mfd->index==0) && (MSM_BOOT_MODE__NORMAL==get_boot_mode())){
+		struct mdss_overlay_private * mdp5_data = mfd_to_mdp5_data(mfd);
+		if(mdp5_data){
+			struct mdss_mdp_ctl *ctl = mdp5_data->ctl;
+			pr_err("15022 erase Powerd by android\n");
+			memset(phys_to_virt(0x83200000 + 1520*1080*3), 0x00, 300*1080*3);
+			mdss_mdp_ctl_write(ctl, MDSS_MDP_REG_CTL_START, 1);
+		}
 	}
 /* YongPeng.Yi@SWDP.MultiMedia END */
 #endif /*VENDOR_EDIT*/
@@ -1518,7 +1530,8 @@ static int mdss_fb_unblank_sub(struct msm_fb_data_type *mfd)
 /* wuyu@EXP.BaseDrv.LCM, 2015-05-18, add micro OPPO_15011, (OPPO15011=OPPO_15018) */
 /*huqiao@EXP.BasicDrv.Basic add for clone 15085*/
 			{
-				if(!(is_project(OPPO_14045) || is_project(OPPO_15011) ||is_project(OPPO_15009) || is_project(OPPO_15037) || is_project(OPPO_15018) || is_project(OPPO_15022)) || panel_dead || is_project(OPPO_15085) || is_project(OPPO_15035)){
+				if(!(is_project(OPPO_14045) || is_project(OPPO_15011) ||is_project(OPPO_15009) || is_project(OPPO_15037) ||
+					is_project(OPPO_15085) || is_project(OPPO_15035) || is_project(OPPO_15018) || is_project(OPPO_15022) || is_project(OPPO_15109)) || panel_dead){
 					panel_dead = false;
 					//mdss_fb_set_backlight(mfd, mfd->unset_bl_level);
 					mdss_fb_set_backlight(mfd, save_bl);
@@ -1610,6 +1623,19 @@ static int mdss_fb_blank_sub(int blank_mode, struct fb_info *info,
 			complete(&mfd->no_update.comp);
 
 			mfd->op_enable = false;
+#ifndef VENDOR_EDIT
+/* Xiaori.Yuan@Mobile Phone Software Dept.Driver, 2015/07/03  Modify for 15020 kgsl fence time out */
+			mutex_lock(&mfd->bl_lock);
+			if (mdss_panel_is_power_off(req_power_state)) {
+				/* Stop Display thread */
+				if (mfd->disp_thread)
+					mdss_fb_stop_disp_thread(mfd);
+				mdss_fb_set_backlight(mfd, 0);
+				mfd->bl_updated = 0;
+			}
+			mfd->panel_power_state = req_power_state;
+			mutex_unlock(&mfd->bl_lock);
+#else /*VENDOR_EDIT*/
 			if (mdss_panel_is_power_off(req_power_state)) {
 				/* Stop Display thread */
 				if (mfd->disp_thread)
@@ -1620,6 +1646,7 @@ static int mdss_fb_blank_sub(int blank_mode, struct fb_info *info,
 				mutex_unlock(&mfd->bl_lock);
 			}
 			mfd->panel_power_state = req_power_state;
+#endif /*VENDOR_EDIT*/
 
 			ret = mfd->mdp.off_fnc(mfd);
 			if (ret)
@@ -2547,6 +2574,12 @@ static int mdss_fb_release_all(struct fb_info *info, bool release_all)
 				    mfd->index, task->comm, current->tgid, pid);
 		}
 
+#ifndef VENDOR_EDIT
+/* Xiaori.Yuan@Mobile Phone Software Dept.Driver, 2015/08/20  Delete for recovery mode shutdown iommu error */
+		if (mfd->fb_ion_handle)
+			mdss_fb_free_fb_ion_memory(mfd);
+#endif /*VENDOR_EDIT*/
+
 		ret = mdss_fb_blank_sub(FB_BLANK_POWERDOWN, info,
 			mfd->op_enable);
 		if (ret) {
@@ -2555,8 +2588,11 @@ static int mdss_fb_release_all(struct fb_info *info, bool release_all)
 			return ret;
 		}
 
+#ifdef VENDOR_EDIT
+/* Xiaori.Yuan@Mobile Phone Software Dept.Driver, 2015/08/20  Add for recovery mode shutdown iommu error */
 		if (mfd->fb_ion_handle)
 			mdss_fb_free_fb_ion_memory(mfd);
+#endif /*VENDOR_EDIT*/
 
 		atomic_set(&mfd->ioctl_ref_cnt, 0);
 	}
