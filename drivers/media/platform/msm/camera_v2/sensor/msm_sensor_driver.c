@@ -142,6 +142,16 @@ static int32_t msm_sensor_driver_create_v4l_subdev
 	s_ctrl->msm_sd.sd.entity.group_id = MSM_CAMERA_SUBDEV_SENSOR;
 	s_ctrl->msm_sd.sd.entity.name = s_ctrl->msm_sd.sd.name;
 	s_ctrl->msm_sd.close_seq = MSM_SD_CLOSE_2ND_CATEGORY | 0x3;
+#ifdef VENDOR_EDIT
+//LiuBin@Camera, 2015/07/05, Add for AT test
+	if (s_ctrl->sensordata->sensor_info->position == 0) //back sensor
+		s_ctrl->msm_sd.sd.entity.revision = 1;
+	else if (s_ctrl->sensordata->sensor_info->position == 1) //sub sensor
+		s_ctrl->msm_sd.sd.entity.revision = 2;
+	else
+		s_ctrl->msm_sd.sd.entity.revision = 0;
+	CDBG("subdev name [%s], revision[%d] \n", s_ctrl->msm_sd.sd.name, s_ctrl->msm_sd.sd.entity.revision);
+#endif /* VENDOR_EDIT */
 	msm_sd_register(&s_ctrl->msm_sd);
 	msm_sensor_v4l2_subdev_fops = v4l2_subdev_fops;
 #ifdef CONFIG_COMPAT

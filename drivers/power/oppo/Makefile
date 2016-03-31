@@ -13,3 +13,4 @@ obj-$(CONFIG_OPPO_CHARGER)	+= oppo_bq27541.o
 obj-$(CONFIG_OPPO_CHARGER)	+= oppo_bq27541_encrypt.o
 obj-$(CONFIG_OPPO_CHARGER)	+= oppo_bq2022a.o
 obj-$(CONFIG_OPPO_CHARGER)	+= oppo_vooc.o
+obj-$(CONFIG_OPPO_CHARGER)	+= oppo_vooc_stm8s.o
