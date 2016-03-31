@@ -33,8 +33,15 @@
 //#include <mach/oppo_boot_mode.h>
 //#include <linux/boot_mode.h>
 #include <soc/oppo/boot_mode.h>
+#include <soc/oppo/device_info.h>
 #include <oppo_inc.h>
 
+
+#define DEVICE_BATTERY_ID_VERSION		"1.0"
+#define DEVICE_BATTERY_ID_TYPE_SONY		"SONY"
+#define DEVICE_BATTERY_ID_TYPE_ATL		"ATL"
+#define DEVICE_BATTERY_ID_TYPE_SDI		"SDI"
+#define DEVICE_BATTERY_ID_TYPE_LG		"LG"
 
 #define OPPO_BATTERY_ENCRPTION
 static bool oppo_high_battery_status = 1;
@@ -458,11 +465,52 @@ void CheckIDCompare(void)
     }
 }
 
+#define  ATL_VOLATGE	1800
+#define  LG_VOLATGE	1200
+#define  SDI_VOLATGE	200
+
 int opchg_get_bq2022_manufacture_id(void)
 {
     unsigned char i;
 	unsigned char manufac_id_buf[7] = {0x0};
 	int batt_manufac_id = 0;
+	int rc = 0;
+
+	if(is_project(OPPO_15109))
+	{
+		oppo_high_battery_status = 1;
+		oppo_battery_status_init_flag = 1;
+
+		if(opchg_chip == NULL) {
+			return -EPROBE_DEFER;
+		} else {
+			bq2202a_gpio = opchg_get_prop_battery_id_voltage(opchg_chip);
+			pr_debug("MPP4 battery id volatge is V_battery_id=%d,V_battery=%d\n", bq2202a_gpio,rc);
+
+			if(bq2202a_gpio < 0)
+			{
+				pr_debug("MPP4 battery id volatge is fail\n");
+				return -EPROBE_DEFER;
+			}
+
+			if(bq2202a_gpio <= SDI_VOLATGE)
+			{
+				batt_manufac_id = BATTERY_2420MAH_SDI;
+				register_device_proc("battery_id", DEVICE_BATTERY_ID_VERSION, DEVICE_BATTERY_ID_TYPE_SDI);
+			}
+			else if(bq2202a_gpio <= LG_VOLATGE)
+			{
+				batt_manufac_id = BATTERY_2420MAH_LG;
+				register_device_proc("battery_id", DEVICE_BATTERY_ID_VERSION, DEVICE_BATTERY_ID_TYPE_LG);
+			}
+			else
+			{
+				batt_manufac_id = BATTERY_2420MAH_ATL;
+				register_device_proc("battery_id", DEVICE_BATTERY_ID_VERSION, DEVICE_BATTERY_ID_TYPE_ATL);
+			}
+			return batt_manufac_id;
+		}
+	}
 
 	if(!oppo_battery_status_init_flag)
 		return -1;
@@ -480,31 +528,31 @@ int opchg_get_bq2022_manufacture_id(void)
 #else
     WriteOneByte(READ_FIELD_ID_CMD);     // read eprom Partition for field mode
 #endif
-    wait_us(60);
-    WriteOneByte(BQ2022_MANUFACTURE_ADDR_LOW);               // read eprom Partition Starting address low
-    wait_us(60);
-    WriteOneByte(BQ2022_MANUFACTURE_ADDR_HIGH);               // read eprom Partition Starting address high
+	    wait_us(60);
+	    WriteOneByte(BQ2022_MANUFACTURE_ADDR_LOW);               // read eprom Partition Starting address low
+	    wait_us(60);
+	    WriteOneByte(BQ2022_MANUFACTURE_ADDR_HIGH);               // read eprom Partition Starting address high
 
 #ifdef READ_PAGE_BQ2202A
-    for(i = 0;i < 7;i++)
-    {
-        manufac_id_buf[i] = ReadOneByte();   // read eprom Partition page1  256bits = 32Bits
-        //printk("manufac_id[0x%x]:0x%x\n",i,manufac_id_buf[i]);
-    }
-    mutex_unlock(&bq2202a_access);
+	    for(i = 0;i < 7;i++)
+	    {
+	        manufac_id_buf[i] = ReadOneByte();   // read eprom Partition page1  256bits = 32Bits
+	        //printk("manufac_id[0x%x]:0x%x\n",i,manufac_id_buf[i]);
+	    }
+	    mutex_unlock(&bq2202a_access);
 
-	if(is_project(OPPO_14043)){
-		if(manufac_id_buf[1] == 0x3)		//manufac_id_buf[0] must be discarded
-			batt_manufac_id = BATTERY_1800MAH_XWD;
-		else if(manufac_id_buf[1] == 0x1)
-			batt_manufac_id = BATTERY_1800MAH_MM;
-		else
-			batt_manufac_id = BATTERY_1800MAH_MM;	//default to BATTERY_1800MAH_MM
-	} else if(is_project(OPPO_14037) || is_project(OPPO_15057) || is_project(OPPO_15025)){
-		if(manufac_id_buf[6] == 0x2)
-			batt_manufac_id = BATTERY_2020MAH_SONY;
-		else if(manufac_id_buf[6] == 0x4)
-			batt_manufac_id = BATTERY_2020MAH_ATL;
+		if(is_project(OPPO_14043)){
+			if(manufac_id_buf[1] == 0x3)		//manufac_id_buf[0] must be discarded
+				batt_manufac_id = BATTERY_1800MAH_XWD;
+			else if(manufac_id_buf[1] == 0x1)
+				batt_manufac_id = BATTERY_1800MAH_MM;
+			else
+				batt_manufac_id = BATTERY_1800MAH_MM;	//default to BATTERY_1800MAH_MM
+		} else if(is_project(OPPO_14037) || is_project(OPPO_15057) || is_project(OPPO_15025)){
+			if(manufac_id_buf[6] == 0x2)
+				batt_manufac_id = BATTERY_2020MAH_SONY;
+			else if(manufac_id_buf[6] == 0x4)
+				batt_manufac_id = BATTERY_2020MAH_ATL;
 		else
 			batt_manufac_id = BATTERY_2020MAH_SONY;
 	}
@@ -537,29 +585,37 @@ bool oppo_battery_status_init(int batt_id_gpio)
 {
     static int CheckIDSign = 5;
 
+	if(is_project(OPPO_15109))
+	{
+		oppo_high_battery_status = 1;
+		oppo_battery_status_init_flag = 1;
+	}
+	else
+	{
 	bq2202a_gpio = batt_id_gpio;
 	Gpio_BatId_Init();
 	if(!oppo_battery_status_init_flag)
 	{
-		while(CheckIDSign > 0)
-	    {
-	        CheckIDCompare();
-	        CheckIDSign--;
-	        if(oppo_check_ID_status > 0)
-	        {
-	            oppo_high_battery_status = 1;
-	            oppo_check_ID_status = 0;
-	            CheckIDSign = 0;
-				oppo_battery_status_init_flag = 1;
-				break;
-	        }
-	        else if(CheckIDSign <= 0)
-	        {
-	            oppo_high_battery_status = 0;
-	            oppo_check_ID_status = 0;
-				oppo_battery_status_init_flag = 1;
-	        }
-	    }
+			while(CheckIDSign > 0)
+		    {
+		        CheckIDCompare();
+		        CheckIDSign--;
+		        if(oppo_check_ID_status > 0)
+		        {
+		            oppo_high_battery_status = 1;
+		            oppo_check_ID_status = 0;
+		            CheckIDSign = 0;
+					oppo_battery_status_init_flag = 1;
+					break;
+		        }
+		        else if(CheckIDSign <= 0)
+		        {
+		            oppo_high_battery_status = 0;
+		            oppo_check_ID_status = 0;
+					oppo_battery_status_init_flag = 1;
+		        }
+		    }
+		}
 	}
 	return oppo_high_battery_status;
 }
