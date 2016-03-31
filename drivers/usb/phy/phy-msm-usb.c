@@ -3135,6 +3135,13 @@ static void msm_otg_sm_work(struct work_struct *w)
 			pr_debug("b_sess_vld\n");
 			switch (motg->chg_state) {
 			case USB_CHG_STATE_UNDEFINED:
+#ifdef VENDOR_EDIT
+/* OPPO 2015-10-20 sjc Add for some USB sub-board */
+				if (is_project(OPPO_15022)) {
+					cancel_delayed_work_sync(&motg->chg_work);
+					queue_delayed_work(motg->otg_wq, &motg->chg_work, msecs_to_jiffies(200));
+				} else
+#endif
 				msm_chg_detect_work(&motg->chg_work.work);
 				break;
 			case USB_CHG_STATE_DETECTED:
@@ -3165,7 +3172,7 @@ static void msm_otg_sm_work(struct work_struct *w)
 /*chaoying.chen@EXP.BaseDrv.charge,2015/07/10 modify  for 15085*/
 					if (is_project(OPPO_14005) || is_project(OPPO_15018)|| is_project(OPPO_15011)|| is_project(OPPO_15022))
 						msm_otg_notify_charger(motg, 2000);
-					else if (is_project(OPPO_15009) || is_project(OPPO_15037)|| is_project(OPPO_15085))
+					else if (is_project(OPPO_15009) || is_project(OPPO_15037)|| is_project(OPPO_15085) || is_project(OPPO_15109))
 						msm_otg_notify_charger(motg, IDEV_CHG_MIN);
 					else
 #endif
@@ -5076,7 +5083,18 @@ struct msm_otg_platform_data *msm_otg_dt_to_pdata(struct platform_device *pdev)
 	if (pdata->pmic_id_irq < 0)
 		pdata->pmic_id_irq = 0;
 
-	pdata->usb_id_gpio = of_get_named_gpio(node, "qcom,usbid-gpio", 0);
+    #ifdef VENDOR_EDIT
+     /*chaoying.chen@EXP.BaseDrv.otg,2015/09/26 modify for otg id */
+    if (is_project(OPPO_15029) && get_PCB_Version() == HW_VERSION__10) {
+        pdata->usb_id_gpio = of_get_named_gpio(node, "qcom,usbid-gpio-new", 0);
+    } else if (is_project(OPPO_15029)){
+        pdata->usb_id_gpio = of_get_named_gpio(node, "qcom,usbid-gpio", 0);
+    } else
+	    pdata->usb_id_gpio = of_get_named_gpio(node, "qcom,usbid-gpio", 0);
+    #else /*VENDOR_EDIT*/
+        pdata->usb_id_gpio = of_get_named_gpio(node, "qcom,usbid-gpio", 0);
+    #endif /*VENDOR_EDIT*/
+
 	if (pdata->usb_id_gpio < 0)
 		pr_debug("usb_id_gpio is not available\n");
 

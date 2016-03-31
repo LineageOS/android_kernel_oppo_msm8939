@@ -1620,6 +1620,10 @@ static int mmc_blk_err_check(struct mmc_card *card,
 					" %s %s\n", mmc_hostname(card->host),
 					req->rq_disk->disk_name, __func__);
 
+#ifdef VENDOR_EDIT
+//yh@bsp, 2015-10-21 Add for special card compatible
+                                card->host->card_stuck_in_programing_status = true;
+#endif /* VENDOR_EDIT */
 				return MMC_BLK_CMD_ERR;
 			}
 			/*
@@ -3290,8 +3294,11 @@ static int mmc_blk_probe(struct mmc_card *card)
 	/*
 	 * Check that the card supports the command class(es) we need.
 	 */
+#ifndef VENDOR_EDIT
+//yh@bsp, 2015/08/03, remove for can not initialize specific sdcard(CSD info mismatch card real capability)
 	if (!(card->csd.cmdclass & CCC_BLOCK_READ))
 		return -ENODEV;
+#endif
 
 	md = mmc_blk_alloc(card);
 	if (IS_ERR(md))

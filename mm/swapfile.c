@@ -413,7 +413,12 @@ scan:
 		}
 	}
 	offset = si->lowest_bit;
+#ifndef VENDOR_EDIT
+//Modified by Tong.han@bsp.group.TP for test bug 710352
 	while (++offset < scan_base) {
+#else
+	while (offset < scan_base) {
+#endif/*VENDOR_EDIT*/
 		if (!si->swap_map[offset]) {
 			spin_lock(&si->lock);
 			goto checks;
@@ -427,6 +432,10 @@ scan:
 			cond_resched();
 			latency_ration = LATENCY_LIMIT;
 		}
+#ifdef VENDOR_EDIT
+//Modified by Tong.han@bsp.group.TP for test bug 710352
+		offset++;
+#endif/*VENDOR_EDIT*/
 	}
 	spin_lock(&si->lock);
 

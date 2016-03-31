@@ -132,7 +132,7 @@ static bool opchg_soc_reduce_slowly_when_1(struct opchg_charger *chip)
 		return 0;
 
 	batt_vol = opchg_get_prop_battery_voltage_now(chip)/1000;
-	if(batt_vol < 3400)
+	if(batt_vol < 3410)
 		reduce_count++;
 	else
 		reduce_count = 0;
@@ -162,6 +162,9 @@ int opchg_get_prop_batt_capacity_from_bms(struct opchg_charger *chip)
 	}
 	chip->soc_bms = ret.intval;
 
+	/************************************
+	*  bms soc is init
+	************************************/
 	if(is_pon_on == 0){
 		is_pon_on = 1;
 		chip->bat_volt_check_point = chip->soc_bms;
@@ -169,15 +172,11 @@ int opchg_get_prop_batt_capacity_from_bms(struct opchg_charger *chip)
 		return chip->bat_volt_check_point;
 	}
 
-	#if 0
+	/************************************
+	*  charging full but soc is not 100%
+	************************************/
 	if((chip->chg_present) && (chip->batt_full) && (chip->batt_authen) && (opchg_get_prop_batt_present(chip) == 1)
-		&& (opchg_battery_temp_region_get(chip) == CV_BATTERY_TEMP_REGION__NORMAL
-				|| opchg_battery_temp_region_get(chip) == CV_BATTERY_TEMP_REGION__LITTLE_COOL))
-	#else
-	if((chip->chg_present) && (chip->batt_full) && (chip->batt_authen) && (opchg_get_prop_batt_present(chip) == 1)
-		&& ((chip->charging_opchg_temp_statu == OPCHG_CHG_TEMP_NORMAL)||
-		(chip->charging_opchg_temp_statu  == OPCHG_CHG_TEMP_PRE_NORMAL)))
-	#endif
+		&& ((chip->charging_opchg_temp_statu >= OPCHG_CHG_TEMP_PRE_COOL1)&& (chip->charging_opchg_temp_statu  <= OPCHG_CHG_TEMP_NORMAL)))
 	{
 		sync_down_count = 0;
 		if(sync_up_count >= OPCHG_SOC_CHANGE_60S){
@@ -191,6 +190,7 @@ int opchg_get_prop_batt_capacity_from_bms(struct opchg_charger *chip)
 			chip->bat_volt_check_point = 100;
 			chip->batt_pre_full = 1;
 		}
+
 		chip->ocv_uv = opchg_backup_ocv_soc(chip->bat_volt_check_point);
 		//pr_debug("full,soc_bms:%d,soc_cal:%d,sync_up_count:%d\n",chip->soc_bms,chip->bat_volt_check_point,sync_up_count);
 		return chip->bat_volt_check_point;
@@ -234,12 +234,14 @@ int opchg_get_prop_batt_capacity_from_bms(struct opchg_charger *chip)
 				sync_down_limit = OPCHG_SOC_CHANGE_20S;
 			}
 
-			if(sync_down_count >= sync_down_limit){
-				sync_down_count = 0;
+			sync_down_count++;
+			if(sync_down_count >= sync_down_limit)
+			{
 				if(chip->bat_volt_check_point > 1)
+				{
 					chip->bat_volt_check_point--;
-			} else {
-				sync_down_count++;
+				}
+				sync_down_count = 0;
 			}
 		}
 		//pr_debug("discharging soc_bms:%d,soc_cal:%d,sync_down_count:%d\n",chip->soc_bms,chip->bat_volt_check_point,sync_down_count);
@@ -249,22 +251,15 @@ int opchg_get_prop_batt_capacity_from_bms(struct opchg_charger *chip)
 		chip->bat_volt_check_point = 100;
 	} else if(chip->bat_volt_check_point < 2){
 		if(opchg_soc_reduce_slowly_when_1(chip))
+		{
 			chip->bat_volt_check_point = 0;
-		else
-			chip->bat_volt_check_point = 1;
+		}
 	}
 
 	if(chip->bat_volt_check_point <= 2){
 		chip->ocv_uv = opchg_backup_ocv_soc(2);
 	} else {
-#if 0
-		if(chip->bat_volt_check_point == 100 && chip->soc_bms > 90)
-			chip->ocv_uv = opchg_backup_ocv_soc(100);
-		else
-			chip->ocv_uv = opchg_backup_ocv_soc(chip->bat_volt_check_point - 1);
-#else
 		chip->ocv_uv = opchg_backup_ocv_soc(chip->bat_volt_check_point);
-#endif
 	}
 
 	rc = msmrtc_alarm_read_time(&soc_update_rtc_time);
@@ -301,15 +296,8 @@ int opchg_get_prop_batt_capacity_from_bms_bq24157(struct opchg_charger *chip)
 		return chip->bat_volt_check_point;
 	}
 
-	#if 0
-	if((chip->chg_present) && (chip->batt_full) && (chip->batt_authen) && (opchg_get_prop_batt_present(chip) == 1)
-		&& (opchg_battery_temp_region_get(chip) == CV_BATTERY_TEMP_REGION__NORMAL
-				|| opchg_battery_temp_region_get(chip) == CV_BATTERY_TEMP_REGION__LITTLE_COOL))
-	#else
 	if((chip->chg_present) && ((chip->batt_full) && (chip->soc_bms > 84)) && (chip->batt_authen) && (opchg_get_prop_batt_present(chip) == 1)
-		&& ((chip->charging_opchg_temp_statu == OPCHG_CHG_TEMP_NORMAL)||
-		(chip->charging_opchg_temp_statu  == OPCHG_CHG_TEMP_PRE_NORMAL)))
-	#endif
+		&& ((chip->charging_opchg_temp_statu >= OPCHG_CHG_TEMP_PRE_COOL1)&& (chip->charging_opchg_temp_statu  <= OPCHG_CHG_TEMP_NORMAL)))
 	{
 		sync_down_count = 0;
 		if(sync_up_count >= OPCHG_SOC_CHANGE_60S){
@@ -417,14 +405,20 @@ int opchg_get_prop_batt_capacity(struct opchg_charger *chip)
 /*huqiao@EXP.BasicDrv.Basic add for clone 15085*/
 	if(is_project(OPPO_14043) || is_project(OPPO_14037) || is_project(OPPO_14051) ||
 		is_project(OPPO_15005)|| is_project(OPPO_15057) ||
-		is_project(OPPO_15009)|| is_project(OPPO_15037) || is_project(OPPO_15035) ||
-        is_project(OPPO_15085) ){
+		is_project(OPPO_15009)|| is_project(OPPO_15037) || is_project(OPPO_15035)||
+        is_project(OPPO_15085) || is_project(OPPO_15109) ){
 		soc = opchg_get_prop_batt_capacity_from_bms(chip);
 	} else if(is_project(OPPO_15025)) {
 		soc = opchg_get_prop_batt_capacity_from_bms_bq24157(chip);
 	} else {
 		if (qpnp_batt_gauge && qpnp_batt_gauge->get_battery_soc){
 			soc = qpnp_batt_gauge->get_battery_soc();
+			if (soc < 2) {
+				if (opchg_soc_reduce_slowly_when_1(chip))
+					soc = 0;
+				else
+					soc = 1;
+			}
 		} else {
 			pr_err("qpnp-charger no batt gauge assuming 50percent\n");
 			soc = 50;
@@ -440,7 +434,7 @@ int opchg_get_prop_current_now(struct opchg_charger *chip)
 	struct qpnp_vadc_result results;
 	int chg_current = 0;
 
-	if(is_project(OPPO_15025)){
+	if(is_project(OPPO_15025)|| is_project(OPPO_15109)){
 		if(!chip->chg_present){
 			chg_current = 0;
 		} else {
@@ -463,8 +457,29 @@ int opchg_get_prop_current_now(struct opchg_charger *chip)
 			else
 				chg_current = -chg_current;
 		}
-	} else if(is_project(OPPO_14037) || is_project(OPPO_14051) || is_project(OPPO_15057) ||
-				is_project(OPPO_15009) || is_project(OPPO_15037)|| is_project(OPPO_15035)){
+	}
+	else if(is_project(OPPO_15035)||is_project(OPPO_16000)){
+		if(!chip->chg_present){
+			chg_current = 0;
+		} else {
+			rc = qpnp_vadc_read(chip->vadc_dev, P_MUX2_1_3, &results);
+			if (rc) {
+				pr_err("Unable to read iadc rc=%d\n", rc);
+				chg_current = 0;
+			}
+			chg_current = (int)results.physical/1000;
+			if(chip->bat_status == POWER_SUPPLY_STATUS_FULL)
+			{
+				chg_current = 0;
+			}
+			else
+			{
+				chg_current = -450;
+			}
+		}
+	}
+	else if(is_project(OPPO_14037) || is_project(OPPO_14051) || is_project(OPPO_15057) ||
+				is_project(OPPO_15009) || is_project(OPPO_15037)){
 		if(!chip->chg_present){
 			chg_current = 0;
 		} else {
@@ -476,22 +491,6 @@ int opchg_get_prop_current_now(struct opchg_charger *chip)
 			chg_current = -(int)results.physical/1000;
 		}
 	} else {
-	#if 0
-		if(!chip->chg_present){
-				chg_current = 0;
-		}
-		else
-		{
-			if (qpnp_batt_gauge && qpnp_batt_gauge->get_average_current)
-			{
-				chg_current = qpnp_batt_gauge->get_average_current();
-			}
-			else {
-				pr_err("qpnp-charger no batt gauge assuming 0mA\n");
-				chg_current = 0;
-			}
-		}
-	#else
 		if (qpnp_batt_gauge && qpnp_batt_gauge->get_average_current)
 		{
 			chg_current = qpnp_batt_gauge->get_average_current();
@@ -500,7 +499,6 @@ int opchg_get_prop_current_now(struct opchg_charger *chip)
 			pr_err("qpnp-charger no batt gauge assuming 0mA\n");
 			chg_current = 0;
 		}
-	#endif
 	}
 	return chg_current;
 }
