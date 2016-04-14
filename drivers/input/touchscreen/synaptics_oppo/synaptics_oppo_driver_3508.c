@@ -454,24 +454,24 @@ static int synaptics_tpd_button_init(struct synaptics_ts_data *ts)
 		goto err_input_dev_alloc_failed;
 	}
 	ts->kpd->name = TPD_DEVICE "-kpd";
-    set_bit(EV_KEY, ts->kpd->evbit);
-	__set_bit(KEY_MENU, ts->kpd->keybit);
-	__set_bit(KEY_HOME, ts->kpd->keybit);
-	__set_bit(KEY_BACK, ts->kpd->keybit);
+	set_bit(EV_KEY, ts->kpd->evbit);
+	if (is_project(OPPO_15011) || is_project(OPPO_14005)) {
+		__set_bit(KEY_MENU, ts->kpd->keybit);
+		__set_bit(KEY_HOME, ts->kpd->keybit);
+		__set_bit(KEY_BACK, ts->kpd->keybit);
+	}
 	ts->kpd->id.bustype = BUS_HOST;
     ts->kpd->id.vendor  = 0x0001;
     ts->kpd->id.product = 0x0001;
     ts->kpd->id.version = 0x0100;
 	
-	if(input_register_device(ts->kpd)){
+	ret = input_register_device(ts->kpd);
+	if (ret < 0) {
         TPDTM_DMESG("input_register_device failed.(kpd)\n");	
 		input_unregister_device(ts->kpd);
 		input_free_device(ts->kpd);
+		return ret;
 	}
-    set_bit(EV_KEY, ts->kpd->evbit);
-	__set_bit(KEY_MENU, ts->kpd->keybit);
-	__set_bit(KEY_HOME, ts->kpd->keybit);
-	__set_bit(KEY_BACK, ts->kpd->keybit);
 	
 	report_key_point_y = ts->max_y*button_map[2]/LCD_HEIGHT;
     syna_properties_kobj = kobject_create_and_add("board_properties", NULL);
@@ -2366,9 +2366,6 @@ static int	synaptics_input_init(struct synaptics_ts_data *ts)
 	set_bit(KEY_GESTURE_V, ts->input_dev->keybit);
 	set_bit(KEY_GESTURE_LTR, ts->input_dev->keybit);
 	set_bit(KEY_GESTURE_GTR, ts->input_dev->keybit);
-	set_bit(KEY_MENU , ts->input_dev->keybit);
-	set_bit(KEY_HOMEPAGE , ts->input_dev->keybit);
-	set_bit(KEY_BACK , ts->input_dev->keybit);
 #endif
 	/* For multi touch */
 	input_set_abs_params(ts->input_dev, ABS_MT_TOUCH_MAJOR, 0, 255, 0, 0);
@@ -2378,11 +2375,6 @@ static int	synaptics_input_init(struct synaptics_ts_data *ts)
 	input_mt_init_slots(ts->input_dev, ts->max_num, 0);
 #endif				
 	set_bit(BTN_TOUCH, ts->input_dev->keybit);
-	set_bit(KEY_SEARCH, ts->input_dev->keybit);
-	set_bit(KEY_MENU, ts->input_dev->keybit);
-	set_bit(KEY_HOME, ts->input_dev->keybit);
-	set_bit(KEY_BACK, ts->input_dev->keybit);
-	set_bit(KEY_HOMEPAGE , ts->input_dev->keybit);
 	input_set_drvdata(ts->input_dev, ts);
 	
 	if(input_register_device(ts->input_dev)) {
@@ -3556,13 +3548,6 @@ static int synaptics_ts_suspend(struct device *dev)
 	is_touch = 0;
 	ts->is_suspended = 1;
 /***********report Up key when suspend********/	
-	input_report_key(ts->input_dev, KEY_MENU, 0);
-	input_sync(ts->input_dev);
-	input_report_key(ts->input_dev, KEY_HOMEPAGE, 0);
-	input_sync(ts->input_dev);
-	input_report_key(ts->input_dev, KEY_BACK, 0);
-	input_sync(ts->input_dev);
-	input_report_key(ts->input_dev, BTN_TOUCH, 0);
 #ifndef TYPE_B_PROTOCOL
     input_mt_sync(ts->input_dev);	
 #endif
