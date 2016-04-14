@@ -454,24 +454,22 @@ static int synaptics_tpd_button_init(struct synaptics_ts_data *ts)
 		goto err_input_dev_alloc_failed;
 	}
 	ts->kpd->name = TPD_DEVICE "-kpd";
-    set_bit(EV_KEY, ts->kpd->evbit);
+	set_bit(EV_KEY, ts->kpd->evbit);
 	__set_bit(KEY_MENU, ts->kpd->keybit);
 	__set_bit(KEY_HOME, ts->kpd->keybit);
 	__set_bit(KEY_BACK, ts->kpd->keybit);
 	ts->kpd->id.bustype = BUS_HOST;
-    ts->kpd->id.vendor  = 0x0001;
-    ts->kpd->id.product = 0x0001;
-    ts->kpd->id.version = 0x0100;
+	ts->kpd->id.vendor  = 0x0001;
+	ts->kpd->id.product = 0x0001;
+	ts->kpd->id.version = 0x0100;
 
-	if(input_register_device(ts->kpd)){
-        TPDTM_DMESG("input_register_device failed.(kpd)\n");
+	ret = input_register_device(ts->kpd);
+	if (ret < 0) {
+		TPDTM_DMESG("input_register_device failed.(kpd)\n");
 		input_unregister_device(ts->kpd);
 		input_free_device(ts->kpd);
+		return ret;
 	}
-    set_bit(EV_KEY, ts->kpd->evbit);
-	__set_bit(KEY_MENU, ts->kpd->keybit);
-	__set_bit(KEY_HOME, ts->kpd->keybit);
-	__set_bit(KEY_BACK, ts->kpd->keybit);
 
 	report_key_point_y = ts->max_y*button_map[2]/LCD_HEIGHT;
     syna_properties_kobj = kobject_create_and_add("board_properties", NULL);
@@ -1315,9 +1313,9 @@ static void int_touch(struct synaptics_ts_data *ts)
 
 static void int_key_report(struct synaptics_ts_data *ts)
 {
-  int ret= 0;
-	int F1A_0D_DATA00=0x00;
-	int F51_CUSTOM_DATA32=0x19;
+	int ret= 0, i;
+	static const int F1A_0D_DATA00=0x00;
+	static const int F51_CUSTOM_DATA32=0x19;
 
 	TPD_DEBUG("%s is called!\n",__func__);
 	if (ts->gesture_enable == 1) {
@@ -1331,40 +1329,27 @@ static void int_key_report(struct synaptics_ts_data *ts)
 			input_sync(ts->input_dev);
 		}
 	}else{
+		static const int key_mapping[][2] = {
+			{ 0x01, KEY_MENU },
+			{ 0x02, KEY_HOME },
+			{ 0x04, KEY_BACK }
+		};
+
 		i2c_smbus_write_byte_data(ts->client, 0xff, 0x02);
 		ret = i2c_smbus_read_byte_data(ts->client, F1A_0D_DATA00);
-		if((ret & 0x01) && !(ts->pre_btn_state & 0x01))//menu
-		{
-			if( 0 == is_touch ){
-				input_report_key(ts->input_dev, KEY_MENU, 1);
-				input_sync(ts->input_dev);
-			}
-		}else if(!(ret & 0x01) && (ts->pre_btn_state & 0x01)){
-			input_report_key(ts->input_dev, KEY_MENU, 0);
-			input_sync(ts->input_dev);
-		}
 
-		if((ret & 0x02) && !(ts->pre_btn_state & 0x02))//home
-		{
-			if( 0 == is_touch ){
-				input_report_key(ts->input_dev, KEY_HOME, 1);
-				input_sync(ts->input_dev);
+		for (i = 0; ts->kpd && i < ARRAY_SIZE(key_mapping); i++) {
+			int bit = key_mapping[i][0];
+			int keycode = key_mapping[i][1];
+			if ((ret & bit) && !(ts->pre_btn_state & bit)) {
+				if (!is_touch) {
+					input_report_key(ts->kpd, keycode, 1);
+					input_sync(ts->kpd);
+				}
+			} else if (!(ret & bit) && (ts->pre_btn_state & bit)) {
+				input_report_key(ts->kpd, keycode, 0);
+				input_sync(ts->kpd);
 			}
-
-		}else if(!(ret & 0x02) && (ts->pre_btn_state & 0x02)){
-			input_report_key(ts->input_dev, KEY_HOME, 0);
-			input_sync(ts->input_dev);
-		}
-
-		if((ret & 0x04) && !(ts->pre_btn_state & 0x04))//reback
-		{
-			if( 0 == is_touch ){
-				input_report_key(ts->input_dev, KEY_BACK, 1);
-				input_sync(ts->input_dev);
-			}
-		}else if(!(ret & 0x04) && (ts->pre_btn_state & 0x04)){
-			input_report_key(ts->input_dev, KEY_BACK, 0);
-			input_sync(ts->input_dev);
 		}
 	}
 	ts->pre_btn_state = ret & 0x07;
@@ -2375,9 +2360,6 @@ static int	synaptics_input_init(struct synaptics_ts_data *ts)
 	input_mt_init_slots(ts->input_dev, ts->max_num, 0);
 #endif
 	set_bit(BTN_TOUCH, ts->input_dev->keybit);
-	set_bit(KEY_MENU, ts->input_dev->keybit);
-	set_bit(KEY_HOME, ts->input_dev->keybit);
-	set_bit(KEY_BACK, ts->input_dev->keybit);
 	input_set_drvdata(ts->input_dev, ts);
 
 	if(input_register_device(ts->input_dev)) {
@@ -3399,9 +3381,11 @@ static int synaptics_ts_probe(
 	if(ret < 0) {
 		TPD_ERR("synaptics_input_init failed!\n");
 	}
-	ret = synaptics_tpd_button_init(ts);
-	if(ret < 0) {
-		TPD_ERR("synaptics_tpd_button_init failed!\n");
+	if (is_project(OPPO_15011) || is_project(OPPO_14005)) {
+		ret = synaptics_tpd_button_init(ts);
+		if(ret < 0) {
+			TPD_ERR("synaptics_tpd_button_init failed!\n");
+		}
 	}
 #if defined(CONFIG_FB)
 	ts->suspended = 0;
@@ -3550,16 +3534,20 @@ static int synaptics_ts_suspend(struct device *dev)
     }
 	is_touch = 0;
 	ts->is_suspended = 1;
-/***********report Up key when suspend********/
-	input_report_key(ts->input_dev, KEY_MENU, 0);
-	input_sync(ts->input_dev);
-	input_report_key(ts->input_dev, KEY_HOME, 0);
-	input_sync(ts->input_dev);
-	input_report_key(ts->input_dev, KEY_BACK, 0);
-	input_sync(ts->input_dev);
+
+	// report Up key when suspend
+	if (ts->kpd) {
+		input_report_key(ts->kpd, KEY_MENU, 0);
+		input_sync(ts->kpd);
+		input_report_key(ts->kpd, KEY_HOME, 0);
+		input_sync(ts->kpd);
+		input_report_key(ts->kpd, KEY_BACK, 0);
+		input_sync(ts->kpd);
+	}
 	input_report_key(ts->input_dev, BTN_TOUCH, 0);
+
 #ifndef TYPE_B_PROTOCOL
-    input_mt_sync(ts->input_dev);
+	input_mt_sync(ts->input_dev);
 #endif
 	input_sync(ts->input_dev);
 
