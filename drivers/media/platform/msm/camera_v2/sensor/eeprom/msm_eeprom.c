@@ -17,6 +17,10 @@
 #include "msm_sd.h"
 #include "msm_cci.h"
 #include "msm_eeprom.h"
+#ifdef VENDOR_EDIT
+/*zhengrong.zhang, 2015/04/15, add for pdaf engineer mode*/
+#include <linux/proc_fs.h>
+#endif
 
 #undef CDBG
 #define CDBG(fmt, args...) pr_debug(fmt, ##args)
@@ -935,6 +939,13 @@ static int eeprom_config_read_cal_data32(struct msm_eeprom_ctrl_t *e_ctrl,
 	rc = copy_to_user(ptr_dest, e_ctrl->cal_data.mapdata,
 		cdata.cfg.read_data.num_bytes);
 
+#ifndef VENDOR_EDIT
+	if (!rc) {
+		kfree(e_ctrl->cal_data.mapdata);
+		kfree(e_ctrl->cal_data.map);
+		memset(&e_ctrl->cal_data, 0, sizeof(e_ctrl->cal_data));
+	}
+#endif
 	return rc;
 }
 
@@ -1005,6 +1016,209 @@ static long msm_eeprom_subdev_fops_ioctl32(struct file *file, unsigned int cmd,
 	return video_usercopy(file, cmd, arg, msm_eeprom_subdev_do_ioctl32);
 }
 
+#endif
+
+#ifdef VENDOR_EDIT
+/*zhengrong.zhang, 2015/03/02, modify for 15013 eeprom*/
+uint16_t s5k3m2_module = 0;
+uint16_t s5k3m2_lsc_info = 0;
+extern bool pdaf_calibration_flag;
+static void msm_eeprom_s5k3m2_read_vendorInfo(struct msm_eeprom_ctrl_t *e_ctrl)
+{
+    int rc = 0;
+    uint16_t read_data = 0;
+
+    e_ctrl->i2c_client.addr_type = MSM_CAMERA_I2C_WORD_ADDR;
+
+    rc = e_ctrl->i2c_client.i2c_func_tbl->i2c_read(
+            		&e_ctrl->i2c_client, 0x0031,
+            		&read_data, MSM_CAMERA_I2C_BYTE_DATA);
+    if (rc < 0) {
+		pr_err("%s read 0x0031 failed\n", __func__);
+	} else {
+        pr_err("%s read 0x0031=%d\n", __func__,read_data);
+    }
+
+    if (read_data == 0x01) {
+        int i;
+        uint16_t sum1 = 0, read_value = 0;
+        for (i = 0; i <= 0x1B; i++) {
+            rc = e_ctrl->i2c_client.i2c_func_tbl->i2c_read(
+        		&e_ctrl->i2c_client, i,
+        		&read_data, MSM_CAMERA_I2C_BYTE_DATA);
+            if (rc < 0) {
+        		pr_err("%s read 0x%x fail\n", __func__, i);
+        	} else {
+        	    if (i == 0) {
+                    read_value = read_data;
+                    //pr_err("%s read 0x%x=%d\n", __func__, i, read_value);
+        	    }
+                sum1 += read_data;
+            }
+        }
+        sum1 = sum1%255;
+
+        rc = e_ctrl->i2c_client.i2c_func_tbl->i2c_read(
+        		&e_ctrl->i2c_client, 0x0032,
+        		&read_data, MSM_CAMERA_I2C_BYTE_DATA);
+
+        if (sum1 == read_data) {
+            pr_err("%s read module info success,value=%d\n", __func__, read_value);
+            s5k3m2_module = read_value;
+        }
+
+        //read PDAF calibration
+        read_data = 0;
+        read_value = 0;
+        //PDAF Gain Map Flag
+        rc = e_ctrl->i2c_client.i2c_func_tbl->i2c_read(
+        		&e_ctrl->i2c_client, 0x0B08,
+        		&read_data, MSM_CAMERA_I2C_BYTE_DATA);
+        if (rc < 0) {
+            pr_err("%s read 0x0B08 failed\n", __func__);
+        }
+
+		//PDAF PCC Flag
+        rc = e_ctrl->i2c_client.i2c_func_tbl->i2c_read(
+        		&e_ctrl->i2c_client, 0x0B0A,
+        		&read_value, MSM_CAMERA_I2C_BYTE_DATA);
+        if (rc < 0) {
+            pr_err("%s read 0x0B0A failed\n", __func__);
+        }
+
+        if (read_data == 1 && read_value == 1) {
+            pr_err("%s pdaf calibration is valid\n", __func__);
+            pdaf_calibration_flag = true;
+        }
+
+
+        //read LSC algorithm manufacture
+        rc = e_ctrl->i2c_client.i2c_func_tbl->i2c_read(
+        		&e_ctrl->i2c_client, 0x0030,
+        		&s5k3m2_lsc_info, MSM_CAMERA_I2C_BYTE_DATA);
+        if (rc < 0) {
+            pr_err("%s read 0x0030 failed\n", __func__);
+        } else {
+            pr_err("%s read 0x0030=%d\n", __func__,s5k3m2_lsc_info);
+        }
+		
+    }
+}
+
+#ifdef VENDOR_EDIT
+/*zhengrong.zhang, 2015/04/15, add for pdaf engineer mode*/
+static ssize_t s5k3m2_eeprom_proc_read(struct file *filp, char __user *buff,
+                        	size_t len, loff_t *data)
+{
+    char value[2] = {0};
+
+    snprintf(value, sizeof(value), "%d", s5k3m2_lsc_info);
+
+    pr_err("%s,lsc_info=%d,value=%s\n", __func__,s5k3m2_lsc_info,value);
+    return simple_read_from_buffer(buff, len, data, value,1);
+}
+
+static const struct file_operations s5k3m2_eeprom_test_fops = {
+    .owner		= THIS_MODULE,
+    .read		= s5k3m2_eeprom_proc_read,
+    //.write		= s5k3m2_eeprom_proc_write,
+};
+
+static int msm_eeprom_proc_init(void)
+{
+    int ret=0;
+    struct proc_dir_entry *proc_entry;
+
+    proc_entry = proc_create_data("s5k3m2_eeprom_info", 0666, NULL, &s5k3m2_eeprom_test_fops, NULL);
+    if (proc_entry == NULL)
+    {
+		ret = -ENOMEM;
+	  	pr_err("[%s]: Error! Couldn't create s5k3m2_eeprom_info proc entry\n", __func__);
+    }
+    return ret;
+}
+
+#endif
+#ifdef VENDOR_EDIT
+/* lanhe add for read s5k3h7 otp */
+static int read_eeprom_memory_3h7(struct msm_eeprom_ctrl_t *e_ctrl,
+			      struct msm_eeprom_memory_block_t *block)
+{
+	int rc = 0;
+	int j;
+	struct msm_eeprom_memory_map_t *emap = block->map;
+	struct msm_eeprom_board_info *eb_info;
+	uint8_t *memptr = block->mapdata;
+
+	if (!e_ctrl) {
+		pr_err("%s e_ctrl is NULL", __func__);
+		return -EINVAL;
+	}
+
+	eb_info = e_ctrl->eboard_info;
+
+	for (j = 0; j < block->num_map; j++) {
+		if (emap[j].saddr.addr) {
+			eb_info->i2c_slaveaddr = emap[j].saddr.addr;
+			e_ctrl->i2c_client.cci_client->sid =
+					eb_info->i2c_slaveaddr >> 1;
+			pr_err("qcom,slave-addr = 0x%X\n",
+				eb_info->i2c_slaveaddr);
+		}
+		
+		if (emap[j].page.valid_size) {
+			e_ctrl->i2c_client.addr_type = emap[j].page.addr_t;
+			rc = e_ctrl->i2c_client.i2c_func_tbl->i2c_write(
+				&(e_ctrl->i2c_client), emap[j].page.addr,
+				emap[j].page.data, emap[j].page.data_t);
+				msleep(emap[j].page.delay);
+			if (rc < 0) {
+				pr_err("%s: page write failed\n", __func__);
+				return rc;
+			}
+		}
+		
+		if (emap[j].pageen.valid_size) {
+			e_ctrl->i2c_client.addr_type = emap[j].pageen.addr_t;
+			rc = e_ctrl->i2c_client.i2c_func_tbl->i2c_write(
+				&(e_ctrl->i2c_client), emap[j].pageen.addr,
+				emap[j].pageen.data, emap[j].pageen.data_t);
+				msleep(emap[j].pageen.delay);
+			if (rc < 0) {
+				pr_err("%s: page enable failed\n", __func__);
+				return rc;
+			}
+		}
+		
+		if (emap[j].poll.valid_size) {
+			e_ctrl->i2c_client.addr_type = emap[j].poll.addr_t;
+			rc = e_ctrl->i2c_client.i2c_func_tbl->i2c_write(
+				&(e_ctrl->i2c_client), emap[j].poll.addr,
+				emap[j].poll.data, emap[j].poll.data_t);
+				msleep(emap[j].poll.delay);
+			if (rc < 0) {
+				pr_err("%s: poll failed\n", __func__);
+				return rc;
+			}
+		}
+
+		if (emap[j].mem.valid_size) {
+			memset(memptr,0x00,emap[j].mem.valid_size);//
+			e_ctrl->i2c_client.addr_type = emap[j].mem.addr_t;
+			rc = e_ctrl->i2c_client.i2c_func_tbl->i2c_read_seq(
+				&(e_ctrl->i2c_client), emap[j].mem.addr,
+				memptr, emap[j].mem.valid_size);
+			if (rc < 0) {
+				pr_err("%s: read failed\n", __func__);
+				return rc;
+			}
+			memptr += emap[j].mem.valid_size;
+		}
+
+	}
+	return rc;
+}
+#endif
 #endif
 
 static int msm_eeprom_platform_probe(struct platform_device *pdev)
@@ -1100,8 +1314,10 @@ static int msm_eeprom_platform_probe(struct platform_device *pdev)
 	cci_client->sid = eb_info->i2c_slaveaddr >> 1;
 	cci_client->retries = 3;
 	cci_client->id_map = 0;
-	cci_client->i2c_freq_mode = eb_info->i2c_freq_mode;
-
+#ifdef VENDOR_EDIT
+	/*hufeng add 2014-11-03 to make eeprom use i2c_fast_mode*/
+	cci_client->i2c_freq_mode = 1;
+#endif
 	rc = of_property_read_string(of_node, "qcom,eeprom-name",
 		&eb_info->eeprom_name);
 	CDBG("%s qcom,eeprom-name %s, rc %d\n", __func__,
@@ -1129,6 +1345,20 @@ static int msm_eeprom_platform_probe(struct platform_device *pdev)
 		pr_err("failed rc %d\n", rc);
 		goto memdata_free;
 	}
+
+#ifdef VENDOR_EDIT
+/*zhengrong.zhang, 2015/03/02, modify for 15013 eeprom*/
+    if (strcmp(eb_info->eeprom_name, "sunny_f13s01l") == 0) {
+        msm_eeprom_s5k3m2_read_vendorInfo(e_ctrl);
+        msm_eeprom_proc_init();
+    }
+#endif
+#ifdef VENDOR_EDIT
+/* lanhe add for 15005 3h7 eeprom*/
+    if (strcmp(eb_info->eeprom_name, "truly_s5k3h7") == 0) 
+		rc = read_eeprom_memory_3h7(e_ctrl, &e_ctrl->cal_data);
+	else
+#endif
 	rc = read_eeprom_memory(e_ctrl, &e_ctrl->cal_data);
 	if (rc < 0) {
 		pr_err("%s read_eeprom_memory failed\n", __func__);
@@ -1257,6 +1487,10 @@ static int __init msm_eeprom_init_module(void)
 	rc = platform_driver_probe(&msm_eeprom_platform_driver,
 		msm_eeprom_platform_probe);
 	CDBG("%s:%d platform rc %d\n", __func__, __LINE__, rc);
+#ifdef VENDOR_EDIT
+/*zhengrong.zhang, 2015/03/02, modify for eeprom*/
+    return rc;
+#endif
 	rc = spi_register_driver(&msm_eeprom_spi_driver);
 	CDBG("%s:%d spi rc %d\n", __func__, __LINE__, rc);
 	return i2c_add_driver(&msm_eeprom_i2c_driver);
@@ -1265,6 +1499,10 @@ static int __init msm_eeprom_init_module(void)
 static void __exit msm_eeprom_exit_module(void)
 {
 	platform_driver_unregister(&msm_eeprom_platform_driver);
+#ifdef VENDOR_EDIT
+/*zhengrong.zhang, 2015/03/02, modify for eeprom*/
+    return;
+#endif
 	spi_unregister_driver(&msm_eeprom_spi_driver);
 	i2c_del_driver(&msm_eeprom_i2c_driver);
 }

@@ -2871,6 +2871,12 @@ static __ref int do_freq_mitigation(void *data)
 			max_freq_req = min(max_freq_req,
 					cpus[cpu].user_max_freq);
 
+#ifdef VENDOR_EDIT
+/* fanhui@PhoneSW.BSP, 2015/06/20, Add to limit the max_freq_req */
+			if (msm_thermal_info.freq_min && max_freq_req < msm_thermal_info.freq_min)
+				max_freq_req = msm_thermal_info.freq_min;
+#endif
+
 			min_freq_req = max(min_freq_limit,
 					cpus[cpu].user_min_freq);
 
@@ -5287,6 +5293,14 @@ static int probe_freq_mitigation(struct device_node *node,
 
 	freq_mitigation_enabled = 1;
 
+#ifdef VENDOR_EDIT
+/* fanhui@PhoneSW.BSP, 2015/06/20, Add to set the minimum freqency for thermal mitigation */
+	key = "qcom,freq-mitigation-min";
+	ret = of_property_read_u32(node, key, &data->freq_min);
+	if (ret)
+		data->freq_min = 0;
+#endif
+	
 PROBE_FREQ_EXIT:
 	if (ret) {
 		dev_info(&pdev->dev,

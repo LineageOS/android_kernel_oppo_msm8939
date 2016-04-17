@@ -73,6 +73,128 @@ static int vco_set_rate_lpm(struct clk *c, unsigned long rate)
 	return rc;
 }
 
+#ifndef VENDOR_EDIT
+/* Xiaori.Yuan@Mobile Phone Software Dept.Driver, 2015/05/09  Modify for pll lock patch to solve single crash */
+static void dsi_pll_sw_reset_8916(struct mdss_pll_resources *dsi_pll_res)
+{
+	/*
+	 * DSI PLL software reset. Add HW recommended delays after toggling
+	 * the software reset bit off and back on.
+	 */
+	MDSS_PLL_REG_W(dsi_pll_res->pll_base,
+			DSI_PHY_PLL_UNIPHY_PLL_TEST_CFG, 0x01);
+	ndelay(500);
+	MDSS_PLL_REG_W(dsi_pll_res->pll_base,
+			DSI_PHY_PLL_UNIPHY_PLL_TEST_CFG, 0x00);
+}
+
+static void dsi_pll_toggle_lock_detect_8916(
+				struct mdss_pll_resources *dsi_pll_res)
+{
+	/* DSI PLL toggle lock detect setting */
+	MDSS_PLL_REG_W(dsi_pll_res->pll_base,
+			DSI_PHY_PLL_UNIPHY_PLL_LKDET_CFG2, 0x04);
+	ndelay(500);
+	MDSS_PLL_REG_W(dsi_pll_res->pll_base,
+			DSI_PHY_PLL_UNIPHY_PLL_LKDET_CFG2, 0x05);
+	udelay(512);
+}
+
+static int dsi_pll_check_lock_status_8916(
+				struct mdss_pll_resources *dsi_pll_res)
+{
+	int rc = 0;
+
+	rc = dsi_pll_lock_status(dsi_pll_res);
+	if (rc)
+		pr_debug("PLL Locked\n");
+	else
+		pr_err("PLL failed to lock\n");
+
+	return rc;
+}
+
+
+static int gf_2_dsi_pll_enable_seq_8916(struct mdss_pll_resources *dsi_pll_res)
+{
+	int pll_locked = 0;
+
+	dsi_pll_sw_reset_8916(dsi_pll_res);
+
+	/*
+	 * GF PART 2 PLL power up sequence.
+	 * Add necessary delays recommended by hardware.
+	 */
+
+	MDSS_PLL_REG_W(dsi_pll_res->pll_base,
+			DSI_PHY_PLL_UNIPHY_PLL_CAL_CFG1, 0x04);
+	MDSS_PLL_REG_W(dsi_pll_res->pll_base,
+			DSI_PHY_PLL_UNIPHY_PLL_GLB_CFG, 0x01);
+	MDSS_PLL_REG_W(dsi_pll_res->pll_base,
+			DSI_PHY_PLL_UNIPHY_PLL_GLB_CFG, 0x05);
+	udelay(3);
+	MDSS_PLL_REG_W(dsi_pll_res->pll_base,
+			DSI_PHY_PLL_UNIPHY_PLL_GLB_CFG, 0x0f);
+	udelay(500);
+
+	dsi_pll_toggle_lock_detect_8916(dsi_pll_res);
+
+	pll_locked = dsi_pll_check_lock_status_8916(dsi_pll_res);
+	return pll_locked ? 0 : -EINVAL;
+}
+
+static int gf_1_dsi_pll_enable_seq_8916(struct mdss_pll_resources *dsi_pll_res)
+{
+	int pll_locked = 0;
+
+	dsi_pll_sw_reset_8916(dsi_pll_res);
+	/*
+	 * GF PART 1 PLL power up sequence.
+	 * Add necessary delays recommended by hardware.
+	 */
+
+	MDSS_PLL_REG_W(dsi_pll_res->pll_base,
+			DSI_PHY_PLL_UNIPHY_PLL_CAL_CFG1, 0x14);
+	MDSS_PLL_REG_W(dsi_pll_res->pll_base,
+			DSI_PHY_PLL_UNIPHY_PLL_GLB_CFG, 0x01);
+	MDSS_PLL_REG_W(dsi_pll_res->pll_base,
+			DSI_PHY_PLL_UNIPHY_PLL_GLB_CFG, 0x05);
+	udelay(3);
+	MDSS_PLL_REG_W(dsi_pll_res->pll_base,
+			DSI_PHY_PLL_UNIPHY_PLL_GLB_CFG, 0x0f);
+	udelay(500);
+
+	dsi_pll_toggle_lock_detect_8916(dsi_pll_res);
+
+	pll_locked = dsi_pll_check_lock_status_8916(dsi_pll_res);
+	return pll_locked ? 0 : -EINVAL;
+}
+
+static int tsmc_dsi_pll_enable_seq_8916(struct mdss_pll_resources *dsi_pll_res)
+{
+	int pll_locked = 0;
+
+	dsi_pll_sw_reset_8916(dsi_pll_res);
+	/*
+	 * TSMC PLL power up sequence.
+	 * Add necessary delays recommended by hardware.
+	 */
+	MDSS_PLL_REG_W(dsi_pll_res->pll_base,
+			DSI_PHY_PLL_UNIPHY_PLL_CAL_CFG1, 0x34);
+	MDSS_PLL_REG_W(dsi_pll_res->pll_base,
+			DSI_PHY_PLL_UNIPHY_PLL_GLB_CFG, 0x01);
+	MDSS_PLL_REG_W(dsi_pll_res->pll_base,
+			DSI_PHY_PLL_UNIPHY_PLL_GLB_CFG, 0x05);
+	MDSS_PLL_REG_W(dsi_pll_res->pll_base,
+			DSI_PHY_PLL_UNIPHY_PLL_GLB_CFG, 0x0f);
+	udelay(500);
+
+	dsi_pll_toggle_lock_detect_8916(dsi_pll_res);
+
+	pll_locked = dsi_pll_check_lock_status_8916(dsi_pll_res);
+	return pll_locked ? 0 : -EINVAL;
+}
+#else /*VENDOR_EDIT*/
 static void dsi_pll_sw_reset_8916(struct mdss_pll_resources *dsi_pll_res)
 {
 	/*
@@ -193,6 +315,8 @@ static int tsmc_dsi_pll_enable_seq_8916(struct mdss_pll_resources *dsi_pll_res)
 	return pll_locked ? 0 : -EINVAL;
 }
 
+#endif /*VENDOR_EDIT*/
+
 /* Op structures */
 
 static struct clk_ops clk_ops_dsi_vco = {
@@ -224,6 +348,8 @@ static struct clk_mux_ops byte_mux_ops = {
 	.get_mux_sel = get_byte_mux_sel,
 };
 
+#ifndef VENDOR_EDIT
+/* Xiaori.Yuan@Mobile Phone Software Dept.Driver, 2015/05/09  Modify for pll lock patch to solve single crash */
 static struct dsi_pll_vco_clk dsi_vco_clk_8916 = {
 	.ref_clk_rate = 19200000,
 	.min_rate = 350000000,
@@ -246,6 +372,31 @@ static struct dsi_pll_vco_clk dsi_vco_clk_8916 = {
 		CLK_INIT(dsi_vco_clk_8916.c),
 	},
 };
+#else /*VENDOR_EDIT*/
+static struct dsi_pll_vco_clk dsi_vco_clk_8916 = {
+	.ref_clk_rate = 19200000,
+	.min_rate = 350000000,
+	.max_rate = 750000000,
+	.pll_en_seq_cnt = 9,
+	.pll_enable_seqs[0] = tsmc_dsi_pll_enable_seq_8916,
+	.pll_enable_seqs[1] = tsmc_dsi_pll_enable_seq_8916,
+	.pll_enable_seqs[2] = tsmc_dsi_pll_enable_seq_8916,
+	.pll_enable_seqs[3] = gf_1_dsi_pll_enable_seq_8916,
+	.pll_enable_seqs[4] = gf_1_dsi_pll_enable_seq_8916,
+	.pll_enable_seqs[5] = gf_1_dsi_pll_enable_seq_8916,
+	.pll_enable_seqs[6] = gf_2_dsi_pll_enable_seq_8916,
+	.pll_enable_seqs[7] = gf_2_dsi_pll_enable_seq_8916,
+	.pll_enable_seqs[8] = gf_2_dsi_pll_enable_seq_8916,
+	.lpfr_lut_size = 10,
+	.lpfr_lut = lpfr_lut_struct,
+	.c = {
+		.dbg_name = "dsi_vco_clk_8916",
+		.ops = &clk_ops_dsi_vco,
+		CLK_INIT(dsi_vco_clk_8916.c),
+	},
+};
+
+#endif /*VENDOR_EDIT*/
 
 static struct div_clk analog_postdiv_clk_8916 = {
 	.data = {

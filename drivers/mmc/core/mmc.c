@@ -328,7 +328,12 @@ static int mmc_read_ext_csd(struct mmc_card *card, u8 *ext_csd)
 	}
 
 	card->ext_csd.rev = ext_csd[EXT_CSD_REV];
-	if (card->ext_csd.rev > 7) {
+	#ifndef VENDOR_EDIT 
+    //Modified by Tong.han for 15020 64G SAMSUNG EMCP(EMMC 5.1) can,t mount system&&usrdata,2015-08-13 
+    if (card->ext_csd.rev > 7) {
+    #else
+    if (card->ext_csd.rev > 8) {
+    #endif
 		pr_err("%s: unrecognised EXT_CSD revision %d\n",
 			mmc_hostname(card->host), card->ext_csd.rev);
 		err = -EINVAL;

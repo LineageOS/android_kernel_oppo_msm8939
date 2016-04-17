@@ -105,7 +105,16 @@ extern void subsys_set_crash_status(struct subsys_device *dev, bool crashed);
 extern bool subsys_get_crash_status(struct subsys_device *dev);
 void notify_proxy_vote(struct device *device);
 void notify_proxy_unvote(struct device *device);
+#ifdef VENDOR_EDIT //yixue.ge add for modem restart
+extern int subsystem_restart_dev_level(struct subsys_device *dev,int restart_level);
+#endif
 #else
+#ifdef VENDOR_EDIT //yixue.ge add for modem restart
+static int subsystem_restart_dev_level(struct subsys_device *dev,int restart_level)
+{
+	return 0;
+}
+#endif
 
 static inline int subsys_get_restart_level(struct subsys_device *dev)
 {

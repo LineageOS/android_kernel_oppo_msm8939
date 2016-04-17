@@ -43,6 +43,8 @@
 
 #define subsys_to_drv(d) container_of(d, struct modem_data, subsys_desc)
 
+
+#ifndef VENDOR_EDIT //yixue.ge add for modem subsystem crash 
 static void log_modem_sfr(void)
 {
 	u32 size;
@@ -65,12 +67,60 @@ static void log_modem_sfr(void)
 	smem_reason[0] = '\0';
 	wmb();
 }
+#else
+static int log_modem_sfr(void)
+{
+	u32 size;
+	int rc = -1;
+	char *smem_reason, reason[MAX_SSR_REASON_LEN];
 
+	smem_reason = smem_get_entry_no_rlock(SMEM_SSR_REASON_MSS0, &size, 0,
+							SMEM_ANY_HOST_FLAG);
+	if (!smem_reason || !size) {
+		pr_err("modem subsystem failure reason: (unknown, smem_get_entry_no_rlock failed).\n");
+		return rc;
+	}
+	if (!smem_reason[0]) {
+		pr_err("modem subsystem failure reason: (unknown, empty string found).\n");
+		return rc;
+	}
+
+	strlcpy(reason, smem_reason, min(size, MAX_SSR_REASON_LEN));
+	pr_err("modem subsystem failure reason: %s.\n", reason);
+
+	if(strstr(reason, "OPPO_MODEM_NO_RAMDUMP_EXPECTED")){
+		pr_err("%s will subsys reset",__func__);
+		rc = 1; //set RELATED reset
+	}
+	
+	smem_reason[0] = '\0';
+	wmb();
+	return rc;
+}
+
+#endif
+
+#ifdef CONFIG_RECORD_MDMRST
+extern wait_queue_head_t mdmrst_wq;
+extern unsigned int mdmrest_flg;
+#endif
 static void restart_modem(struct modem_data *drv)
 {
+	#ifdef VENDOR_EDIT //yixue.ge modify
+	int restart_level = log_modem_sfr();
+	#else
 	log_modem_sfr();
+	#endif
+#ifdef CONFIG_RECORD_MDMRST
+    mdmrest_flg = 1;
+    wake_up(&mdmrst_wq);
+#endif
 	drv->ignore_errors = true;
+	#ifndef VENDOR_EDIT //yixue.ge modify
 	subsystem_restart_dev(drv->subsys);
+	#else
+	subsystem_restart_dev_level(drv->subsys,restart_level);
+	#endif
 }
 
 static irqreturn_t modem_err_fatal_intr_handler(int irq, void *dev_id)
