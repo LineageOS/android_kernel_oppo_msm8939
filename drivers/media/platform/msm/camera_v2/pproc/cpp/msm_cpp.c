@@ -1431,6 +1431,10 @@ static void msm_cpp_do_timeout_work(struct work_struct *work)
 		pr_err("Delayed trigger, IRQ serviced\n");
 		return;
 	}
+#ifdef VENDOR_EDIT
+/*Added by Jinshui.Liu@Camera 20150623 start for avoid multi init the timer*/
+	msm_cpp_clear_timer(cpp_timer.data.cpp_dev);
+#endif
 	atomic_set(&cpp_timer.used, 0);
 	cpp_load_fw(cpp_timer.data.cpp_dev,
 		cpp_timer.data.cpp_dev->fw_name_bin);

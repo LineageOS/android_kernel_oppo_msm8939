@@ -26,7 +26,12 @@
 #include <linux/workqueue.h>
 #include <linux/freezer.h>
 
+#ifndef VENDOR_EDIT
+/* wenxian.zhen@Onlinerd.Driver, 2014/08/01  Modify for power off alarm timing */
 #define ALARM_DELTA 120
+#else /*power off alarm timing*/
+#define ALARM_DELTA 40
+#endif /*power off alarm timing*/
 
 /**
  * struct alarm_base - Alarm timer bases
@@ -93,9 +98,12 @@ void set_power_on_alarm(long secs, bool enable)
 	 *expiration
 	 */
 	if ((alarm_time - ALARM_DELTA) > rtc_secs)
-		alarm_time -= ALARM_DELTA;
+		alarm_time -= ALARM_DELTA;		
+#ifndef VENDOR_EDIT
+//Shu.Liu@OnlineRd.Driver, 2014/08/04, Added for RTC bug in factory mode	
 	else
 		goto disable_alarm;
+#endif /*VENDOR_EDIT*/
 
 	rtc_time_to_tm(alarm_time, &alarm.time);
 	alarm.enabled = 1;

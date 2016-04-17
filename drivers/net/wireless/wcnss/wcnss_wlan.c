@@ -42,6 +42,10 @@
 #include <soc/qcom/subsystem_notif.h>
 
 #include <soc/qcom/smd.h>
+#ifdef VENDOR_EDIT
+//Yadong.Hu@Prd.Svc.Wifi, 2015/05/21, Add for distinguish the type of wcnss
+#include <soc/oppo/device_info.h>    
+#endif /* VENDOR_EDIT */
 
 #define DEVICE "wcnss_wlan"
 #define CTRL_DEVICE "wcnss_ctrl"
@@ -267,7 +271,23 @@ static struct notifier_block wnb = {
 #define CAN_RECEIVE_CALDATA  (1 << 15)
 #define WCNSS_RESP_SUCCESS   1
 #define WCNSS_RESP_FAIL      0
-
+#ifdef VENDOR_EDIT
+//Yadong.Hu@Prd.Svc.Wifi, 2015/05/01, Add for distinguish the type of wcnss
+static unsigned char   wcn_chip_type[WCNSS_MAX_BUILD_VER_LEN];    
+static unsigned char manufacture[] = "Qualcomm";
+static const unsigned char CHIP_WCN3660[] = "WCN3660";
+static const unsigned char CHIP_WCN3660A[] = "WCN3660A";
+static const unsigned char CHIP_WCN3660B[] = "WCN3660B";
+static const unsigned char CHIP_WCN3620[] = "WCN3620";
+static const unsigned char CHIP_WCN3620A[] = "WCN3620A";
+static const unsigned char CHIP_WCN3610[] = "WCN3610";
+#define WCN3660       0x0200
+#define WCN3660A      0x0300
+#define WCN3660B      0x0400
+#define WCN3620       0x5111
+#define WCN3620A      0x5112
+#define WCN3610       0x9101
+#endif /* VENDOR_EDIT */
 
 /* Macro to find the total number fragments of the NV bin Image */
 #define TOTALFRAGMENTS(x) (((x % NV_FRAGMENT_SIZE) == 0) ? \
@@ -364,6 +384,10 @@ static struct {
 	u32		wlan_rx_buff_count;
 	smd_channel_t	*smd_ch;
 	unsigned char	wcnss_version[WCNSS_VERSION_LEN];
+	#ifdef VENDOR_EDIT
+	//hedong.liu@Connectivity, 2014/07/03, Add for wcnss firmware version show
+	unsigned char	wcnss_build_version[WCNSS_MAX_BUILD_VER_LEN];
+	#endif /* VENDOR_EDIT */
 	unsigned char   fw_major;
 	unsigned char   fw_minor;
 	unsigned int	serial_number;
@@ -529,6 +553,30 @@ static ssize_t wcnss_thermal_mitigation_store(struct device *dev,
 static DEVICE_ATTR(thermal_mitigation, S_IRUSR | S_IWUSR,
 	wcnss_thermal_mitigation_show, wcnss_thermal_mitigation_store);
 
+#ifdef VENDOR_EDIT
+//Yadong.Hu@Prd.Svc.Wifi, 2015/05/01, Add for 
+/* distinguish the type of wcnss and show firmware version */
+static ssize_t wcnss_buld_version_show(struct device *dev,
+            struct device_attribute *attr, char *buf)
+{
+    if (!penv)
+        return -ENODEV;
+    return scnprintf(buf, PAGE_SIZE, "%s\n", penv->wcnss_build_version);
+}
+static DEVICE_ATTR(wcnss_build_version, S_IRUSR,
+        wcnss_buld_version_show, NULL);
+
+
+static ssize_t wcnss_chip_type_show(struct device *dev,
+            struct device_attribute *attr, char *buf)
+{
+    if (!penv)
+        return -ENODEV;
+    return scnprintf(buf, PAGE_SIZE, "%s\n", wcn_chip_type);
+}
+static DEVICE_ATTR(wcnss_chip_type, S_IRUSR,
+        wcnss_chip_type_show, NULL);        
+#endif /* VENDOR_EDIT */
 
 static ssize_t wcnss_version_show(struct device *dev,
 				struct device_attribute *attr, char *buf)
@@ -1147,6 +1195,16 @@ static int wcnss_create_sysfs(struct device *dev)
 	if (ret)
 		goto remove_version;
 
+    #ifdef VENDOR_EDIT
+    //Yadong.Hu@Prd.Svc.Wifi, 2015/05/01, Add for 
+    /* distinguish the type of wcnss and show firmware version */
+    ret = device_create_file(dev, &dev_attr_wcnss_build_version);
+    if (ret)
+        goto remove_thermal;
+    ret = device_create_file(dev, &dev_attr_wcnss_chip_type);
+    if (ret)
+        goto remove_thermal;
+    #endif /* VENDOR_EDIT */
 	return 0;
 
 remove_version:
@@ -1166,6 +1224,12 @@ static void wcnss_remove_sysfs(struct device *dev)
 		device_remove_file(dev, &dev_attr_thermal_mitigation);
 		device_remove_file(dev, &dev_attr_wcnss_version);
 		device_remove_file(dev, &dev_attr_wcnss_mac_addr);
+        #ifdef VENDOR_EDIT
+        //Yadong.Hu@Prd.Svc.Wifi, 2015/05/01, Add for 
+        /* distinguish the type of wcnss and show firmware version */
+        device_remove_file(dev, &dev_attr_wcnss_build_version);
+        device_remove_file(dev, &dev_attr_wcnss_chip_type);
+        #endif /* VENDOR_EDIT */		
 	}
 }
 
@@ -1559,6 +1623,39 @@ int wcnss_wlan_get_dxe_rx_irq(struct device *dev)
 	return WCNSS_WLAN_IRQ_INVALID;
 }
 EXPORT_SYMBOL(wcnss_wlan_get_dxe_rx_irq);
+#ifdef VENDOR_EDIT
+//Yadong.Hu@Prd.Svc.Wifi, 2015/05/01, Add for 
+/* distinguish the type of wcnss */
+void set_wcnss_chip_type(u32 chip_id) {
+	int iris_id;
+	iris_id = chip_id >> 16;
+    memset(wcn_chip_type, 0 , WCNSS_MAX_BUILD_VER_LEN);
+	switch (iris_id) {
+	case WCN3660:
+	     strcpy(wcn_chip_type, CHIP_WCN3660);
+	     break;
+	case WCN3660A:
+	    strcpy(wcn_chip_type, CHIP_WCN3660A);
+	     break;
+	case WCN3660B:
+	    strcpy(wcn_chip_type, CHIP_WCN3660B);
+	     break;
+	case WCN3620:
+	    strcpy(wcn_chip_type, CHIP_WCN3620);
+	     break;
+	case WCN3620A:
+	    strcpy(wcn_chip_type, CHIP_WCN3620A);
+	     break;
+	case WCN3610:
+	    strcpy(wcn_chip_type, CHIP_WCN3610);
+	     break;
+	default:
+	    strcpy(wcn_chip_type, "null");
+	    break;
+	}	
+}
+EXPORT_SYMBOL(set_wcnss_chip_type);    
+#endif /* VENDOR_EDIT */
 
 void wcnss_wlan_register_pm_ops(struct device *dev,
 				const struct dev_pm_ops *pm_ops)
@@ -2066,7 +2163,10 @@ static void wcnssctrl_rx_handler(struct work_struct *worker)
 	struct wcnss_version *pversion;
 	int hw_type;
 	unsigned char fw_status = 0;
-
+    #ifdef VENDOR_EDIT
+    //hedong.liu@Connectivity, 2014/07/03, Add for wcnss firmware version show
+    int i = 0 ; 
+    #endif /* VENDOR_EDIT */
 	len = smd_read_avail(penv->smd_ch);
 	if (len > WCNSS_MAX_FRAME_SIZE) {
 		pr_err("wcnss: frame larger than the allowed size\n");
@@ -2153,6 +2253,11 @@ static void wcnssctrl_rx_handler(struct work_struct *worker)
 			return;
 		}
 		build[len] = 0;
+        #ifdef VENDOR_EDIT
+        //hedong.liu@Connectivity, 2014/07/03, Add for wcnss firmware version show
+        for (i = 0 ; i <= len ; i ++)
+            penv->wcnss_build_version[i] = build[i];
+        #endif /* VENDOR_EDIT */		
 		pr_info("wcnss: build version %s\n", build);
 		break;
 
@@ -3210,6 +3315,10 @@ wcnss_wlan_probe(struct platform_device *pdev)
 	pr_info(DEVICE " probed in built-in mode\n");
 
 	misc_register(&wcnss_usr_ctrl);
+	//#ifdef VENDOR_EDIT
+	//Yadong.Hu@Prd.Svc.Wifi, 2015/05/21, Add for distinguish the type of wcnss
+    register_device_proc("wcn", wcn_chip_type, manufacture);	    
+	//#endif /* VENDOR_EDIT */
 
 	return misc_register(&wcnss_misc);
 

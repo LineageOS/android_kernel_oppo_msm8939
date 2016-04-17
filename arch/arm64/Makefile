@@ -73,7 +73,9 @@ zinstall install: vmlinux
 
 dtbs: scripts
 	$(Q)$(MAKE) $(build)=$(boot)/dts dtbs
-	$(Q)$(MAKE) $(build)=$(boot)/dts/qcom dtbs
+	$(Q)$(MAKE) $(build)=$(boot)/dts/15011 dtbs
+	$(Q)$(MAKE) $(build)=$(boot)/dts/15018 dtbs
+#	$(Q)$(MAKE) $(build)=$(boot)/dts/qcom dtbs
 
 PHONY += vdso_install
 vdso_install:

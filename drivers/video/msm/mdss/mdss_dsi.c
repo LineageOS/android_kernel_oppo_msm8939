@@ -28,6 +28,14 @@
 #include "mdss_panel.h"
 #include "mdss_dsi.h"
 #include "mdss_debug.h"
+#ifdef VENDOR_EDIT
+/* Xiaori.Yuan@Mobile Phone Software Dept.Driver, 2014/08/27  Add for 14045 LCD */
+#include <soc/oppo/oppo_project.h>
+/* nanwei.deng@Mobile Phone Software bsp.Driver, 2014/10/30  Add for 14045 charger */
+extern void opchg_check_lcd_on(void);
+extern void opchg_check_lcd_off(void);
+extern int lcd_dev;
+#endif /*VENDOR_EDIT*/
 
 #define XO_CLK_RATE	19200000
 
@@ -171,8 +179,17 @@ static int mdss_dsi_panel_power_on(struct mdss_panel_data *pdata)
 	 */
 	if (pdata->panel_info.cont_splash_enabled ||
 		!pdata->panel_info.mipi.lp11_init) {
-		if (mdss_dsi_pinctrl_set_state(ctrl_pdata, true))
-			pr_debug("reset enable: pinctrl not enabled\n");
+#ifndef VENDOR_EDIT
+			if (mdss_dsi_pinctrl_set_state(ctrl_pdata, true))
+				pr_debug("reset enable: pinctrl not enabled\n");
+#else /*VENDOR_EDIT*/
+/* YongPeng.Yi@SWDP.MultiMedia, 2015/04/01  Add for 15009 Power on timing START */
+		if(!is_project(OPPO_15009)){
+			if (mdss_dsi_pinctrl_set_state(ctrl_pdata, true))
+				pr_debug("reset enable: pinctrl not enabled\n");
+		}
+/* YongPeng.Yi@SWDP.MultiMedia END */
+#endif /*VEDNOR_EDIT*/
 
 		ret = mdss_dsi_panel_reset(pdata, 1);
 		if (ret)
@@ -465,6 +482,14 @@ static int mdss_dsi_off(struct mdss_panel_data *pdata, int power_state)
 		return -EINVAL;
 	}
 
+#ifdef VENDOR_EDIT
+	/* nanwei.deng@Mobile Phone Software bsp.Driver, 2014/10/30  Add for 14045 charger */
+/*huqiao@EXP.BasicDrv.Basic add for clone 15085*/
+	if (is_project(OPPO_15009) || is_project(OPPO_15037) || is_project(OPPO_15018) || is_project(OPPO_15022) || is_project(OPPO_14045) || is_project(OPPO_15005)|| is_project(OPPO_15011) || is_project(OPPO_15085))
+	{
+		opchg_check_lcd_off();
+	}
+#endif
 	ctrl_pdata = container_of(pdata, struct mdss_dsi_ctrl_pdata,
 				panel_data);
 
@@ -554,6 +579,14 @@ int mdss_dsi_on(struct mdss_panel_data *pdata)
 		return -EINVAL;
 	}
 
+#ifdef VENDOR_EDIT
+	/* nanwei.deng@Mobile Phone Software bsp.Driver, 2014/10/30  Add for 14045 charger */
+/*huqiao@EXP.BasicDrv.Basic add for clone 15085*/
+	if (is_project(OPPO_15009) || is_project(OPPO_15037) || is_project(OPPO_15018) || is_project(OPPO_15022) || is_project(OPPO_14045) || is_project(OPPO_15005)|| is_project(OPPO_15011) || is_project(OPPO_15085))
+	{
+		opchg_check_lcd_on();
+	}
+#endif
 	ctrl_pdata = container_of(pdata, struct mdss_dsi_ctrl_pdata,
 				panel_data);
 
@@ -617,6 +650,11 @@ int mdss_dsi_on(struct mdss_panel_data *pdata)
 	if (mipi->init_delay)
 		usleep(mipi->init_delay);
 
+	/*wuyu@EXP.BaseDrv.LCM, 2015-07-04, modify for 15085 lcd */
+	if (is_project(OPPO_15085)) {
+		mipi->force_clk_lane_hs = 1;
+	}
+	
 	if (mipi->force_clk_lane_hs) {
 		u32 tmp;
 
@@ -1522,6 +1560,13 @@ static int mdss_dsi_ctrl_probe(struct platform_device *pdev)
 		pr_err("%s: dsi panel dev reg failed\n", __func__);
 		goto error_pan_node;
 	}
+	
+#ifdef VENDOR_EDIT
+/* Xiaori.Yuan@Mobile Phone Software Dept.Driver, 2015/06/05  Add for display dump and stuck*/
+	ctrl_pdata->cmd_clk_ln_recovery_en =
+		of_property_read_bool(pdev->dev.of_node,
+			"qcom,dsi-clk-ln-recovery");
+#endif /*VENDOR_EDIT*/
 
 	if (mdss_dsi_is_te_based_esd(ctrl_pdata)) {
 		rc = devm_request_irq(&pdev->dev,
