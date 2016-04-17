@@ -212,6 +212,29 @@ static struct device_attribute power_supply_attrs[] = {
 	POWER_SUPPLY_ATTR(usb_hc),
 	POWER_SUPPLY_ATTR(usb_otg),
 	POWER_SUPPLY_ATTR(charge_enabled),
+#ifdef VENDOR_EDIT
+/* jingchun.wang@Onlinerd.Driver, 2013/12/16  Add for charge timeout */
+	POWER_SUPPLY_ATTR(authenticate),//wangjc add for authentication
+	POWER_SUPPLY_ATTR(charge_timeout),
+	POWER_SUPPLY_ATTR(fastcharger),
+	POWER_SUPPLY_ATTR(charge_temp_statu),
+	POWER_SUPPLY_ATTR(usb_type),
+	POWER_SUPPLY_ATTR(BatteryRequestPoweroff),
+	POWER_SUPPLY_ATTR(charge_technology),
+	POWER_SUPPLY_ATTR(BatteryFcc),
+	POWER_SUPPLY_ATTR(BatterySoh),
+	POWER_SUPPLY_ATTR(batt_cc),
+	POWER_SUPPLY_ATTR(charger_enable),
+	POWER_SUPPLY_ATTR(BatteryNotify),
+#endif
+#ifdef VENDOR_EDIT
+//Fuchun.Liao@Mobile.BSP.CHG 2015-02-13 add for otg_switch in 14043
+	POWER_SUPPLY_ATTR(otg_switch),
+#endif
+#ifdef VENDOR_EDIT
+//Fuchun.Liao@Mobile.BSP.CHG 2015-05-27add for power_off when vbat is too low
+	POWER_SUPPLY_ATTR(power_off),
+#endif
 	POWER_SUPPLY_ATTR(flash_current_max),
 	/* Local extensions of type int64_t */
 	POWER_SUPPLY_ATTR(charge_counter_ext),

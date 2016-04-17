@@ -46,6 +46,11 @@ enum {
 	POWER_SUPPLY_CHARGE_TYPE_TRICKLE,
 	POWER_SUPPLY_CHARGE_TYPE_FAST,
 	POWER_SUPPLY_CHARGE_TYPE_TAPER,
+#ifdef VENDOR_EDIT	
+	/*OPPO 2013-10-22 liaofuchun add for bq24196 charger*/
+	POWER_SUPPLY_CHARGE_TYPE_TERMINATE,
+	/*OPPO 2013-10-28 liaofuchun add end*/
+#endif	
 };
 
 enum {
@@ -164,6 +169,28 @@ enum power_supply_property {
 	POWER_SUPPLY_PROP_USB_HC,
 	POWER_SUPPLY_PROP_USB_OTG,
 	POWER_SUPPLY_PROP_CHARGE_ENABLED,
+	//#ifdef VENDOR_EDIT
+	POWER_SUPPLY_PROP_AUTHENTICATE,//wangjc add for authentication
+	POWER_SUPPLY_PROP_CHARGE_TIMEOUT,
+	POWER_SUPPLY_PROP_FAST_CHARGE,
+	POWER_SUPPLY_PROP_TEMP_STATU,
+	POWER_SUPPLY_PROP_USB_TYPE,
+	POWER_SUPPLY_PROP_BATTERY_REQUEST_POWEROFF,
+	POWER_SUPPLY_PROP_FAST_CHARGE_PROJECT,	//wangjc add for fast charge project sign
+	POWER_SUPPLY_PROP_BATTERY_FCC,			//dengnw add for battery fcc
+	POWER_SUPPLY_PROP_BATTERY_SOH,			//dengnw add for battery soh
+	POWER_SUPPLY_PROP_BATTERY_CC,			//dengnw add for battery soh
+	POWER_SUPPLY_PROP_BATTERY_CHARGER_ENABLE,//dengnw add for charger enable for mmi test
+	POWER_SUPPLY_PROP_BATTERY_NOTIFY,		//dengnw add for charging status
+	//#endif
+	//#ifdef VENDOR_EDIT
+	//Fuchun.Liao@Mobile.BSP.CHG 2015-02-13 add for otg_switch in 14043
+	POWER_SUPPLY_PROP_OTG_SWITCH,
+	//#endif
+//#ifdef VENDOR_EDIT
+//Fuchun.Liao@Mobile.BSP.CHG 2015-02-13 add for otg_switch in 14043
+	POWER_SUPPLY_PROP_POWER_OFF,
+//#endif
 	POWER_SUPPLY_PROP_FLASH_CURRENT_MAX,
 	/* Local extensions of type int64_t */
 	POWER_SUPPLY_PROP_CHARGE_COUNTER_EXT,

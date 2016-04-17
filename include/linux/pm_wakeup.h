@@ -59,6 +59,10 @@ struct wakeup_source {
 	unsigned long		relax_count;
 	unsigned long		expire_count;
 	unsigned long		wakeup_count;
+#ifdef VENDOR_EDIT
+//Modify by Tong.han@Bsp.Group.Tp for checklist ,2015-4-18
+	int			inserted;
+#endif/*VENDOR_EDIT*/
 	bool			active:1;
 	bool			autosleep_enabled:1;
 };
@@ -99,6 +103,10 @@ extern void __pm_relax(struct wakeup_source *ws);
 extern void pm_relax(struct device *dev);
 extern void __pm_wakeup_event(struct wakeup_source *ws, unsigned int msec);
 extern void pm_wakeup_event(struct device *dev, unsigned int msec);
+#ifdef VENDOR_EDIT
+/* OPPO 2015-03-26 sjc Add begin for sleep debug */
+extern void print_active_wakeup_sources(void);
+#endif /* VENDOR_EDIT */
 
 #else /* !CONFIG_PM_SLEEP */
 
@@ -176,6 +184,10 @@ static inline void pm_relax(struct device *dev) {}
 static inline void __pm_wakeup_event(struct wakeup_source *ws, unsigned int msec) {}
 
 static inline void pm_wakeup_event(struct device *dev, unsigned int msec) {}
+#ifdef VENDOR_EDIT
+/* OPPO 2015-03-26 sjc Add begin for sleep debug */
+static inline void print_active_wakeup_sources(void) {}
+#endif /* VENDOR_EDIT */
 
 #endif /* !CONFIG_PM_SLEEP */
 

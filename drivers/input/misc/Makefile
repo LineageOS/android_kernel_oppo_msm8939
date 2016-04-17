@@ -68,12 +68,15 @@ obj-$(CONFIG_BMP18X_I2C)		+= bmp18x-i2c.o
 obj-$(CONFIG_SENSORS_MMC3416X)		+= mmc3416x.o
 obj-$(CONFIG_SENSORS_MMA8X5X)	  	+= mma8x5x.o
 obj-$(CONFIG_SENSORS_STK3X1X)		+= stk3x1x.o
+obj-$(CONFIG_SENSORS_STK3X1X)		+= stk3x1x-ex.o
 obj-$(CONFIG_SENSORS_CAPELLA_CM36283)	+= cm36283.o
+obj-$(CONFIG_SENSORS_CAPELLA_CM36686)	+= cm36686.o
 obj-$(CONFIG_SENSORS_MPU6050)		+= mpu6050.o
 obj-$(CONFIG_SENSORS_AKM8963)		+= akm8963.o
 obj-$(CONFIG_SENSORS_AKM09911)		+= akm09911.o
 obj-$(CONFIG_SENSORS_LIS3DH)		+= lis3dh_acc.o
 obj-$(CONFIG_SENSORS_BMA2X2)	+= bstclass.o
+obj-$(CONFIG_SENSORS_APDS9921)	+= apds9921.o
 
 obj-$(CONFIG_SENSORS_BMA2X2)	+= bma2x2.o
 
@@ -84,3 +87,13 @@ endif
 ifeq ($(CONFIG_BOSCH_BMA2X2_ENABLE_INT2),y)
 	EXTRA_CFLAGS += -DBMA2X2_ENABLE_INT2
 endif
+
+obj-$(CONFIG_SENSORS_YAS533)  += yas_mag_drv-yas532.o
+obj-$(CONFIG_SENSORS_YAS533)  += yas_mag_drv-yas537.o
+obj-$(CONFIG_SENSORS_YAS533)  += yas_mag_kernel.o
+
+#ifdef VENDOR_EDIT
+#Lycan.Wang@Prd.BasicDrv, 2015-04-11 Add for fingerprint driver
+obj-$(CONFIG_BTP_FPC1021)  += fpc1020_main.o fpc1020_capture.o fpc1020_common.o fpc1020_regulator.o fpc1020_nav.o
+#endif /* VENDOR_EDIT */
+

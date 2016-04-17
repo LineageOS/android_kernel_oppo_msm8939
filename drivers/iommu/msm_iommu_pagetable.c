@@ -517,7 +517,11 @@ void msm_iommu_pagetable_unmap_range(struct msm_iommu_pt *pt, unsigned int va,
 	fl_pte_shadow = pt->fl_table_shadow + fl_offset;
 
 	while (offset < len) {
+		#ifndef VENDOR_EDIT //yixue.ge modify for qcom patch to resolve 646082
 		if (*fl_pte & FL_TYPE_TABLE) {
+		#else
+		if ((*fl_pte & FL_TYPE_TABLE) && ((*fl_pte_shadow & 0x1FF) != 0)) {
+		#endif
 			unsigned int n_entries;
 
 			sl_start = SL_OFFSET(va);
