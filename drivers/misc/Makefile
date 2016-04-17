@@ -31,6 +31,9 @@ obj-$(CONFIG_CS5535_MFGPT)	+= cs5535-mfgpt.o
 obj-$(CONFIG_HP_ILO)		+= hpilo.o
 obj-$(CONFIG_APDS9802ALS)	+= apds9802als.o
 obj-$(CONFIG_APDS9930)		+= apds993x.o
+#ifdef VENDOR_EDIT /* xiaohua.tian@EXP.Driver.Sensor, 2015/06/03, add for apds993x_ex. */
+obj-$(CONFIG_APDS9930)		+= apds993x_ex.o
+#endif /*VENDOR_EDIT*/
 obj-$(CONFIG_ISL29003)		+= isl29003.o
 obj-$(CONFIG_ISL29020)		+= isl29020.o
 obj-$(CONFIG_USB_HSIC_SMSC_HUB) += smsc_hub.o
