@@ -372,6 +372,7 @@ config BACKLIGHT_LM3630
 	tristate "Backlight Driver for LM3630"
 	depends on BACKLIGHT_CLASS_DEVICE && I2C
 	select REGMAP_I2C
+	default y
 	help
 	  This supports TI LM3630 Backlight Driver
 

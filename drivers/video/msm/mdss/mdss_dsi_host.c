@@ -28,6 +28,11 @@
 #include "mdss_panel.h"
 #include "mdss_debug.h"
 
+#ifdef VENDOR_EDIT
+/* Xiaori.Yuan@Mobile Phone Software Dept.Driver, 2014/08/25  Add for crash when set brightness */
+#include <soc/oppo/oppo_project.h>
+#endif /*VENDOR_EDIT*/
+
 #define VSYNC_PERIOD 17
 
 struct mdss_dsi_ctrl_pdata *ctrl_list[DSI_CTRL_MAX];
@@ -106,6 +111,10 @@ void mdss_dsi_ctrl_init(struct device *ctrl_dev,
 	spin_lock_init(&ctrl->mdp_lock);
 	mutex_init(&ctrl->mutex);
 	mutex_init(&ctrl->cmd_mutex);
+#ifdef VENDOR_EDIT
+/* Xiaori.Yuan@Mobile Phone Software Dept.Driver, 2015/06/05  Add for display dump and stuck */
+	mutex_init(&ctrl->cmdlist_mutex);
+#endif /*VENDOR_EDIT*/
 	mutex_init(&ctrl->clk_lane_mutex);
 	mdss_dsi_buf_alloc(ctrl_dev, &ctrl->tx_buf, SZ_4K);
 	mdss_dsi_buf_alloc(ctrl_dev, &ctrl->rx_buf, SZ_4K);
@@ -501,8 +510,16 @@ static void mdss_dsi_wait_clk_lane_to_stop(struct mdss_dsi_ctrl_pdata *ctrl)
 	/* force clk lane tx stop -- bit 20 */
 	mdss_dsi_cfg_lane_ctrl(ctrl, BIT(20), 1);
 
+#ifndef VENDOR_EDIT
+/* Xiaori.Yuan@Mobile Phone Software Dept.Driver, 2015/05/20  Modify for error log too much goto dump */
 	if (mdss_dsi_poll_clk_lane(ctrl) == false)
 		pr_err("%s: clk lane recovery failed\n", __func__);
+#else /*VENDOR_EDIT*/
+	if (mdss_dsi_poll_clk_lane(ctrl) == false)
+		pr_err("%s: clk lane recovery failed\n", __func__);
+	else 
+	 	ctrl->clk_lane_cnt = 0; 
+#endif /*VENDOR_EDIT*/
 
 	/* clear clk lane tx stop -- bit 20 */
 	mdss_dsi_cfg_lane_ctrl(ctrl, BIT(20), 0);
@@ -543,6 +560,9 @@ static void mdss_dsi_start_hs_clk_lane(struct mdss_dsi_ctrl_pdata *ctrl)
  * this function is work around solution for 8994 dsi clk lane
  * may stuck at HS problem
  */
+
+#ifndef VENDOR_EDIT
+/* Xiaori.Yuan@Mobile Phone Software Dept.Driver, 2015/06/05  Modify for display dump and stuck */
 static void mdss_dsi_stop_hs_clk_lane(struct mdss_dsi_ctrl_pdata *ctrl)
 {
 	u32 fifo = 0;
@@ -585,6 +605,53 @@ release:
 
 	mutex_unlock(&ctrl->clk_lane_mutex);
 }
+#else /*VENDOR_EDIT*/
+static void mdss_dsi_stop_hs_clk_lane(struct mdss_dsi_ctrl_pdata *ctrl)
+{
+	u32 fifo = 0;
+	u32 lane = 0;
+
+	mutex_lock(&ctrl->clk_lane_mutex);
+	MDSS_XLOG(ctrl->ndx, ctrl->clk_lane_cnt, current->pid,
+			XLOG_FUNC_ENTRY);
+	if (ctrl->clk_lane_cnt == 0)	/* stopped already */
+		goto release;
+
+	mdss_dsi_clk_ctrl(ctrl, DSI_ALL_CLKS, 1);
+	/* fifo */
+	if (readl_poll_timeout(((ctrl->ctrl_base) + 0x000c),
+			   fifo,
+			   ((fifo & 0x11110000) == 0x11110000),
+			       200, 20000)) {
+		pr_err("%s: fifo NOT empty, fifo=%x\n",
+					__func__, fifo);
+		goto end;
+	}
+
+	/* data lane status */
+	if (readl_poll_timeout(((ctrl->ctrl_base) + 0x00a8),
+			   lane,
+			   ((lane & 0x000f) == 0x000f),
+			       100, 20000)) {
+		pr_err("%s: datalane NOT stopped, lane=%x\n",
+					__func__, lane);
+	}
+end:
+	/* stop force clk lane hs */
+	mdss_dsi_cfg_lane_ctrl(ctrl, BIT(28), 0);
+
+	mdss_dsi_wait_clk_lane_to_stop(ctrl);
+
+	ctrl->clk_lane_cnt = 0;
+	mdss_dsi_clk_ctrl(ctrl, DSI_ALL_CLKS, 0);
+release:
+	pr_debug("%s: ndx=%d, cnt=%d\n", __func__,
+			ctrl->ndx, ctrl->clk_lane_cnt);
+	MDSS_XLOG(ctrl->ndx, ctrl->clk_lane_cnt,
+			current->pid, XLOG_FUNC_EXIT);
+	mutex_unlock(&ctrl->clk_lane_mutex);
+}	
+#endif /*VENDOR_EDIT*/
 
 static void mdss_dsi_cmd_start_hs_clk_lane(struct mdss_dsi_ctrl_pdata *ctrl)
 {
@@ -1016,7 +1083,12 @@ static void mdss_dsi_mode_setup(struct mdss_panel_data *pdata)
 	u32 hbp, hfp, vbp, vfp, hspw, vspw, width, height;
 	u32 ystride, bpp, data, dst_bpp;
 	u32 dummy_xres = 0, dummy_yres = 0;
+#ifndef VENDOR_EDIT
+/* Xiaori.Yuan@Mobile Phone Software Dept.Driver, 2015/06/05  Modify for display dump and stuck */
 	u32 hsync_period, vsync_period;
+#else /*VENDOR_EDIT*/
+	u32 hsync_period, vsync_period, reg = 0;
+#endif /*VENDOR_EDIT*/
 
 	ctrl_pdata = container_of(pdata, struct mdss_dsi_ctrl_pdata,
 				panel_data);
@@ -1077,6 +1149,17 @@ static void mdss_dsi_mode_setup(struct mdss_panel_data *pdata)
 			bpp = 3;	/* Default format set to RGB888 */
 
 		ystride = width * bpp + 1;
+		
+#ifdef VENDOR_EDIT
+/* Xiaori.Yuan@Mobile Phone Software Dept.Driver, 2015/06/05  Modify for display dump and stuck */
+		/* Enable frame transfer in burst mode */
+		if (ctrl_pdata->hw_rev >= MDSS_DSI_HW_REV_103) {
+			reg = MIPI_INP(ctrl_pdata->ctrl_base + 0x1b8);
+			reg = reg | BIT(16);
+			MIPI_OUTP((ctrl_pdata->ctrl_base + 0x1b8), reg);
+			ctrl_pdata->burst_mode_enabled = 1;
+		}
+#endif /*VENDOR_EDIT*/
 
 		/* DSI_COMMAND_MODE_MDP_STREAM_CTRL */
 		data = (ystride << 16) | (mipi->vc << 8) | DTYPE_DCS_LWRITE;
@@ -1969,6 +2052,8 @@ int mdss_dsi_cmdlist_rx(struct mdss_dsi_ctrl_pdata *ctrl,
 	return len;
 }
 
+#ifndef VENDOR_EDIT
+/* Xiaori.Yuan@Mobile Phone Software Dept.Driver, 2015/06/05  Modify for display dump and stuck */
 int mdss_dsi_cmdlist_commit(struct mdss_dsi_ctrl_pdata *ctrl, int from_mdp)
 {
 	struct dcs_cmd_req *req;
@@ -2095,6 +2180,146 @@ need_lock:
 
 	return ret;
 }
+#else /*VENDOR_EDIT*/
+int mdss_dsi_cmdlist_commit(struct mdss_dsi_ctrl_pdata *ctrl, int from_mdp)
+{
+	struct dcs_cmd_req *req;
+	struct mdss_panel_info *pinfo;
+	struct mdss_rect *roi = NULL;
+	int ret = -EINVAL;
+	int rc = 0;
+	bool cmd_mutex_acquired = false;
+
+	if (mdss_get_sd_client_cnt())
+		return -EPERM;
+
+	if (from_mdp) {	/* from mdp kickoff */
+		if (!ctrl->burst_mode_enabled) {
+			mutex_lock(&ctrl->cmd_mutex);
+			cmd_mutex_acquired = true;
+		}
+		pinfo = &ctrl->panel_data.panel_info;
+		if (pinfo->partial_update_enabled)
+			roi = &pinfo->roi;
+	}
+
+	req = mdss_dsi_cmdlist_get(ctrl);
+	if (req && from_mdp && ctrl->burst_mode_enabled) {
+		mutex_lock(&ctrl->cmd_mutex);
+		cmd_mutex_acquired = true;
+	}
+
+	MDSS_XLOG(ctrl->ndx, from_mdp, ctrl->mdp_busy, current->pid,
+							XLOG_FUNC_ENTRY);
+
+	if (!ctrl->burst_mode_enabled || from_mdp) {
+		/* make sure dsi_cmd_mdp is idle when
+		 * burst mode is not enabled
+		*/
+		mdss_dsi_cmd_mdp_busy(ctrl);
+	}
+
+	pr_debug("%s: ctrl=%d from_mdp=%d pid=%d\n", __func__,
+				ctrl->ndx, from_mdp, current->pid);
+
+	if (from_mdp) { /* from mdp kickoff */
+		/*
+		 * when partial update enabled, the roi of pinfo
+		 * is updated before mdp kickoff. Either width or
+		 * height of roi is 0, then it is false kickoff so
+		 * no mdp_busy flag set needed.
+		 * when partial update disabled, mdp_busy flag
+		 * alway set.
+		 */
+		if (!roi || (roi->w != 0 || roi->h != 0)) {
+			if (ctrl->cmd_clk_ln_recovery_en &&
+					ctrl->panel_mode == DSI_CMD_MODE)
+				mdss_dsi_start_hs_clk_lane(ctrl);
+		}
+	} else {	/* from dcs send */
+		if (ctrl->cmd_clk_ln_recovery_en &&
+				ctrl->panel_mode == DSI_CMD_MODE &&
+				(req && (req->flags & CMD_REQ_HS_MODE)))
+			mdss_dsi_cmd_start_hs_clk_lane(ctrl);
+	}
+
+
+	if (req == NULL)
+		goto need_lock;
+
+	MDSS_XLOG(ctrl->ndx, req->flags, req->cmds_cnt, from_mdp, current->pid);
+
+	/*
+	 * mdss interrupt is generated in mdp core clock domain
+	 * mdp clock need to be enabled to receive dsi interrupt
+	 * also, axi bus bandwidth need since dsi controller will
+	 * fetch dcs commands from axi bus
+	 */
+	if (ctrl->mdss_util->bus_bandwidth_ctrl)
+		ctrl->mdss_util->bus_bandwidth_ctrl(1);
+
+	if (ctrl->mdss_util->bus_scale_set_quota)
+		ctrl->mdss_util->bus_scale_set_quota(MDSS_DSI_RT, SZ_1M, SZ_1M);
+
+	pr_debug("%s:  from_mdp=%d pid=%d\n", __func__, from_mdp, current->pid);
+	mdss_dsi_clk_ctrl(ctrl, DSI_ALL_CLKS, 1);
+
+	if (ctrl->mdss_util->iommu_ctrl) {
+		rc = ctrl->mdss_util->iommu_ctrl(1);
+		if (IS_ERR_VALUE(rc)) {
+			pr_err("IOMMU attach failed\n");
+			mutex_unlock(&ctrl->cmd_mutex);
+			return rc;
+		}
+	}
+
+	if (req->flags & CMD_REQ_HS_MODE)
+		mdss_dsi_set_tx_power_mode(0, &ctrl->panel_data);
+
+	if (req->flags & CMD_REQ_RX)
+		ret = mdss_dsi_cmdlist_rx(ctrl, req);
+	else
+		ret = mdss_dsi_cmdlist_tx(ctrl, req);
+
+	if (req->flags & CMD_REQ_HS_MODE)
+		mdss_dsi_set_tx_power_mode(1, &ctrl->panel_data);
+
+	if (ctrl->mdss_util->iommu_ctrl)
+		ctrl->mdss_util->iommu_ctrl(0);
+
+	mdss_dsi_clk_ctrl(ctrl, DSI_ALL_CLKS, 0);
+	if (ctrl->mdss_util->bus_scale_set_quota)
+		ctrl->mdss_util->bus_scale_set_quota(MDSS_DSI_RT, 0, 0);
+	if (ctrl->mdss_util->bus_bandwidth_ctrl)
+		ctrl->mdss_util->bus_bandwidth_ctrl(0);
+need_lock:
+
+	MDSS_XLOG(ctrl->ndx, from_mdp, ctrl->mdp_busy, current->pid,
+							XLOG_FUNC_EXIT);
+
+	if (from_mdp) { /* from mdp kickoff */
+		/*
+		 * when partial update enabled, the roi of pinfo
+		 * is updated before mdp kickoff. Either width or
+		 * height of roi is 0, then it is false kickoff so
+		 * no mdp_busy flag set needed.
+		 * when partial update disabled, mdp_busy flag
+		 * alway set.
+		 */
+		if (!roi || (roi->w != 0 || roi->h != 0))
+			mdss_dsi_cmd_mdp_start(ctrl);
+		if (cmd_mutex_acquired)
+			mutex_unlock(&ctrl->cmd_mutex);
+	} else {	/* from dcs send */
+		if (ctrl->cmd_clk_ln_recovery_en &&
+				ctrl->panel_mode == DSI_CMD_MODE &&
+				(req && (req->flags & CMD_REQ_HS_MODE)))
+			mdss_dsi_cmd_stop_hs_clk_lane(ctrl);
+	}
+
+	return ret;
+}	
+#endif /*VENDOR_EDIT*/
 
 static void dsi_send_events(struct mdss_dsi_ctrl_pdata *ctrl,
 					u32 events, u32 arg)
@@ -2170,9 +2395,16 @@ static int dsi_event_thread(void *data)
 						"edp", "hdmi", "panic");
 		}
 
+#ifndef VENDOR_EDIT
 		if (todo & DSI_EV_DSI_FIFO_EMPTY)
 			mdss_dsi_sw_reset(ctrl, true);
-
+#else /*VENDOR_EDIT*/
+/* YongPeng.Yi@SWDP.MultiMedia, 2015/05/23  Add for LCD screen blink START */
+		if(!is_project(OPPO_15009)){
+			if (todo & DSI_EV_DSI_FIFO_EMPTY)
+				mdss_dsi_sw_reset(ctrl, true);
+		}
+#endif /*VEDNOR_EDIT*/
 		if (todo & DSI_EV_DLNx_FIFO_OVERFLOW) {
 			mutex_lock(&dsi_mtx);
 			/*
@@ -2293,15 +2525,36 @@ void mdss_dsi_fifo_status(struct mdss_dsi_ctrl_pdata *ctrl)
 	if (status & 0xcccc4489) {
 		MIPI_OUTP(base + 0x000c, status);
 		pr_err("%s: status=%x\n", __func__, status);
+
+#ifndef VENDOR_EDIT
 		if (status & 0x44440000) {/* DLNx_HS_FIFO_OVERFLOW */
 			dsi_send_events(ctrl, DSI_EV_DLNx_FIFO_OVERFLOW, 0);
 			/* Ignore FIFO EMPTY when overflow happens */
 			status = status & 0xeeeeffff;
 		}
+#else /*VENDOR_EDIT*/
+/* YongPeng.Yi@SWDP.MultiMedia, 2015/05/23  Add for LCD screen blink START */
+		if(!is_project(OPPO_15009)){
+			if (status & 0x44440000) {/* DLNx_HS_FIFO_OVERFLOW */
+				dsi_send_events(ctrl, DSI_EV_DLNx_FIFO_OVERFLOW, 0);
+				/* Ignore FIFO EMPTY when overflow happens */
+				status = status & 0xeeeeffff;
+			}
+		}
+#endif /*VEDNOR_EDIT*/
 		if (status & 0x0080)  /* CMD_DMA_FIFO_UNDERFLOW */
 			dsi_send_events(ctrl, DSI_EV_MDP_FIFO_UNDERFLOW, 0);
+
+#ifndef VENDOR_EDIT
 		if (status & 0x11110000) /* DLN_FIFO_EMPTY */
 			dsi_send_events(ctrl, DSI_EV_DSI_FIFO_EMPTY, 0);
+#else /*VENDOR_EDIT*/
+/* <- YongPeng.Yi@SWDP.MultiMedia, 2015/05/23  Add for LCD screen blink  START */
+		if(!is_project(OPPO_15009)){
+			if (status & 0x11110000) /* DLN_FIFO_EMPTY */
+				dsi_send_events(ctrl, DSI_EV_DSI_FIFO_EMPTY, 0);
+		}
+#endif /*VEDNOR_EDIT*/
 	}
 }
 
