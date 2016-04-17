@@ -38,6 +38,10 @@
 #include <linux/slab.h>
 #include <linux/pid_namespace.h>
 #include <linux/security.h>
+//#ifdef VENDOR_EDIT
+//Peirs@Swdp.Android.frameworkUI, 2015.06.09, add for binder problem:
+#include <linux/ratelimit.h>
+//#edif /* VENDOR_EDIT */
 
 #include "binder.h"
 #include "binder_trace.h"
@@ -655,8 +659,13 @@ static struct binder_buffer *binder_alloc_buf(struct binder_proc *proc,
 	size_t size;
 
 	if (proc->vma == NULL) {
-		pr_err("%d: binder_alloc_buf, no vma\n",
-		       proc->pid);
+        //#ifndef VENDOR_EDIT
+        //Peirs@Swdp.Android.frameworkUI, 2015.06.10, modify to control binder log freq.
+        //pr_err("%d: binder_alloc_buf, no vma\n",
+        //       proc->pid);
+        //#else /* VENDOR_EDIT */
+        printk_ratelimited(KERN_ERR  "%d: binder_alloc_buf, no vma\n", proc->pid);
+        //#endif /* VENDOR_EDIT */
 		return NULL;
 	}
 
@@ -1715,10 +1724,22 @@ err_empty_call_stack:
 err_dead_binder:
 err_invalid_target_handle:
 err_no_context_mgr_node:
+    //ifndef VENDOR_EDIT
+    //Peirs@Swdp.Android.frameworkUI, 2015.06.10, modify to control binder log freq:
+    /*
 	binder_debug(BINDER_DEBUG_FAILED_TRANSACTION,
 		     "%d:%d transaction failed %d, size %lld-%lld\n",
 		     proc->pid, thread->pid, return_error,
 		     (u64)tr->data_size, (u64)tr->offsets_size);
+    */
+    //#else /* VENDOR_EDIT */
+    //Replace binder_debug with printk_ratelimited for the moment until we solve binder problem.
+    if (binder_debug_mask & BINDER_DEBUG_FAILED_TRANSACTION) {
+        printk_ratelimited(KERN_INFO "%d:%d transaction failed %d, size %lld-%lld\n",
+                 proc->pid, thread->pid, return_error,
+                 (u64)tr->data_size, (u64)tr->offsets_size);
+    }
+    //#endif /* VENDOR_EDIT */
 
 	{
 		struct binder_transaction_log_entry *fe;
@@ -1909,8 +1930,14 @@ static int binder_thread_write(struct binder_proc *proc,
 				BUG_ON(!buffer->target_node->has_async_transaction);
 				if (list_empty(&buffer->target_node->async_todo))
 					buffer->target_node->has_async_transaction = 0;
-				else
+				else {
 					list_move_tail(buffer->target_node->async_todo.next, &thread->todo);
+					//#ifdef VENDOR_EDIT
+					//Peirs@Swdp.Android.frameworkUI, 2015.06.08, add qualcomm debug patch for debug
+					//binder problem:
+					//wake_up_interruptible(&thread->wait);
+					//#endif /* VENDOR_EDIT */
+				}
 			}
 			trace_binder_transaction_buffer_release(buffer);
 			binder_transaction_buffer_release(proc, buffer, NULL);
@@ -2453,9 +2480,35 @@ static void binder_release_work(struct list_head *list)
 			    !(t->flags & TF_ONE_WAY)) {
 				binder_send_failed_reply(t, BR_DEAD_REPLY);
 			} else {
+			    //ifndef VENDOR_EDIT
+                //Peirs@Swdp.Android.frameworkUI, 2015.06.08, modify for debug:
+				//binder_debug(BINDER_DEBUG_DEAD_TRANSACTION,
+				//	"undelivered transaction %d\n",
+				//	t->debug_id);
+                //new:
+                /*
 				binder_debug(BINDER_DEBUG_DEAD_TRANSACTION,
-					"undelivered transaction %d\n",
-					t->debug_id);
+					"undelivered transaction %d, from %d to %d:%d, flags:%d\n",
+					t->debug_id,
+                    t->from ? t->from->pid : 0,
+                    t->to_proc ? t->to_proc->pid : 0,
+                    t->to_thread ? t->to_thread->pid : 0,
+                    t->flags
+                    );
+                */
+                //#else /* VENDOR_EDIT */
+                //Replace binder_debug with printk_ratelimited for the moment until we solve binder problem.
+                if (binder_debug_mask & BINDER_DEBUG_DEAD_TRANSACTION) {
+					printk_ratelimited(KERN_INFO "undelivered transaction %d, from %d to %d:%d, flags:%d\n",
+						t->debug_id,
+	                    t->from ? t->from->pid : 0,
+	                    t->to_proc ? t->to_proc->pid : 0,
+	                    t->to_thread ? t->to_thread->pid : 0,
+	                    t->flags
+	                    );
+				}
+                //#endif /* VENDOR_EDIT */
+
 				t->buffer->transaction = NULL;
 				kfree(t);
 				binder_stats_deleted(BINDER_STAT_TRANSACTION);
@@ -3517,13 +3570,24 @@ static int binder_transactions_show(struct seq_file *m, void *unused)
 
 static int binder_proc_show(struct seq_file *m, void *unused)
 {
+	struct binder_proc *itr;
 	struct binder_proc *proc = m->private;
 	int do_lock = !binder_debug_no_lock;
+	bool valid_proc = false;
 
 	if (do_lock)
 		binder_lock(__func__);
-	seq_puts(m, "binder proc state:\n");
-	print_binder_proc(m, proc, 1);
+
+	hlist_for_each_entry(itr, &binder_procs, proc_node) {
+		if (itr == proc) {
+			valid_proc = true;
+			break;
+		}
+	}
+	if (valid_proc) {
+		seq_puts(m, "binder proc state:\n");
+		print_binder_proc(m, proc, 1);
+	}
 	if (do_lock)
 		binder_unlock(__func__);
 	return 0;

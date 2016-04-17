@@ -1,1 +1,3 @@
 source "drivers/soc/qcom/Kconfig"
+
+source "drivers/soc/oppo/Kconfig"
