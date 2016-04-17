@@ -462,6 +462,27 @@ out:
 }
 EXPORT_SYMBOL(clk_unprepare);
 
+#ifdef VENDOR_EDIT
+/*Added by Jinshui.Liu@Camera 20150604 start for debug clock*/
+bool clk_is_enabled(struct clk *clk)
+{
+	int ret;
+
+	if (!clk)
+		return false;
+
+	if (!clk->ops->is_enabled) {
+		ret = clk->count ? 1 : 0;
+		goto out;
+	}
+
+	ret = clk->ops->is_enabled(clk);
+out:
+	return !!ret;
+}
+EXPORT_SYMBOL(clk_is_enabled);
+#endif
+
 int clk_reset(struct clk *clk, enum clk_reset_action action)
 {
 	if (IS_ERR_OR_NULL(clk))

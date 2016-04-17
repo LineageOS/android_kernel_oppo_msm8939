@@ -242,6 +242,9 @@ static void msm_restart_prepare(const char *cmd)
 			((cmd != NULL && cmd[0] != '\0') &&
 			strcmp(cmd, "recovery") &&
 			strcmp(cmd, "bootloader") &&
+#ifdef VENDOR_EDIT
+			strcmp(cmd, "silence") &&
+#endif
 			strcmp(cmd, "rtc")))
 			need_warm_reset = true;
 	}
@@ -266,6 +269,26 @@ static void msm_restart_prepare(const char *cmd)
 			qpnp_pon_set_restart_reason(
 				PON_RESTART_REASON_RTC);
 			__raw_writel(0x77665503, restart_reason);
+#ifdef VENDOR_EDIT
+		} else if (!strncmp(cmd, "ftm", 3)) {
+			__raw_writel(0x77665504, restart_reason);
+		} else if (!strncmp(cmd, "wlan", 4)) {
+			__raw_writel(0x77665505, restart_reason);
+		} else if (!strncmp(cmd, "rf", 2)) {
+			__raw_writel(0x77665506, restart_reason);
+		} else if (!strncmp(cmd, "mos", 3)) {
+			__raw_writel(0x77665507, restart_reason);
+		} else if (!strncmp(cmd, "silence", 7)) {
+			qpnp_pon_set_restart_reason(
+				PON_RESTART_REASON_SILENCE);
+			__raw_writel(0x77665508, restart_reason);
+		} else if (!strncmp(cmd, "kernel", 6)) {
+			__raw_writel(0x7766550a, restart_reason);
+		} else if (!strncmp(cmd, "modem", 5)) {
+			__raw_writel(0x7766550b, restart_reason);
+		} else if (!strncmp(cmd, "android", 7)) {
+			__raw_writel(0x7766550c, restart_reason);
+#endif
 		} else if (!strncmp(cmd, "oem-", 4)) {
 			unsigned long code;
 			int ret;
@@ -432,6 +455,10 @@ static int msm_restart_probe(struct platform_device *pdev)
 	msm_ps_hold = devm_ioremap_resource(dev, mem);
 	if (IS_ERR(msm_ps_hold))
 		return PTR_ERR(msm_ps_hold);
+
+#ifdef VENDOR_EDIT
+	__raw_writel(0x7766550a, restart_reason);
+#endif
 
 	mem = platform_get_resource(pdev, IORESOURCE_MEM, 1);
 	if (mem)
