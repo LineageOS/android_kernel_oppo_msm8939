@@ -1044,4 +1044,5 @@ config INPUT_MT_WRAPPER
 
 	  If unsure, say N.
 
+source "drivers/input/touchscreen/synaptics_oppo/Kconfig"
 endif
