@@ -1551,8 +1551,13 @@ static enum hrtimer_restart hrtimer_wakeup(struct hrtimer *timer)
 	struct task_struct *task = t->task;
 
 	t->task = NULL;
+	#ifndef VENDOR_EDIT //yixue.ge@bsp.drv modify for if task is a error task ,we cannot wakeup this process
 	if (task)
 		wake_up_process(task);
+	#else
+	if (task&&(task->state < TASK_STATE_MAX))
+		wake_up_process(task);
+	#endif
 
 	return HRTIMER_NORESTART;
 }

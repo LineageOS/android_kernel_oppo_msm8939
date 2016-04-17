@@ -24,6 +24,10 @@
 
 #undef CDBG
 #define CDBG(fmt, args...) pr_debug(fmt, ##args)
+#ifdef VENDOR_EDIT
+/*Added by Jinshui.Liu@Camera 20150604 start for debug clock*/
+bool clk_is_enabled(struct clk *clk);
+#endif
 
 void msm_camera_io_w(u32 data, void __iomem *addr)
 {
@@ -240,6 +244,19 @@ cam_clk_get_err:
 	}
 	return rc;
 }
+
+#ifdef VENDOR_EDIT
+/*Added by Jinshui.Liu@Camera 20150604 start for debug clock*/
+int msm_cam_clk_getinfo(struct clk **clk_ptr, int num_clk, bool *enable, long *rate)
+{
+	int i = 0;
+	for (i = 0; i < num_clk; i++) {
+		rate[i] = clk_get_rate(clk_ptr[i]);
+		enable[i] = clk_is_enabled(clk_ptr[i]);
+	}
+	return 0;
+}
+#endif
 
 int msm_camera_config_vreg(struct device *dev, struct camera_vreg_t *cam_vreg,
 		int num_vreg, enum msm_camera_vreg_name_t *vreg_seq,

@@ -1069,7 +1069,10 @@ void lpm_cpu_hotplug_enter(unsigned int cpu)
 	struct lpm_cluster *cluster = per_cpu(cpu_cluster, cpu);
 	int i;
 	int idx = -1;
-
+	
+	#ifdef VENDOR_EDIT //yixue.ge@BSP.drv add somelog to debug case 02023398
+	int ret = -1;
+	#endif
 	/*
 	 * If lpm isn't probed yet, try to put cpu into the one of the modes
 	 * available
@@ -1097,15 +1100,25 @@ void lpm_cpu_hotplug_enter(unsigned int cpu)
 			idx = i;
 			mode = lpm_cpu->levels[i].mode;
 		}
-
+		#ifndef VENDOR_EDIT //yixue.ge@BSP.drv add somelog to debug case 02023398
 		if (mode == MSM_PM_SLEEP_MODE_NR)
 			return;
-
+		#else
+		if (mode == MSM_PM_SLEEP_MODE_NR){
+			pr_err("%s idx = %d mode == MSM_PM_SLEEP_MODE_NR return\n",__func__,idx);
+			return;
+		}	
+		#endif
 		BUG_ON(idx < 0);
 		cluster_prepare(cluster, get_cpu_mask(cpu), idx, false);
 	}
 
+	#ifndef VENDOR_EDIT //yixue.ge@BSP.drv add somelog to debug case 02023398
 	msm_cpu_pm_enter_sleep(mode, false);
+	#else
+	ret = msm_cpu_pm_enter_sleep(mode, false);
+	pr_err("%s mode = %d ret = %d\n",__func__,mode,ret);
+	#endif
 }
 
 

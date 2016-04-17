@@ -51,6 +51,9 @@
 #include <asm/mmu_context.h>
 #include <asm/processor.h>
 #include <asm/stacktrace.h>
+#ifdef VENDOR_EDIT //yixue.ge@BSP.drv modify for if restart function not register and kernel crash,the system will stop by while 1
+#include <soc/qcom/scm.h>
+#endif/*VENDOR_EDIT*/
 
 static void setup_restart(void)
 {
@@ -86,13 +89,66 @@ void soft_restart(unsigned long addr)
 	BUG();
 }
 
+#ifdef VENDOR_EDIT //yixue.ge@BSP.drv modify for if restart function not register and kernel crash,the system will stop by while 1
+#define USE_PS_HOLD_RESART
+#define SCM_IO_DISABLE_PMIC_ARBITER	1
+#define SCM_WDOG_DEBUG_BOOT_PART	0x9
+static void null_restart(enum reboot_mode reboot_mode, const char *cmd)
+{
+#ifdef USE_PS_HOLD_RESART
+	void __iomem *msm_ps_hold;
+	
+	pr_crit("Calling PS_HOLD to reboot\n");
+	msm_ps_hold = ioremap(0x4ab000, 0x4);
+	mb();
+	scm_call_atomic1(SCM_SVC_PWR, SCM_IO_DISABLE_PMIC_ARBITER, 0);
+	mb();
+	if (msm_ps_hold) {
+		scm_call_atomic2(SCM_SVC_BOOT,
+			    SCM_WDOG_DEBUG_BOOT_PART, 1, 0);
+		mb();
+		__raw_writel(0, msm_ps_hold);
+		mb();
+	}
+	mb();
+	pr_err("Powering off has failed\n");
+	while(1);
+#else
+	void __iomem *msm_wdog;
+
+	pr_crit("Calling WDOG to reboot\n");
+	msm_wdog = ioremap(0xb017000, 0x1000);
+	mb();
+	if (msm_wdog) {
+		scm_call_atomic2(SCM_SVC_BOOT,
+			    SCM_WDOG_DEBUG_BOOT_PART, 1, 0);
+		mb();
+		__raw_writel(1, msm_wdog + 0x08);
+		mb();
+		__raw_writel(1, msm_wdog + 0x14);
+		mb();
+		__raw_writel(1, msm_wdog + 0x04);
+		mb();
+	} 
+	mb();
+	
+	pr_err("Powering off has failed\n");
+	while(1);
+#endif	
+}
+#endif
+
 /*
  * Function pointers to optional machine specific functions
  */
 void (*pm_power_off)(void);
 EXPORT_SYMBOL_GPL(pm_power_off);
-
+#ifndef VENDOR_EDIT
+//yixue.ge@BSP.drv modify for if restart function not register and kernel crash,the system will stop by while 1
 void (*arm_pm_restart)(enum reboot_mode reboot_mode, const char *cmd);
+#else
+void (*arm_pm_restart)(enum reboot_mode reboot_mode, const char *cmd) = null_restart;
+#endif/*VENDOR_EDIT*/
 EXPORT_SYMBOL_GPL(arm_pm_restart);
 
 /*
