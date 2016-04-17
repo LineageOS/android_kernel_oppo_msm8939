@@ -303,6 +303,11 @@ qpnp_rtc_set_alarm(struct device *dev, struct rtc_wkalrm *alarm)
 	}
 
 	rtc_tm_to_time(&rtc_tm, &secs_rtc);
+	
+#ifdef VENDOR_EDIT
+//Modified by Tong.han@BSP.group.TP 2014-08-02
+	printk("----------qpnp_rtc_set_alarm secs=%ld  secs_rtc=%ld diff=%ld\n",secs,secs_rtc,secs-secs_rtc);
+#endif /*VENDOR_EDIT*/
 	if (secs < secs_rtc) {
 		dev_err(dev, "Trying to set alarm in the past\n");
 		return -EINVAL;

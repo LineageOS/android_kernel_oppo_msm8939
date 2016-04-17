@@ -1056,15 +1056,40 @@ static bool mdss_mdp_check_pipe_in_use(struct mdss_mdp_pipe *pipe)
 			continue;
 
 		mixer = ctl->mixer_left;
+#ifndef VENDOR_EDIT
 		if (!mixer || mixer->rotator_mode)
+#else /*VENDOR_EDIT*/
+/* YongPeng.Yi@SWDP.MultiMedia, 2015/06/04  Add for qualcomm patch pipe_fetch_halt START */
+		if (mixer && mixer->rotator_mode)
+#endif /*VEDNOR_EDIT*/
 			continue;
 
 		mixercfg = mdss_mdp_get_mixercfg(mixer);
+#ifndef VENDOR_EDIT
 		if ((mixercfg & stage_off_mask) && ctl->play_cnt) {
 			pr_err("BUG. pipe%d is active. mcfg:0x%x mask:0x%x\n",
 				pipe->num, mixercfg, stage_off_mask);
+				BUG();
+		}
+#else /*VENDOR_EDIT*/
+/* <- YongPeng.Yi@SWDP.MultiMedia, 2015/06/04  Add for qualcomm patch pipe_fetch_halt START */
+		if (mixercfg & stage_off_mask) {
+			pr_err("IN USE: mixer=%d pipe=%d mcfg:0x%x mask:0x%x\n",
+				mixer->num, pipe->num,
+				mixercfg, stage_off_mask);
 			BUG();
 		}
+
+		mixer = ctl->mixer_right;
+		mixercfg = mdss_mdp_get_mixercfg(mixer);
+		if (mixercfg & stage_off_mask) {
+			pr_err("IN USE: mixer=%d pipe=%d mcfg:0x%x mask:0x%x\n",
+				mixer->num, pipe->num,
+				mixercfg, stage_off_mask);
+			BUG();
+		}
+#endif /*VEDNOR_EDIT*/
+
 	}
 	mdss_mdp_clk_ctrl(MDP_BLOCK_POWER_OFF);
 

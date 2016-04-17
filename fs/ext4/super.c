@@ -146,12 +146,29 @@ int ext4_superblock_csum_verify(struct super_block *sb,
 	return es->s_checksum == ext4_superblock_csum(sb, es);
 }
 
+#ifdef VENDOR_EDIT
+//tanggeliang@Swdp.Android.Kernel, 2015/05/29, fix the mount error when s_chksum_driver is NULL.
+static inline int ext4_has_metadata_csum(struct super_block *sb)
+{
+        WARN_ON_ONCE(EXT4_HAS_RO_COMPAT_FEATURE(sb,
+                        EXT4_FEATURE_RO_COMPAT_METADATA_CSUM) &&
+                     !EXT4_SB(sb)->s_chksum_driver);
+
+        return (EXT4_SB(sb)->s_chksum_driver != NULL);
+}
+#endif  /* VENDOR_EDIT */
+
 void ext4_superblock_csum_set(struct super_block *sb)
 {
 	struct ext4_super_block *es = EXT4_SB(sb)->s_es;
 
+#ifdef VENDOR_EDIT
+//tanggeliang@Swdp.Android.Kernel, 2015/05/29, fix the mount error when s_chksum_driver is NULL.
+	if (!ext4_has_metadata_csum(sb))
+#else
 	if (!EXT4_HAS_RO_COMPAT_FEATURE(sb,
 		EXT4_FEATURE_RO_COMPAT_METADATA_CSUM))
+#endif /* VENDOR_EDIT */
 		return;
 
 	es->s_checksum = ext4_superblock_csum(sb, es);

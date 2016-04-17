@@ -882,11 +882,17 @@ static int csiphy_probe(struct platform_device *pdev)
 		pr_err("%s: msm_csiphy_get_clk_info() failed", __func__);
 		return -EFAULT;
 	}
+<<<<<<< ours
 
 	new_csiphy_dev->is_3_1_rev3 = of_property_read_bool(
 		pdev->dev.of_node,
 		"qcom,revision-v3");
 
+=======
+	new_csiphy_dev->is_3_1_rev3 = of_property_read_bool(
+		pdev->dev.of_node,
+		"qcom,revision-v3");
+>>>>>>> theirs
 	new_csiphy_dev->mem = platform_get_resource_byname(pdev,
 					IORESOURCE_MEM, "csiphy");
 	if (!new_csiphy_dev->mem) {

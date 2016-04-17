@@ -643,6 +643,7 @@ static irqreturn_t qpnp_kpdpwr_resin_bark_irq(int irq, void *_pon)
 	return IRQ_HANDLED;
 }
 
+#ifndef VENDOR_EDIT
 static irqreturn_t qpnp_cblpwr_irq(int irq, void *_pon)
 {
 	int rc;
@@ -654,6 +655,52 @@ static irqreturn_t qpnp_cblpwr_irq(int irq, void *_pon)
 
 	return IRQ_HANDLED;
 }
+#else
+#define CBL_POWER_ON_VALID_REG			0x810
+#define CBL_POWER_ON_VALID_MASK			BIT(2)
+#define CBL_POWER_ON_VALID				BIT(2)
+extern void opchg_usbin_valid_irq_handler(bool usb_present);
+
+static bool qpnp_cblpwr_is_usb_plugged_in(struct qpnp_pon *pon)
+{
+	int rc;
+	u8 valid_sta;
+	
+	rc = spmi_ext_register_readl(pon->spmi->ctrl, pon->spmi->sid,
+				CBL_POWER_ON_VALID_REG, &valid_sta, 1);
+	if (rc) {
+		dev_err(&pon->spmi->dev, "Unable to read PON RT status\n");
+		return rc;
+	}
+	return (valid_sta & CBL_POWER_ON_VALID_MASK) ? 1 : 0;
+}
+
+static irqreturn_t qpnp_cblpwr_irq(int irq, void *_pon)
+{
+	struct qpnp_pon *pon = _pon;
+	bool usb_present = 0;
+
+#if 0
+	rc = qpnp_pon_input_dispatch(pon, PON_CBLPWR);
+	if (rc)
+		dev_err(&pon->spmi->dev, "Unable to send input event\n");
+#endif
+
+	usb_present = qpnp_cblpwr_is_usb_plugged_in(pon);
+	pr_err("%s usbin-valid triggered:%d\n",__func__,usb_present);
+	opchg_usbin_valid_irq_handler(usb_present);
+	return IRQ_HANDLED;
+}
+
+int opchg_get_charger_inout_cblpwr(void)
+{
+	int charger_in=0;
+	
+	charger_in= qpnp_cblpwr_is_usb_plugged_in(sys_reset_dev);	
+	return charger_in;
+}
+
+#endif //VENDOR_EDIT
 
 static void print_pon_reg(struct qpnp_pon *pon, u16 offset)
 {
@@ -957,6 +1004,11 @@ qpnp_pon_request_irqs(struct qpnp_pon *pon, struct qpnp_pon_config *cfg)
 							cfg->state_irq);
 			return rc;
 		}
+		pr_err("%s qpnp_cblpwr_status is triggered probe\n",__func__);
+#ifdef VENDOR_EDIT
+//Fuchun.Liao@Mobile.BSP.CHG 2015-05-15 add to use cbl_pwr to detect charger
+		enable_irq_wake(cfg->state_irq);
+#endif
 		break;
 	case PON_KPDPWR_RESIN:
 		if (cfg->use_bark) {

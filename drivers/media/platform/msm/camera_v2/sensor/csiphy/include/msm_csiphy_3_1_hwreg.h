@@ -14,9 +14,13 @@
 #define MSM_CSIPHY_3_1_HWREG_H
 
 #include <sensor/csiphy/msm_csiphy.h>
+<<<<<<< ours
 
 #define MIPI_CSIPHY_GLBL_PWG_CFG0_OFFSET    0x1FC
 
+=======
+#define MIPI_CSIPHY_GLBL_PWG_CFG0_OFFSET    0x1FC
+>>>>>>> theirs
 struct csiphy_reg_parms_t csiphy_v3_1 = {
 	/*MIPI CSI PHY registers*/
 	0x0,
