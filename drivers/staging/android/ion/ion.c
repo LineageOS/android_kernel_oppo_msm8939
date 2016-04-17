@@ -473,8 +473,16 @@ static int ion_handle_add(struct ion_client *client, struct ion_handle *handle)
 			p = &(*p)->rb_left;
 		else if (handle->buffer > entry->buffer)
 			p = &(*p)->rb_right;
-		else
+        #ifndef VENDOR_EDIT 
+        //Liuli@EXP.SysFramework.Framework, 2015/07/02, Modify for quickboot error and blocked in charge picture, this is a QC patch
+        else
 			WARN(1, "%s: buffer already found.", __func__);
+        #else /* VENDOR_EDIT */
+        else {
+            WARN(1, "%s: buffer already found.", __func__);
+            break;
+        }
+        #endif /* VENDOR_EDIT */ 
 	}
 
 	rb_link_node(&handle->node, parent, p);

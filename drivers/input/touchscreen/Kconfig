@@ -1043,5 +1043,6 @@ config INPUT_MT_WRAPPER
 	  Say Y here if you want to enable the driver.
 
 	  If unsure, say N.
-
+	  
+source "drivers/input/touchscreen/synaptics_oppo/Kconfig"
 endif

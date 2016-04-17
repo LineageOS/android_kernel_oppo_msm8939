@@ -687,10 +687,24 @@ static void mdss_mdp_perf_calc_mixer(struct mdss_mdp_mixer *mixer,
 		if (!pinfo)	/* perf for bus writeback */
 			perf->bw_overlap =
 				fps * mixer->width * mixer->height * 3;
+#ifndef VENDOR_EDIT
+/* Xiaori.Yuan@Mobile Phone Software Dept.Driver, 2015/05/20  Modify for 18018 performance */
 		/* for command mode, run as fast as the link allows us */
 		else if ((pinfo->type == MIPI_CMD_PANEL) &&
 			 (pinfo->mipi.dsi_pclk_rate > perf->mdp_clk_rate))
 			perf->mdp_clk_rate = pinfo->mipi.dsi_pclk_rate;
+#else /*VENDOR_EDIT*/
+		else if (pinfo->type == MIPI_CMD_PANEL) {
+			u32 dsi_transfer_rate = mixer->width * v_total;
+ 
+			/* adjust transfer time from micro seconds */
+			dsi_transfer_rate = mult_frac(dsi_transfer_rate,
+				1000000, pinfo->mdp_transfer_time_us);
+ 
+			if (dsi_transfer_rate > perf->mdp_clk_rate)
+				perf->mdp_clk_rate = dsi_transfer_rate;
+ 		}
+#endif /*VENDOR_EDIT*/
 	}
 
 	/*

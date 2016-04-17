@@ -1235,7 +1235,11 @@ static inline int is_journal_aborted(journal_t *journal)
 
 static inline int is_handle_aborted(handle_t *handle)
 {
+	#ifndef VENDOR_EDIT //yixue.ge@bsp.drv add for null point error
 	if (handle->h_aborted)
+	#else
+	if (handle->h_aborted||!handle->h_transaction)
+	#endif
 		return 1;
 	return is_journal_aborted(handle->h_transaction->t_journal);
 }
