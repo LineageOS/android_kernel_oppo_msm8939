@@ -610,6 +610,18 @@ static int apds993x_set_control(struct i2c_client *client, int control)
 	return ret;
 }
 
+static inline void apds993x_report_abs_ts(struct input_dev *dev,
+					  int code, int value)
+{
+	struct timespec ts;
+
+	get_monotonic_boottime(&ts);
+	input_report_abs(dev, code, value);
+	input_event(dev, EV_SYN, SYN_TIME_SEC, ts.tv_sec);
+	input_event(dev, EV_SYN, SYN_TIME_NSEC, ts.tv_nsec);
+	input_sync(dev);
+}
+
 /*calibration*/
 static void apds993x_swap(int *x, int *y)
 {
@@ -807,9 +819,8 @@ static void apds993x_change_ps_threshold(struct i2c_client *client)
 		if (last_ps_state != data->ps_detection)
 		{
 			pr_err("%s: far-to-near\n", __func__);
-			input_report_abs(data->input_dev_ps, ABS_DISTANCE, 0);
-			input_sync(data->input_dev_ps);
-                     wake_lock_timeout(&data->ps_wakelock, HZ/2);
+			apds993x_report_abs_ts(data->input_dev_ps, ABS_DISTANCE, 0);
+			wake_lock_timeout(&data->ps_wakelock, HZ/2);
 		}
 		ret = i2c_smbus_write_word_data(client,
 				CMD_WORD|APDS993X_PILTL_REG,
@@ -837,9 +848,8 @@ static void apds993x_change_ps_threshold(struct i2c_client *client)
 		if (last_ps_state != data->ps_detection)
 		{
 			pr_err("%s: near-to-far\n", __func__);
-			input_report_abs(data->input_dev_ps, ABS_DISTANCE, 1);
-			input_sync(data->input_dev_ps);
-                     wake_lock_timeout(&data->ps_wakelock, HZ/2);
+			apds993x_report_abs_ts(data->input_dev_ps, ABS_DISTANCE, 1);
+			wake_lock_timeout(&data->ps_wakelock, HZ/2);
 		}
 		ret = i2c_smbus_write_word_data(client,
 				CMD_WORD|APDS993X_PILTL_REG, 0);
@@ -915,8 +925,7 @@ static void apds993x_change_als_threshold(struct i2c_client *client)
 		 * from the PS
 		 */
 		/* NEAR-to-FAR detection */
-		input_report_abs(data->input_dev_ps, ABS_DISTANCE, 1);
-		input_sync(data->input_dev_ps);
+		apds993x_report_abs_ts(data->input_dev_ps, ABS_DISTANCE, 1);
 
 		i2c_smbus_write_word_data(client,
 				CMD_WORD|APDS993X_PILTL_REG, 0);
@@ -946,8 +955,7 @@ static void apds993x_change_als_threshold(struct i2c_client *client)
 			}
 		}else if (is_project(OPPO_15005))
 			luxValue = (luxValue * 6)/10;
-		input_report_abs(data->input_dev_als, ABS_MISC, luxValue);
-		input_sync(data->input_dev_als);
+		apds993x_report_abs_ts(data->input_dev_als, ABS_MISC, luxValue);
 	}
 
 	data->als_data = ch0data;
@@ -1076,8 +1084,7 @@ static void apds993x_als_polling_work_handler(struct work_struct *work)
 		 * from the PS
 		 */
 		/* NEAR-to-FAR detection */
-		input_report_abs(data->input_dev_ps, ABS_DISTANCE, 1);
-		input_sync(data->input_dev_ps);
+		apds993x_report_abs_ts(data->input_dev_ps, ABS_DISTANCE, 1);
 
 		i2c_smbus_write_word_data(client,
 				CMD_WORD|APDS993X_PILTL_REG, 0);
@@ -1105,8 +1112,7 @@ static void apds993x_als_polling_work_handler(struct work_struct *work)
 		}
 		else if (is_project(OPPO_15005))
 			luxValue = (luxValue * 6)/10;
-		input_report_abs(data->input_dev_als, ABS_MISC, luxValue);
-		input_sync(data->input_dev_als);
+		apds993x_report_abs_ts(data->input_dev_als, ABS_MISC, luxValue);
 	}
 
 	data->als_data = ch0data;
@@ -1485,9 +1491,8 @@ static int apds993x_enable_ps_sensor(struct i2c_client *client, int val)
 
 			last_ps_state = data->ps_detection;
 			printk(KERN_ERR"%s:ps original state is : %d %s\n",__func__,data->ps_detection, data->ps_detection?"near":"far");
-            input_report_abs(data->input_dev_ps, ABS_DISTANCE, data->ps_detection ? 0:1);
-		    input_sync(data->input_dev_ps);
-            wake_lock_timeout(&data->ps_wakelock, HZ/2);
+			apds993x_report_abs_ts(data->input_dev_ps, ABS_DISTANCE, data->ps_detection ? 0 : 1);
+			wake_lock_timeout(&data->ps_wakelock, HZ/2);
 
 			if (data->enable_als_sensor==0) {
 				/* only enable PS interrupt */
@@ -1508,9 +1513,6 @@ static int apds993x_enable_ps_sensor(struct i2c_client *client, int val)
 				irq_set_irq_wake(client->irq, 1);
 #endif
 			}
-
-            /*input_report_abs(data->input_dev_ps, ABS_DISTANCE, data->ps_detection ? 0:1);
-		    input_sync(data->input_dev_ps);*/
 		}
 #ifdef APDS993X_EX_ALSPS_DYNAMIC_THRESHOLD
               wake_up(&enable_wq);
