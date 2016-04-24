@@ -523,6 +523,18 @@ static void apds9921_dd_set_prx_thresh(struct i2c_client *client, int thres_low,
 	data->piht = thres_up;
 }
 
+static inline void apds9921_report_abs_ts(struct input_dev *dev,
+					  int code, int value)
+{
+	struct timespec ts;
+
+	get_monotonic_boottime(&ts);
+	input_report_abs(dev, code, value);
+	input_event(dev, EV_SYN, SYN_TIME_SEC, ts.tv_sec);
+	input_event(dev, EV_SYN, SYN_TIME_NSEC, ts.tv_nsec);
+	input_sync(dev);
+}
+
 static int LuxCalculation(struct i2c_client *client, int clr_data, int als_data)
 {
 	struct apds9921_data *data = i2c_get_clientdata(client);
@@ -620,16 +632,14 @@ static void apds9921_change_ps_threshold(struct i2c_client *client)
 
 		if ( data->ps_detection == 1 ) {
 			/* far-to-near detected */
-			input_report_abs(data->input_dev_ps, ABS_DISTANCE, 0);/* FAR-to-NEAR detection */
-			input_sync(data->input_dev_ps);
+			apds9921_report_abs_ts(data->input_dev_ps, ABS_DISTANCE, 0); /* FAR-to-NEAR detection */
 			wake_lock_timeout(&data->ps_wakelock, 2*HZ);
 
 			printk(KERN_ERR"apds9921 low_t = %d, high_t = %d, ps = %d, far-to-near!\n", data->pilt, data->piht, data->ps_data);
 		}
 		else {
 			/* near-to-far detected */
-			input_report_abs(data->input_dev_ps, ABS_DISTANCE, 1);/* NEAR-to-FAR detection */
-			input_sync(data->input_dev_ps);
+			apds9921_report_abs_ts(data->input_dev_ps, ABS_DISTANCE, 1); /* NEAR-to-FAR detection */
 			wake_lock_timeout(&data->ps_wakelock, 2*HZ);
 
 			printk(KERN_ERR"apds9921 low_t = %d, high_t = %d, ps = %d, near-to-far!\n", data->pilt, data->piht, data->ps_data);
@@ -684,8 +694,7 @@ static void apds9921_change_als_threshold(struct i2c_client *client)
 	//luxValue = (luxValue>30000) ? 30000 : luxValue;
 	data->als_prev_lux = luxValue;
 
-	input_report_abs(data->input_dev_als, ABS_MISC, luxValue); // report the lux level
-	input_sync(data->input_dev_als);
+	apds9921_report_abs_ts(data->input_dev_als, ABS_MISC, luxValue); // report the lux level
 
 	printk_x(SHOW_LOG,"apds9921 report to HAL, Lux = %d\n", luxValue);
 }
@@ -964,8 +973,7 @@ static int apds9921_enable_ps_sensor(struct i2c_client *client, int val)
 			printk(KERN_ERR"%s:ps_data = %d, th_l = %d, th_h = %d, ps_original_state is : %d %s\n",
 					__func__,data->ps_data, data->pilt, data->piht,data->ps_detection, data->ps_detection?"near":"far");
 
-			input_report_abs(data->input_dev_ps, ABS_DISTANCE, data->ps_detection ? 0:1);
-			input_sync(data->input_dev_ps);
+			apds9921_report_abs_ts(data->input_dev_ps, ABS_DISTANCE, data->ps_detection ? 0 : 1);
 			wake_lock_timeout(&data->ps_wakelock, 2*HZ);
 
 			data->prev_ps_detection = data->ps_detection;
