@@ -345,14 +345,10 @@
 		reg = <0x30>;
 		vdd-supply = <&pm8916_l17>;
 		vio-supply = <&pm8916_l6>;
-		//#ifndef VENDOR_EDIT
-		//Xiaohua.tian@EXP.Driver.Sensor, 2015/04/14, modify direction for msensor:mmc3416x */
-		//memsic,dir = "reverse-x-axis-backward";
-		//#else
-		memsic,dir = "obverse-x-axis-backward";
-		//#endif
+		memsic,dir = "reverse-x-axis-backward";
 		memsic,auto-report;
 		};
+
 		/* LiuPing@Phone.BSP.Sensor, 2014/07/19, add for alsps:stk3x1x */
 		stk@48 {
 			compatible = "stk,stk3x1x_ex";
