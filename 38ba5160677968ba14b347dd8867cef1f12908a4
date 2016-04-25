@@ -22,6 +22,30 @@
       "revId": "38ba5160677968ba14b347dd8867cef1f12908a4",
       "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71",
       "unresolved": false
+    },
+    {
+      "key": {
+        "uuid": "5faad753_8def7386",
+        "filename": "drivers/input/touchscreen/synaptics_oppo/synaptics_oppo_driver_3508.c",
+        "patchSetId": 4
+      },
+      "lineNbr": 3565,
+      "author": {
+        "id": 1063
+      },
+      "writtenOn": "2016-04-25T11:27:05Z",
+      "side": 0,
+      "message": "I don\u0027t want the driver to report key events for keys it doesn\u0027t have in its capability mask.",
+      "parentUuid": "5faad753_cde32ba4",
+      "range": {
+        "startLine": 3559,
+        "startChar": 0,
+        "endLine": 3565,
+        "endChar": 47
+      },
+      "revId": "38ba5160677968ba14b347dd8867cef1f12908a4",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71",
+      "unresolved": false
     }
   ]
 }
