@@ -3350,6 +3350,12 @@ static int synaptics_ts_probe(
 		strcpy(ts->test_limit_name,"tp/15011/15011_Limit_Tpk.img");
 	}
 #endif
+	if (is_project(OPPO_14005)) {
+		tp_info.manufacture = "SAMSUNG";
+		strcpy(ts->fw_name,"tp/14005/14005_FW_S3508_Tpk.img");
+		strcpy(ts->test_limit_name,"tp/14005/14005_Limit_Tpk.img");
+	}
+
 	TPD_DEBUG("synatpitcs_fw: fw_name = %s \n",ts->fw_name);
 	register_device_proc("tp", tp_info.version, tp_info.manufacture);
 
