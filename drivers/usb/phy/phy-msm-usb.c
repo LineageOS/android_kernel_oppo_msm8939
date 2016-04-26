@@ -107,6 +107,17 @@ module_param(floated_charger_enable , bool, S_IRUGO | S_IWUSR);
 MODULE_PARM_DESC(floated_charger_enable,
 	"Whether to enable floated charger");
 
+enum {
+    VOOC_CHARGER_MODE,
+    HEADPHONE_MODE,
+    NORMAL_CHARGER_MODE,
+};
+extern int opchg_set_switch_mode(u8 mode);
+extern void opchg_check_earphone_off(void);
+atomic_t otg_id_state = ATOMIC_INIT(1);
+atomic_t headset_status = ATOMIC_INIT(0);
+atomic_t oppo_otg_state = ATOMIC_INIT(0);
+
 static DECLARE_COMPLETION(pmic_vbus_init);
 static struct msm_otg *the_msm_otg;
 static bool debug_aca_enabled;
@@ -3027,7 +3038,12 @@ static void msm_otg_init_sm(struct msm_otg *motg)
 			else
 				clear_bit(B_SESS_VLD, &motg->inputs);
 		} else if (pdata->otg_control == OTG_PMIC_CONTROL) {
-			if (pdata->pmic_id_irq) {
+			if(is_project(OPPO_14005) && get_Operator_Version() >= 5) {
+				if (atomic_read(&otg_id_state))
+					set_bit(ID, &motg->inputs);
+				else
+					clear_bit(ID, &motg->inputs);
+			} else if (pdata->pmic_id_irq) {
 				if (msm_otg_read_pmic_id_state(motg))
 					set_bit(ID, &motg->inputs);
 				else
@@ -3128,6 +3144,7 @@ static void msm_otg_sm_work(struct work_struct *w)
 	struct msm_otg *motg = container_of(w, struct msm_otg, sm_work);
 	struct usb_otg *otg = motg->phy.otg;
 	bool work = 0, srp_reqd, dcp;
+	static int oppo_otg_check_count = 0;
 
 	pm_runtime_resume(otg->phy->dev);
 	if (motg->pm_done) {
@@ -3610,8 +3627,16 @@ static void msm_otg_sm_work(struct work_struct *w)
 			 */
 			if (test_bit(ID_A, &motg->inputs))
 				msm_otg_notify_charger(motg, IDEV_CHG_MIN);
-			else
+			else {
 				msm_hsusb_vbus_power(motg, 0);
+				if (is_project(OPPO_14005) && get_Operator_Version() >= 5) {
+					pr_err("[%s]set oppo_otg_state to 0\n",__func__);
+					atomic_set(&oppo_otg_state,0);
+					oppo_otg_check_count = 0;
+					if (atomic_read(&headset_status)== 1)
+						oppo_headset_detect_plug(1);
+				}
+			}
 			otg->phy->state = OTG_STATE_A_WAIT_VFALL;
 			msm_otg_start_timer(motg, TA_WAIT_VFALL, A_WAIT_VFALL);
 		} else if (!test_bit(A_VBUS_VLD, &motg->inputs)) {
@@ -3628,8 +3653,26 @@ static void msm_otg_sm_work(struct work_struct *w)
 			 * If TA_WAIT_BCON is infinite, we don;t
 			 * turn off VBUS. Enter low power mode.
 			 */
-			if (TA_WAIT_BCON < 0)
+
+		        if (is_project(OPPO_14005) && get_Operator_Version() >= 5) {
+				pr_err("[%s]oppo_otg_state=%d oppo_otg_check_count=%d\n", __func__,
+					atomic_read(&oppo_otg_state), oppo_otg_check_count);
+				if (atomic_read(&oppo_otg_state) == 0 && !oppo_test_id(motg)) {
+					oppo_otg_check_count++;
+					if (oppo_otg_check_count >= 30) {
+						pr_err("[%s]oppo_otg_check_count >= 30\n",__func__);
+						set_bit(ID, &motg->inputs);
+						atomic_set(&otg_id_state,1);
+						atomic_set(&headset_status,1);
+						oppo_otg_check_count = 0;
+					}
+					work = 1;
+				} else if (TA_WAIT_BCON < 0) {
+					pm_runtime_put_sync(otg->phy->dev);
+				}
+			} else if (TA_WAIT_BCON < 0) {
 				pm_runtime_put_sync(otg->phy->dev);
+			}
 		#ifndef VENDOR_EDIT /*liaofuchun@bsp.drv add for otg switch in 20150216*/
 		} else if (!test_bit(ID, &motg->inputs)) {
 		#else
@@ -3679,6 +3722,10 @@ static void msm_otg_sm_work(struct work_struct *w)
 				pm_runtime_put_sync(otg->phy->dev);
 		} else if (!test_bit(B_CONN, &motg->inputs)) {
 			pr_debug("!b_conn\n");
+			if (is_project(OPPO_14005) && get_Operator_Version() >= 5) {
+				atomic_set(&oppo_otg_state, 1);
+				pr_err("[%s]set oppo_otg_state to 1 \n",__func__);
+			}
 			msm_otg_del_timer(motg);
 			otg->phy->state = OTG_STATE_A_WAIT_BCON;
 			if (TA_WAIT_BCON > 0)
@@ -4144,6 +4191,35 @@ static void msm_id_status_w(struct work_struct *w)
 		}
 	}
 
+}
+
+void oppo_otg_id_status(int id_state)
+{
+	struct msm_otg *motg = the_msm_otg;
+	int work = 0;
+
+	if (id_state) {
+		if (!test_and_set_bit(ID, &motg->inputs)) {
+			pr_err("[%s]========ID set========\n",__func__);
+	                atomic_set(&oppo_otg_state,0);
+			work = 1;
+		}
+	} else {
+		if (test_and_clear_bit(ID, &motg->inputs)) {
+			pr_err("[%s]========ID clear========\n",__func__);
+			set_bit(A_BUS_REQ, &motg->inputs);
+			work = 1;
+		}
+	}
+
+	if (work && (motg->phy.state != OTG_STATE_UNDEFINED)) {
+		if (atomic_read(&motg->pm_suspended)) {
+			motg->sm_work_pending = true;
+		} else if (!motg->sm_work_pending) {
+			/* process event only if previous one is not pending */
+			queue_work(the_msm_otg->otg_wq, &motg->sm_work);
+		}
+	}
 }
 
 #define MSM_ID_STATUS_DELAY	5 /* 5msec */
@@ -5119,6 +5195,44 @@ static ssize_t dpdm_pulldown_enable_store(struct device *dev,
 static DEVICE_ATTR(dpdm_pulldown_enable, S_IRUGO | S_IWUSR,
 		dpdm_pulldown_enable_show, dpdm_pulldown_enable_store);
 
+static ssize_t show_OTG_status(struct device *dev,struct device_attribute *attr, char *buf)
+{
+	pr_debug("[show_OTG_status]otg_flag=%x\n",!(atomic_read(&otg_id_state)));
+	return sprintf(buf, "%u\n", !(atomic_read(&otg_id_state)));
+}
+
+static ssize_t store_OTG_status(struct device *dev,struct device_attribute *attr, const char *buf, size_t size)
+{
+	char *pvalue = NULL;
+	int otg_flag = 0;
+	struct msm_otg *motg = the_msm_otg;
+
+	if(buf != NULL && size != 0) {
+		otg_flag = simple_strtoul(buf,&pvalue,16);
+		pr_err("[store_OTG_status]otg_flag=0x%x\n",otg_flag);
+		mutex_lock(&(motg->otg_mutex_lock));
+		if (otg_flag) {
+			atomic_set(&otg_id_state,0);
+			opchg_check_earphone_off();
+			oppo_headset_detect_plug(0);
+			atomic_set(&headset_status, 0);
+			atomic_set(&oppo_otg_state, 1);
+			opchg_set_switch_mode(NORMAL_CHARGER_MODE);
+			oppo_headset_detect_plug(0);
+			oppo_otg_id_status(atomic_read(&otg_id_state));
+		} else {
+			if (atomic_read(&otg_id_state)== 0) {
+				atomic_set(&otg_id_state, 1);
+				oppo_otg_id_status(atomic_read(&otg_id_state));
+			}
+		}
+		mutex_unlock(&motg->otg_mutex_lock);
+	}
+
+	return size;
+}
+static DEVICE_ATTR(OTG_status, 0666, show_OTG_status, store_OTG_status);
+
 struct msm_otg_platform_data *msm_otg_dt_to_pdata(struct platform_device *pdev)
 {
 	struct device_node *node = pdev->dev.of_node;
@@ -5691,7 +5805,8 @@ static int msm_otg_probe(struct platform_device *pdev)
 		goto free_async_irq;
 	}
 
-	if (motg->pdata->mode == USB_OTG &&
+	if ((!is_project(OPPO_14005) || get_Operator_Version() < 5) &&
+		motg->pdata->mode == USB_OTG &&
 		motg->pdata->otg_control == OTG_PMIC_CONTROL) {
 
 		if (gpio_is_valid(motg->pdata->usb_id_gpio)) {
@@ -5747,7 +5862,11 @@ static int msm_otg_probe(struct platform_device *pdev)
 		dev_dbg(&pdev->dev, "mode debugfs file is"
 			"not available\n");
 
-	if (motg->pdata->otg_control == OTG_PMIC_CONTROL &&
+	if (is_project(OPPO_14005) && get_Operator_Version() >= 5
+		&& motg->pdata->otg_control == OTG_PMIC_CONTROL
+		&& motg->pdata->mode == USB_OTG) {
+		motg->caps = ALLOW_PHY_POWER_COLLAPSE | ALLOW_PHY_RETENTION;
+	} else if (motg->pdata->otg_control == OTG_PMIC_CONTROL &&
 			(!(motg->pdata->mode == USB_OTG) ||
 			 motg->pdata->pmic_id_irq || motg->ext_id_irq))
 		motg->caps = ALLOW_PHY_POWER_COLLAPSE | ALLOW_PHY_RETENTION;
@@ -5826,6 +5945,11 @@ static int msm_otg_probe(struct platform_device *pdev)
 	#endif
 	motg->pm_notify.notifier_call = msm_otg_pm_notify;
 	register_pm_notifier(&motg->pm_notify);
+
+	if (is_project(OPPO_14005) && get_Operator_Version() >= 5) {
+		device_create_file(&pdev->dev, &dev_attr_OTG_status);
+		mutex_init(&(motg->otg_mutex_lock));
+	}
 
 	return 0;
 

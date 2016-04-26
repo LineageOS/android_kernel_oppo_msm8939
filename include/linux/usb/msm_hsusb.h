@@ -556,6 +556,7 @@ struct msm_otg {
 	#ifdef VENDOR_EDIT /*dengnw@BSP.drv add QCOM patch for OTG 20150115*/
 	wait_queue_head_t      host_suspend_wait;
 	#endif
+	struct mutex otg_mutex_lock;
 };
 
 struct ci13xxx_platform_data {
@@ -748,4 +749,10 @@ static inline int msm_dwc3_reset_dbm_ep(struct usb_ep *ep)
 }
 
 #endif
+
+extern void oppo_otg_id_status(int id_state);
+extern void oppo_headset_detect_plug(int status);
+extern atomic_t otg_id_state;
+extern atomic_t headset_status;
+
 #endif
