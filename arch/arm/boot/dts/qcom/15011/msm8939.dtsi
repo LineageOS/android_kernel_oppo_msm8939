@@ -140,15 +140,23 @@
 
 		qcom,speed4-bin-v0-c0 =
 			<          0 0>,
+		//#ifdef VENDOR_EDIT dengnw@bsp.drv2015/02/10, remove for qcom chenyan for cpu 
+		/*
 			<  250000000 3>,
 			<  500000000 9>,
+		*/
+		//#endif
 			<  800000000 12>,
 			<  998400000 17>,
 			< 1113600000 24>;
 
 		qcom,speed4-bin-v0-c1 =
 			<          0 0>,
+		//#ifdef VENDOR_EDIT dengnw@bsp.drv2015/02/10, remove for qcom chenyan for cpu 
+		/*
 			<  400000000 3>,
+		*/
+		//#endif
 			<  800000000 9>,
 			<  960000000 12>,
 			< 1113600000 14>,
@@ -166,15 +174,23 @@
 
 		qcom,speed5-bin-v0-c0 =
 			<          0 0>,
+		//#ifdef VENDOR_EDIT dengnw@bsp.drv2015/02/10, remove for qcom chenyan for cpu 
+		/*
 			<  250000000 3>,
 			<  500000000 9>,
+		*/
+		//#endif
 			<  800000000 12>,
 			<  998400000 17>,
 			< 1113600000 24>;
 
 		qcom,speed5-bin-v0-c1 =
 			<          0 0>,
+		//#ifdef VENDOR_EDIT dengnw@bsp.drv2015/02/10, remove for qcom chenyan for cpu 
+		/*
 			<  400000000 3>,
+		*/
+		//#endif
 			<  800000000 9>,
 			<  960000000 12>,
 			< 1113600000 14>,
@@ -262,9 +278,13 @@
 		cpubw-cpufreq {
 		target-dev = <&cpubw>;
 		cpu-to-dev-map-0 =
+		//#ifdef VENDOR_EDIT dengnw@bsp.drv2015/02/10, remove for qcom chenyan for cpu 
+		/*
 			<  200000  1525 >,
 			<  345600  2636 >,
 			<  400000  2636 >,
+		*/
+		//#endif
 			<  800000  2636 >,
 			<  960000  2636 >,
 			<  1113600 5346 >,
@@ -273,9 +293,13 @@
 			<  1497600 6079 >,
 			<  1651200 6079 >;
 		cpu-to-dev-map-4 =
+		//#ifdef VENDOR_EDIT dengnw@bsp.drv2015/02/10, remove for qcom chenyan for cpu 
+		/*
 			<  200000 1525 >,
 			<  249600 2636 >,
 			<  499200 2636 >,
+		*/
+		//#endif
 			<  800000 2636 >,
 			<  998400 6079 >,
 			< 1113600 6079 >;
@@ -306,10 +330,14 @@
 		cci-cpufreq {
 		target-dev = <&cci_cache>;
 		cpu-to-dev-map-0 =
+		//#ifdef VENDOR_EDIT dengnw@bsp.drv2015/02/10, remove for qcom chenyan for cpu 
+		/*
 			<  200000  200000 >,
 			<  345600  200000 >,
 			<  400000  200000 >,
 			<  533330  297600 >,
+		*/
+		//#endif
 			<  800000  297600 >,
 			<  960000  297600 >,
 			< 1113600  297000 >,
@@ -318,9 +346,13 @@
 			< 1497600  595200 >,
 			< 1651200  595200 >;
 		cpu-to-dev-map-4 =
+		//#ifdef VENDOR_EDIT dengnw@bsp.drv2015/02/10, remove for qcom chenyan for cpu 
+		/*
 			<  200000 200000 >,
 			<  249600 200000 >,
 			<  499200 297600 >,
+		*/
+		//#endif
 			<  800000 297600 >,
 			<  998400 595200 >,
 			< 1113600 595200 >;
@@ -345,10 +377,14 @@
 		qcom,governor-per-policy;
 
 		qcom,cpufreq-table-0 =
+		//#ifdef VENDOR_EDIT dengnw@bsp.drv2015/02/10, remove for qcom chenyan for cpu 
+		/*
 			 <  200000 >,
 			 <  345600 >,
 			 <  400000 >,
 			 <  533330 >,
+		*/
+		//#endif
 			 <  800000 >,
                          <  960000 >,
 			 < 1113600 >,
@@ -357,9 +393,13 @@
 			 < 1497600 >,
 			 < 1651200 >;
 		qcom,cpufreq-table-4 =
+		//#ifdef VENDOR_EDIT dengnw@bsp.drv2015/02/10, remove for qcom chenyan for cpu 
+		/*
 			 <  200000 >,
 			 <  249600 >,
 			 <  499200 >,
+		*/
+		//#endif
 			 <  800000 >,
 			 <  998400 >,
 			 < 1113600 >;
