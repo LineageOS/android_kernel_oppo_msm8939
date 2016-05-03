@@ -30,73 +30,6 @@
 			};
 		};
 
-		/*OPPO 2015-04-14 hantong add for sub_board_detect*/
-		hw_operator_gpio1_config {
-			/* MCLK */
-			qcom,pins = <&gp 49>;
-			qcom,num-grp-pins = <1>;
-			qcom,pin-func = <0>;
-			label = "hw_operator_gpio1_config";
-			/* active state */
-			hw_operator_gpio1_active: active {
-				drive-strength = <2>; /* 2 mA */
-				bias-pull-up; /*  PULL  UP*/
-			};
-			hw_operator_gpio1_sleep: sleep {
-				drive-strength = <2>; /* 2 mA */
-				bias-pull-down; /* PULL DOWN */
-			};
-		};
-		hw_operator_gpio2_config {
-			/* MCLK */
-			qcom,pins = <&gp 50>;
-			qcom,num-grp-pins = <1>;
-			qcom,pin-func = <0>;
-			label = "hw_operator_gpio2_config";
-			/* active state */
-			hw_operator_gpio2_active: active {
-				drive-strength = <2>; /* 2 mA */
-				bias-pull-up; /*  PULL  UP*/
-			};
-			hw_operator_gpio2_sleep: sleep {
-				drive-strength = <2>; /* 2 mA */
-				bias-pull-down; /* PULL DOWN */
-			};
-		};
-		hw_sub_gpio1_config {
-			/* MCLK */
-			qcom,pins = <&gp 105>;
-			qcom,num-grp-pins = <1>;
-			qcom,pin-func = <0>;
-			label = "hw_sub_gpio1_config";
-			/* active state */
-			hw_sub_gpio1_active: active {
-				drive-strength = <2>; /* 2 mA */
-				bias-pull-up; /*  PULL  UP*/
-			};
-			hw_sub_gpio1_sleep: sleep {
-				drive-strength = <2>; /* 2 mA */
-				bias-pull-down; /* PULL DOWN */
-			};
-		};
-		hw_sub_gpio2_config {
-			/* MCLK */
-			qcom,pins = <&gp 106>;
-			qcom,num-grp-pins = <1>;
-			qcom,pin-func = <0>;
-			label = "hw_sub_gpio2_config";
-			/* active state */
-			hw_sub_gpio2_active: active {
-				drive-strength = <2>; /* 2 mA */
-				bias-pull-up; /*  PULL  UP*/
-			};
-			hw_sub_gpio2_sleep: sleep {
-				drive-strength = <2>; /* 2 mA */
-				bias-pull-down; /* PULL DOWN */
-			};
-		};
-		/*OPPO 2015-04-14 hantong add for sub_board_detect*/
-
 		/*OPPO 2014-07-30 dengnw@bsp.drv Add for fast_Charging*/
 		charging_switch1 {
 			/* MCLK */
@@ -161,7 +94,8 @@
 			/* active state */
 			charging_data_active: active {
 				drive-strength = <2>; /* 2 MA */
-				bias-disable; /*  PULL	UP*/
+				//bias-disable; /*  PULL	UP*/
+				bias-pull-up; /*  PULL	UP*/
 			};
 			/*suspend state */
 			charging_data_sleep: sleep {
@@ -521,8 +455,10 @@
                         /* MOSI, MISO, CLK */
 			/*yxr delete default config gp8*/
 			/*qcom,pins = <&gp 8>, <&gp 9>, <&gp 11>;*/
-			qcom,pins =  <&gp 9>, <&gp 11>;
-                        qcom,num-grp-pins = <2>;
+				/*liuping delete default config gp9*/
+				/*qcom,pins =  <&gp 9>, <&gp 11>;*/
+				qcom,pins = <&gp 11>;
+                qcom,num-grp-pins = <1>;
                         qcom,pin-func = <1>;
                         label = "spi0-active";
                         /* active state */
@@ -536,8 +472,10 @@
                         /* MOSI, MISO, CLK */
 			/*yxr delete default config gp8*/
 			/*qcom,pins = <&gp 8>, <&gp 9>, <&gp 11>;*/
-			qcom,pins =  <&gp 9>, <&gp 11>;
-                        qcom,num-grp-pins = <2>;
+				/*liuping delete default config gp9*/
+				/*qcom,pins =  <&gp 9>, <&gp 11>;*/
+				qcom,pins = <&gp 11>;
+                qcom,num-grp-pins = <1>;
                         qcom,pin-func = <0>;
                         label = "spi0-suspend";
                         /* suspended state */
@@ -783,20 +721,7 @@
 				bias-pull-down;
 			};
 		};
-		//ifdef VENDOR_EDIT//Modified by Tong.han@Bsp.group.tp for 14045 tp
-		ts_id1 {
-			qcom,pins = <&gp 51>;
-			qcom,pin-func = <0>;
-			qcom,num-grp-pins = <1>;
-			label = "ts_id1";
 
-			ts_id1_default: ts_id1_default {
-				drive-strength = <2>;
-				bias-pull-down;
-			};
-
-		};
-		//endif/*VENDOR_EDIT*/
 		/*OPPO 2014-09-04 zhzhyon Modify from gp 113 to gp 9 for sec i2s*/
 		apds99xx_int_pin {
 			/* Ambient light and proximity sensor apds9930 and apds9900 */
@@ -1225,7 +1150,7 @@
 			label = "cci0";
 			/* active state */
 			cci0_default: default {
-				drive-strength = <2>; /* 2 MA */
+				drive-strength = <8>; /* 2 MA */
 				bias-disable = <0>; /* No PULL */
 			};
 			/*suspended state */
@@ -1367,6 +1292,8 @@
 			};
 		};*/
 
+		/*#ifdef VENDOR_EDIT liuping delete default config gp9*/
+		/*
 		tpiu_seta_2 {
 			qcom,pins = <&gp 9>;
 			qcom,num-grp-pins = <1>;
@@ -1377,7 +1304,7 @@
 				bias-disable;
 			};
 		};
-
+		*/
 		tpiu_seta_3 {
 			qcom,pins = <&gp 10>;
 			qcom,num-grp-pins = <1>;

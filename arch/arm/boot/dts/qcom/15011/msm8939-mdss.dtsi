@@ -32,7 +32,9 @@
 		/* Fudge factors */
 		qcom,mdss-ab-factor = <1 1>;		/* 1 times    */
 		qcom,mdss-ib-factor = <2 1>;		/* 2 times    */
-		qcom,mdss-ib-factor-cmd = <10 6>;	/* 1.6 times */
+		/*Xiaori.yuan Add for 14005 performance*/
+		qcom,mdss-ib-factor-cmd = <2 1>;	/* 2 times */
+		/*Xiaori.yuan add end*/
 		qcom,mdss-clk-factor = <105 100>;	/* 1.05 times */
 		qcom,max-bandwidth-low-kbps = <2000000>;
 		qcom,max-bandwidth-high-kbps = <2000000>;
