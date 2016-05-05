@@ -46,6 +46,30 @@
       "revId": "38ba5160677968ba14b347dd8867cef1f12908a4",
       "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71",
       "unresolved": false
+    },
+    {
+      "key": {
+        "uuid": "5faad753_4365abb4",
+        "filename": "drivers/input/touchscreen/synaptics_oppo/synaptics_oppo_driver_3508.c",
+        "patchSetId": 4
+      },
+      "lineNbr": 3565,
+      "author": {
+        "id": 4550
+      },
+      "writtenOn": "2016-05-05T10:22:18Z",
+      "side": 0,
+      "message": "Check with if_project then?",
+      "parentUuid": "5faad753_8def7386",
+      "range": {
+        "startLine": 3559,
+        "startChar": 0,
+        "endLine": 3565,
+        "endChar": 47
+      },
+      "revId": "38ba5160677968ba14b347dd8867cef1f12908a4",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71",
+      "unresolved": false
     }
   ]
 }
