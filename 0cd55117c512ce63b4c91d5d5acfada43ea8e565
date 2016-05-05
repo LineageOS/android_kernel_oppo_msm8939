@@ -1,0 +1,21 @@
+{
+  "comments": [
+    {
+      "key": {
+        "uuid": "5faad753_03f813e3",
+        "filename": "drivers/input/touchscreen/synaptics_oppo/synaptics_oppo_driver_3508.c",
+        "patchSetId": 4
+      },
+      "lineNbr": 1334,
+      "author": {
+        "id": 1063
+      },
+      "writtenOn": "2016-05-05T09:59:13Z",
+      "side": 1,
+      "message": "This should be KEY_HOME, KEY_HOMEPAGE is not in our capability mask.",
+      "revId": "0cd55117c512ce63b4c91d5d5acfada43ea8e565",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71",
+      "unresolved": false
+    }
+  ]
+}
