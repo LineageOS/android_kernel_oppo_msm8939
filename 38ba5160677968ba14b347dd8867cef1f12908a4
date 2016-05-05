@@ -70,6 +70,30 @@
       "revId": "38ba5160677968ba14b347dd8867cef1f12908a4",
       "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71",
       "unresolved": false
+    },
+    {
+      "key": {
+        "uuid": "5faad753_c37afb22",
+        "filename": "drivers/input/touchscreen/synaptics_oppo/synaptics_oppo_driver_3508.c",
+        "patchSetId": 4
+      },
+      "lineNbr": 3565,
+      "author": {
+        "id": 1063
+      },
+      "writtenOn": "2016-05-05T11:40:12Z",
+      "side": 0,
+      "message": "No need, we can probably check for the existance of ts-\u003ekpd now (and send the events for that one).",
+      "parentUuid": "5faad753_4365abb4",
+      "range": {
+        "startLine": 3559,
+        "startChar": 0,
+        "endLine": 3565,
+        "endChar": 47
+      },
+      "revId": "38ba5160677968ba14b347dd8867cef1f12908a4",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71",
+      "unresolved": false
     }
   ]
 }
