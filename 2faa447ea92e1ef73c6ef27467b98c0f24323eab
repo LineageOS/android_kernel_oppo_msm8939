@@ -69,6 +69,29 @@
       "revId": "2faa447ea92e1ef73c6ef27467b98c0f24323eab",
       "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71",
       "unresolved": false
+    },
+    {
+      "key": {
+        "uuid": "5faad753_3c0e8532",
+        "filename": "sound/soc/codecs/wcd9xxx-mbhc.c",
+        "patchSetId": 5
+      },
+      "lineNbr": 627,
+      "author": {
+        "id": 7148
+      },
+      "writtenOn": "2016-05-09T05:17:15Z",
+      "side": 1,
+      "message": "if (...) { snd_soc_jack_report_no_dapm(jack, status, mask); } else { snd_soc_jack_report_no_dapm(jack, status, mask); }\n\nalways ends in snd_soc_jack_report_no_dapm(jack, status, mask);",
+      "range": {
+        "startLine": 623,
+        "startChar": 1,
+        "endLine": 627,
+        "endChar": 50
+      },
+      "revId": "2faa447ea92e1ef73c6ef27467b98c0f24323eab",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71",
+      "unresolved": false
     }
   ]
 }
