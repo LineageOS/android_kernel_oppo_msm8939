@@ -7,6 +7,10 @@ config MSM_CAMERA_SENSOR
           data for camera support. The driver support V4L2
           subdev APIs.
 
+config MSM_CAMERA_SENSOR_OPPO_IOCTL_COMPAT
+	bool "Use legacy style of sensor configuration ioctls"
+	depends on MSM_CAMERA_SENSOR
+
 config MSM_CPP
         bool "Qualcomm MSM Camera Post Processing Engine support"
         depends on MSMB_CAMERA
