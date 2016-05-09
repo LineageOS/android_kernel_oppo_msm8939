@@ -471,6 +471,17 @@ inline void stk_als_set_new_thd(struct stk3x1x_data *ps_data, uint16_t alscode)
 #endif // CONFIG_STK_PS_ALS_USE_CHANGE_THRESHOLD
 
 
+static inline void stk_report_abs_ts(struct input_dev *dev, int code, int value)
+{
+	struct timespec ts;
+
+	get_monotonic_boottime(&ts);
+	input_report_abs(dev, code, value);
+	input_event(dev, EV_SYN, SYN_TIME_SEC, ts.tv_sec);
+	input_event(dev, EV_SYN, SYN_TIME_NSEC, ts.tv_nsec);
+	input_sync(dev);
+}
+
 static int32_t stk3x1x_init_all_reg(struct stk3x1x_data *ps_data, struct stk3x1x_platform_data *plat_data)
 {
 	int32_t ret;
@@ -866,8 +877,7 @@ static int32_t stk3x1x_enable_ps(struct stk3x1x_data *ps_data, uint8_t enable)
 
 		near_far_state = ret & STK_FLG_NF_MASK;
 		ps_data->ps_distance_last = near_far_state;
-		input_report_abs(ps_data->ps_input_dev, ABS_DISTANCE, near_far_state);
-		input_sync(ps_data->ps_input_dev);
+		stk_report_abs_ts(ps_data->ps_input_dev, ABS_DISTANCE, near_far_state);
 		wake_lock_timeout(&ps_data->ps_wakelock, 2*HZ);
 		reading = stk3x1x_get_ps_reading(ps_data);
 		dev_dbg(&ps_data->client->dev,
@@ -1196,8 +1206,7 @@ static ssize_t stk_als_lux_store(struct device *dev, struct device_attribute *at
 	}
     mutex_lock(&ps_data->io_lock);
     ps_data->als_lux_last = value;
-	input_report_abs(ps_data->als_input_dev, ABS_MISC, value);
-	input_sync(ps_data->als_input_dev);
+	stk_report_abs_ts(ps_data->als_input_dev, ABS_MISC, value);
 	mutex_unlock(&ps_data->io_lock);
 	dev_dbg(dev, "%s: als input event %ld lux\n", __func__, value);
 
@@ -1543,8 +1552,7 @@ static ssize_t stk_ps_distance_show(struct device *dev, struct device_attribute 
     dist = (ret & STK_FLG_NF_MASK)?1:0;
 
     ps_data->ps_distance_last = dist;
-	input_report_abs(ps_data->ps_input_dev, ABS_DISTANCE, dist);
-	input_sync(ps_data->ps_input_dev);
+	stk_report_abs_ts(ps_data->ps_input_dev, ABS_DISTANCE, dist);
     mutex_unlock(&ps_data->io_lock);
 	wake_lock_timeout(&ps_data->ps_wakelock, 2*HZ);
 	dev_dbg(dev, "%s: ps input event %d cm\n", __func__, dist);
@@ -1566,8 +1574,7 @@ static ssize_t stk_ps_distance_store(struct device *dev, struct device_attribute
 	}
     mutex_lock(&ps_data->io_lock);
     ps_data->ps_distance_last = value;
-	input_report_abs(ps_data->ps_input_dev, ABS_DISTANCE, value);
-	input_sync(ps_data->ps_input_dev);
+	stk_report_abs_ts(ps_data->ps_input_dev, ABS_DISTANCE, value);
     mutex_unlock(&ps_data->io_lock);
 	wake_lock_timeout(&ps_data->ps_wakelock, 2*HZ);
 	dev_dbg(dev, "%s: ps input event %ld cm\n", __func__, value);
@@ -1945,8 +1952,7 @@ static void stk_als_work_func(struct work_struct *work)
 		return;
 	}
 	ps_data->als_lux_last = stk_alscode2lux(ps_data, reading);
-	input_report_abs(ps_data->als_input_dev, ABS_MISC, ps_data->als_lux_last);
-	input_sync(ps_data->als_input_dev);
+	stk_report_abs_ts(ps_data->als_input_dev, ABS_MISC, ps_data->als_lux_last);
 	mutex_unlock(&ps_data->io_lock);
 }
 #endif
@@ -2080,8 +2086,7 @@ static void stk_work_func(struct work_struct *work)
 		near_far_state = (org_flag_reg & STK_FLG_NF_MASK)?1:0;
 
 		ps_data->ps_distance_last = near_far_state;
-		input_report_abs(ps_data->ps_input_dev, ABS_DISTANCE, near_far_state);
-		input_sync(ps_data->ps_input_dev);
+		stk_report_abs_ts(ps_data->ps_input_dev, ABS_DISTANCE, near_far_state);
 		wake_lock_timeout(&ps_data->ps_wakelock, 2*HZ);
         reading = stk3x1x_get_ps_reading(ps_data);
 #ifdef STK_DEBUG_PRINTF
