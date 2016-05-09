@@ -76,7 +76,9 @@ enum sensor_sub_module_t {
 	SUB_MODULE_CSIPHY,
 	SUB_MODULE_CSIPHY_3D,
 	SUB_MODULE_OIS,
+#if 0
 	SUB_MODULE_TOF,
+#endif
 	SUB_MODULE_MAX,
 };
 
@@ -228,7 +230,7 @@ struct sensorb_cfg_data {
 	union {
 		struct msm_sensor_info_t      sensor_info;
 		struct msm_sensor_init_params sensor_init_params;
-#ifdef VENDOR_EDIT
+#if 0 //def VENDOR_EDIT
 /* xianglie.liu 2014-10-11 add interface to get exposure time */
 		struct msm_yuv_info yuv_info;
 #endif
