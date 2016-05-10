@@ -1,0 +1,21 @@
+{
+  "comments": [
+    {
+      "key": {
+        "uuid": "5faad753_6c2206a7",
+        "filename": "drivers/media/platform/msm/camera_v2/sensor/io/msm_camera_dt_util.c",
+        "patchSetId": 2
+      },
+      "lineNbr": 169,
+      "author": {
+        "id": 4550
+      },
+      "writtenOn": "2016-05-10T10:45:16Z",
+      "side": 1,
+      "message": "Is this necessary? You could just remove the DT entry",
+      "revId": "16d11975518365697dd8977f49f236a7c914cd55",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71",
+      "unresolved": false
+    }
+  ]
+}
