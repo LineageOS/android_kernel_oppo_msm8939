@@ -1667,10 +1667,6 @@ int32_t msm_sensor_platform_probe(struct platform_device *pdev,
 		s_ctrl->sensordata->slave_info->sensor_slave_addr >> 1;
 	cci_client->retries = 3;
 	cci_client->id_map = 0;
-#ifdef VENDOR_EDIT
-/* xianglie.liu 2015-01-20 add for modify yuv sensor cci clock to fastmode */
-	cci_client->i2c_freq_mode = 1;
-#endif
 	if (!s_ctrl->func_tbl)
 		s_ctrl->func_tbl = &msm_sensor_func_tbl;
 	if (!s_ctrl->sensor_i2c_client->i2c_func_tbl)
