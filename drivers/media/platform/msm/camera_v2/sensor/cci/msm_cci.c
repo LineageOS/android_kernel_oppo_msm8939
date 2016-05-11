@@ -29,7 +29,7 @@
 #define CYCLES_PER_MICRO_SEC_DEFAULT 4915
 #define CCI_MAX_DELAY 1000000
 
-#define CCI_TIMEOUT msecs_to_jiffies(500)
+#define CCI_TIMEOUT msecs_to_jiffies(100)
 
 /* TODO move this somewhere else */
 #define MSM_CCI_DRV_NAME "msm_cci"
@@ -964,7 +964,7 @@ static int32_t msm_cci_release(struct v4l2_subdev *sd)
 static int32_t msm_cci_config(struct v4l2_subdev *sd,
 	struct msm_camera_cci_ctrl *cci_ctrl)
 {
-	int32_t rc = 0, retry=3;
+	int32_t rc = 0;
 	struct cci_device *cci_dev;
 
 	CDBG("%s line %d cmd %d\n", __func__, __LINE__,
@@ -973,37 +973,31 @@ static int32_t msm_cci_config(struct v4l2_subdev *sd,
 	cci_dev = v4l2_get_subdevdata(sd);
 	mutex_lock(&cci_dev->mutex);
 
-	while (retry--) {
-		switch (cci_ctrl->cmd) {
-			case MSM_CCI_INIT:
-				rc = msm_cci_init(sd, cci_ctrl);
-				break;
-			case MSM_CCI_RELEASE:
-				rc = msm_cci_release(sd);
-				break;
-			case MSM_CCI_I2C_READ:
-				if (cci_dev->cci_state == CCI_STATE_DISABLED) {
-					pr_err("%s %d: CCI_STATE_DISABLED", __func__, __LINE__);
-					break;
-				}
-				rc = msm_cci_i2c_read_bytes(sd, cci_ctrl);
-				break;
-			case MSM_CCI_I2C_WRITE:
-				if (cci_dev->cci_state == CCI_STATE_DISABLED) {
-					pr_err("%s %d: CCI_STATE_DISABLED", __func__, __LINE__);
-					break;
-				}
-				rc = msm_cci_i2c_write(sd, cci_ctrl);
-				break;
-			case MSM_CCI_GPIO_WRITE:
-				break;
-			default:
-				rc = -ENOIOCTLCMD;
+	switch (cci_ctrl->cmd) {
+	case MSM_CCI_INIT:
+		rc = msm_cci_init(sd, cci_ctrl);
+		break;
+	case MSM_CCI_RELEASE:
+		rc = msm_cci_release(sd);
+		break;
+	case MSM_CCI_I2C_READ:
+		if (cci_dev->cci_state == CCI_STATE_DISABLED) {
+			pr_err("%s %d: CCI_STATE_DISABLED", __func__, __LINE__);
+		} else {
+			rc = msm_cci_i2c_read_bytes(sd, cci_ctrl);
 		}
-		if (rc >= 0) {
-			break ;
+		break;
+	case MSM_CCI_I2C_WRITE:
+		if (cci_dev->cci_state == CCI_STATE_DISABLED) {
+			pr_err("%s %d: CCI_STATE_DISABLED", __func__, __LINE__);
+		} else {
+			rc = msm_cci_i2c_write(sd, cci_ctrl);
 		}
-		pr_err("%s:retry=%d\n",__func__,retry);
+		break;
+	case MSM_CCI_GPIO_WRITE:
+		break;
+	default:
+		rc = -ENOIOCTLCMD;
 	}
 	CDBG("%s line %d rc %d\n", __func__, __LINE__, rc);
 	cci_ctrl->status = rc;

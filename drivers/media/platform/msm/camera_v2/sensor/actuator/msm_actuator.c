@@ -541,11 +541,14 @@ static int32_t msm_actuator_set_default_focus(
 }
 
 static int32_t msm_actuator_vreg_control(struct msm_actuator_ctrl_t *a_ctrl,
-							int config)
+							bool config)
 {
 	int rc = 0, i, cnt;
 	struct msm_actuator_vreg *vreg_cfg;
 	struct device *dev = NULL;
+
+	if (config == a_ctrl->regulator_active)
+		return 0;
 
 	vreg_cfg = &a_ctrl->vreg_cfg;
 	cnt = vreg_cfg->num_vreg;
@@ -571,8 +574,12 @@ static int32_t msm_actuator_vreg_control(struct msm_actuator_ctrl_t *a_ctrl,
 		rc = msm_camera_config_single_vreg(dev,
 			&vreg_cfg->cam_vreg[i],
 			(struct regulator **)&vreg_cfg->data[i],
-			config);
+			config ? 1 : 0);
+		if (rc < 0)
+			break;
 	}
+	if (rc == 0)
+		a_ctrl->regulator_active = config;
 	return rc;
 }
 
@@ -624,14 +631,11 @@ static int32_t msm_actuator_power_down(struct msm_actuator_ctrl_t *a_ctrl)
 		}
 #endif
 
-#ifndef VENDOR_EDIT
-/*deleted by Jinshui.Liu@Camera 20150419 start for no power up, no power down*/
 		rc = msm_actuator_vreg_control(a_ctrl, 0);
 		if (rc < 0) {
 			pr_err("%s failed %d\n", __func__, __LINE__);
 			return rc;
 		}
-#endif
 
 		kfree(a_ctrl->step_position_table);
 		a_ctrl->step_position_table = NULL;
@@ -832,15 +836,12 @@ static int msm_actuator_init(struct msm_actuator_ctrl_t *a_ctrl)
 		pr_err("failed\n");
 		return -EINVAL;
 	}
-#ifndef VENDOR_EDIT
-/* xianglie.liu 2014-10-16 del for there is no cci init when actuator open */
 	if (a_ctrl->act_device_type == MSM_CAMERA_PLATFORM_DEVICE) {
 		rc = a_ctrl->i2c_client.i2c_func_tbl->i2c_util(
 			&a_ctrl->i2c_client, MSM_CCI_INIT);
 		if (rc < 0)
 			pr_err("cci_init failed\n");
 	}
-#endif
 	CDBG("Exit\n");
 	return rc;
 }
@@ -966,15 +967,12 @@ static int msm_actuator_close(struct v4l2_subdev *sd,
 		pr_err("failed\n");
 		return -EINVAL;
 	}
-#ifndef VENDOR_EDIT
-/* xianglie.liu 2014-10-16 del for there is no cci init when actuator open */
 	if (a_ctrl->act_device_type == MSM_CAMERA_PLATFORM_DEVICE) {
 		rc = a_ctrl->i2c_client.i2c_func_tbl->i2c_util(
 			&a_ctrl->i2c_client, MSM_CCI_RELEASE);
 		if (rc < 0)
 			pr_err("cci_init failed\n");
 	}
-#endif
 	kfree(a_ctrl->i2c_reg_tbl);
 	a_ctrl->i2c_reg_tbl = NULL;
 

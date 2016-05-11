@@ -102,6 +102,7 @@ struct msm_actuator_ctrl_t {
 	struct msm_actuator_vreg vreg_cfg;
 	struct park_lens_data_t park_lens;
 	uint32_t max_code_size;
+	bool regulator_active;
 #ifdef VENDOR_EDIT
 /*shijie.zhuo,2014/09/10,Add for close camera click*/
 	uint16_t current_lens_pos;
