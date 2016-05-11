@@ -1,0 +1,72 @@
+{
+  "comments": [
+    {
+      "key": {
+        "uuid": "5faad753_fb454916",
+        "filename": "sound/soc/codecs/wcd9xxx-mbhc.c",
+        "patchSetId": 12
+      },
+      "lineNbr": 930,
+      "author": {
+        "id": 4550
+      },
+      "writtenOn": "2016-05-11T14:53:50Z",
+      "side": 1,
+      "message": "Shouldn\u0027t this check for OPPO_14005 project instead of ifdef?",
+      "revId": "0009490a360be07f5ae5341975beb921d30c18b2",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71",
+      "unresolved": false
+    },
+    {
+      "key": {
+        "uuid": "5faad753_9b5455cc",
+        "filename": "sound/soc/codecs/wcd9xxx-mbhc.c",
+        "patchSetId": 12
+      },
+      "lineNbr": 2517,
+      "author": {
+        "id": 4550
+      },
+      "writtenOn": "2016-05-11T14:53:50Z",
+      "side": 1,
+      "message": "Same as above",
+      "revId": "0009490a360be07f5ae5341975beb921d30c18b2",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71",
+      "unresolved": false
+    },
+    {
+      "key": {
+        "uuid": "5faad753_bb4fd132",
+        "filename": "sound/soc/codecs/wcd9xxx-mbhc.c",
+        "patchSetId": 12
+      },
+      "lineNbr": 2578,
+      "author": {
+        "id": 4550
+      },
+      "writtenOn": "2016-05-11T14:53:50Z",
+      "side": 1,
+      "message": "Same as above",
+      "revId": "0009490a360be07f5ae5341975beb921d30c18b2",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71",
+      "unresolved": false
+    },
+    {
+      "key": {
+        "uuid": "5faad753_3b44411b",
+        "filename": "sound/soc/msm/msm8939-slimbus.c",
+        "patchSetId": 12
+      },
+      "lineNbr": 2322,
+      "author": {
+        "id": 4550
+      },
+      "writtenOn": "2016-05-11T14:53:50Z",
+      "side": 1,
+      "message": "Is this safe for other devices?",
+      "revId": "0009490a360be07f5ae5341975beb921d30c18b2",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71",
+      "unresolved": false
+    }
+  ]
+}
