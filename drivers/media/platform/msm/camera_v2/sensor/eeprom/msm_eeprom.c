@@ -1314,10 +1314,7 @@ static int msm_eeprom_platform_probe(struct platform_device *pdev)
 	cci_client->sid = eb_info->i2c_slaveaddr >> 1;
 	cci_client->retries = 3;
 	cci_client->id_map = 0;
-#ifdef VENDOR_EDIT
-	/*hufeng add 2014-11-03 to make eeprom use i2c_fast_mode*/
-	cci_client->i2c_freq_mode = 1;
-#endif
+	cci_client->i2c_freq_mode = eb_info->i2c_freq_mode;
 	rc = of_property_read_string(of_node, "qcom,eeprom-name",
 		&eb_info->eeprom_name);
 	CDBG("%s qcom,eeprom-name %s, rc %d\n", __func__,
@@ -1487,10 +1484,6 @@ static int __init msm_eeprom_init_module(void)
 	rc = platform_driver_probe(&msm_eeprom_platform_driver,
 		msm_eeprom_platform_probe);
 	CDBG("%s:%d platform rc %d\n", __func__, __LINE__, rc);
-#ifdef VENDOR_EDIT
-/*zhengrong.zhang, 2015/03/02, modify for eeprom*/
-    return rc;
-#endif
 	rc = spi_register_driver(&msm_eeprom_spi_driver);
 	CDBG("%s:%d spi rc %d\n", __func__, __LINE__, rc);
 	return i2c_add_driver(&msm_eeprom_i2c_driver);
@@ -1499,10 +1492,6 @@ static int __init msm_eeprom_init_module(void)
 static void __exit msm_eeprom_exit_module(void)
 {
 	platform_driver_unregister(&msm_eeprom_platform_driver);
-#ifdef VENDOR_EDIT
-/*zhengrong.zhang, 2015/03/02, modify for eeprom*/
-    return;
-#endif
 	spi_unregister_driver(&msm_eeprom_spi_driver);
 	i2c_del_driver(&msm_eeprom_i2c_driver);
 }
