@@ -19,6 +19,24 @@
     },
     {
       "key": {
+        "uuid": "5faad753_fb8309a8",
+        "filename": "sound/soc/codecs/wcd9xxx-mbhc.c",
+        "patchSetId": 12
+      },
+      "lineNbr": 930,
+      "author": {
+        "id": 1063
+      },
+      "writtenOn": "2016-05-11T16:42:09Z",
+      "side": 1,
+      "message": "I literally just copy\u0027n\u0027pasted this from Oppo\u0027s kernel release, but yeah, good point. I\u0027ll convert it to a runtime check.",
+      "parentUuid": "5faad753_fb454916",
+      "revId": "0009490a360be07f5ae5341975beb921d30c18b2",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71",
+      "unresolved": false
+    },
+    {
+      "key": {
         "uuid": "5faad753_9b5455cc",
         "filename": "sound/soc/codecs/wcd9xxx-mbhc.c",
         "patchSetId": 12
@@ -64,6 +82,24 @@
       "writtenOn": "2016-05-11T14:53:50Z",
       "side": 1,
       "message": "Is this safe for other devices?",
+      "revId": "0009490a360be07f5ae5341975beb921d30c18b2",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71",
+      "unresolved": false
+    },
+    {
+      "key": {
+        "uuid": "5faad753_9b9215f6",
+        "filename": "sound/soc/msm/msm8939-slimbus.c",
+        "patchSetId": 12
+      },
+      "lineNbr": 2322,
+      "author": {
+        "id": 1063
+      },
+      "writtenOn": "2016-05-11T16:42:09Z",
+      "side": 1,
+      "message": "Probably not, but we\u0027re doing the precisely same thing for r7/r7plus in msm8x16.c",
+      "parentUuid": "5faad753_3b44411b",
       "revId": "0009490a360be07f5ae5341975beb921d30c18b2",
       "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71",
       "unresolved": false
