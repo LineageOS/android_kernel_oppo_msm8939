@@ -283,9 +283,12 @@
 		st@19 { /* Accelerometer sensor */
 			compatible = "st,lis3dh";
 			reg = <0x19>;
+			pinctrl-names = "lis3dh_default", "lis3dh_sleep";
+			pinctrl-0 = <&lis3dh_int1_default>;
+			pinctrl-1 = <&lis3dh_int1_sleep>;
 			interrupt-parent = <&msm_gpio>;
 			vdd-supply = <&pm8916_l17>;
-			vio-supply = <&pm8916_l6>;
+			vddio-supply = <&pm8916_l6>;
 			st,min-interval = <5>;
 			st,init-interval = <200>;
 			st,axis-map-x = <1>;
@@ -296,6 +299,7 @@
 			st,negate-x;
 			st,negate-y;
 			st,negate-z;
+			st,enable-int;
 		};
 
 		memsic@30 { /* Magnetic field sensor */
