@@ -85,6 +85,7 @@ static int msm_btsco_rate = BTSCO_RATE_8KHZ;
 static int msm_btsco_ch = 1;
 static int msm8939_spk_control = 1;
 static int clk_users;
+static int mclk_users;
 static struct platform_device *spdev;
 
 static int mi2s_rx_bit_format = SNDRV_PCM_FORMAT_S16_LE;
@@ -92,7 +93,6 @@ static int mi2s_rx_bit_format = SNDRV_PCM_FORMAT_S16_LE;
 static int msm_proxy_rx_ch = 2;
 static void *adsp_state_notifier;
 
-static bool quat_enable_mclk;
 atomic_t quat_mi2s_rsc_ref;
 
 static int msm_snd_enable_codec_ext_clk(struct snd_soc_codec *codec, int enable,
@@ -341,30 +341,36 @@ static int msm_snd_enable_codec_ext_clk(struct snd_soc_codec *codec, int enable,
 		if (clk_users != 1)
 			goto exit;
 		pr_debug("clock enable\n");
-		pdata->digital_cdc_clk.clk_val = 9600000;
-		ret = afe_set_digital_codec_core_clock(
-			AFE_PORT_ID_PRIMARY_MI2S_RX,
-			&pdata->digital_cdc_clk);
-		if (ret < 0) {
-			pr_err("%s: failed to enable the MCLK\n",
-							__func__);
-			clk_users--;
-			goto exit;
+		if (!mclk_users) {
+			pdata->digital_cdc_clk.clk_val = 9600000;
+			ret = afe_set_digital_codec_core_clock(
+				AFE_PORT_ID_PRIMARY_MI2S_RX,
+				&pdata->digital_cdc_clk);
+			if (ret < 0) {
+				pr_err("%s: failed to enable the MCLK\n",
+								__func__);
+				clk_users--;
+				goto exit;
+			}
 		}
+		mclk_users++;
 		pdata->msm8939_codec_fn.mclk_enable_fn(codec, 1, dapm);
 	} else {
 		if (clk_users > 0) {
 			clk_users--;
+			mclk_users--;
 			if (clk_users == 0) {
 				pdata->msm8939_codec_fn.mclk_enable_fn(codec,
 							0, dapm);
-				pdata->digital_cdc_clk.clk_val = 0;
-				ret = afe_set_digital_codec_core_clock(
-					AFE_PORT_ID_PRIMARY_MI2S_RX,
-					&pdata->digital_cdc_clk);
-				if (ret < 0)
-					pr_err("%s: failed disable the MCLK\n",
-								__func__);
+				if (!mclk_users) {
+					pdata->digital_cdc_clk.clk_val = 0;
+					ret = afe_set_digital_codec_core_clock(
+						AFE_PORT_ID_PRIMARY_MI2S_RX,
+						&pdata->digital_cdc_clk);
+					if (ret < 0)
+						pr_err("%s: failed disable the MCLK\n",
+									__func__);
+				}
 			}
 		} else {
 			pr_err("%s: Error releasing codec MCLK\n", __func__);
@@ -1368,8 +1374,8 @@ static int msm_snd_enable_quat_mclk(struct snd_soc_codec *codec, int enable,
 	pr_debug("clock enable\n");
 	mutex_lock(&pdata->cdc_mclk_mutex);
 	if (enable) {
-		clk_users++;
-		if (clk_users != 1)
+		mclk_users++;
+		if (mclk_users != 1)
 			goto exit;
 		else {
 			pdata->digital_cdc_clk.clk_val = 9600000;
@@ -1382,22 +1388,18 @@ static int msm_snd_enable_quat_mclk(struct snd_soc_codec *codec, int enable,
 				clk_users--;
 				goto exit;
 			}
-			quat_enable_mclk = true;
 		}
 	} else {
-		if (quat_enable_mclk) {
-			clk_users--;
-			if (!clk_users) {
-				quat_enable_mclk = false;
-				pdata->digital_cdc_clk.clk_val = 0;
-				ret = afe_set_digital_codec_core_clock(
-					AFE_PORT_ID_QUATERNARY_MI2S_RX,
-					&pdata->digital_cdc_clk);
-				if (ret < 0) {
-					pr_err("%s: failed to enable the MCLK\n",
-							__func__);
-					goto exit;
-				}
+		mclk_users--;
+		if (!mclk_users) {
+			pdata->digital_cdc_clk.clk_val = 0;
+			ret = afe_set_digital_codec_core_clock(
+				AFE_PORT_ID_QUATERNARY_MI2S_RX,
+				&pdata->digital_cdc_clk);
+			if (ret < 0) {
+				pr_err("%s: failed to enable the MCLK\n",
+						__func__);
+				goto exit;
 			}
 		}
 	}
