@@ -798,6 +798,20 @@
 			};
 		};
 
+		lis3dh_int1_pin {
+			qcom,pins = <&gp 34>;
+			qcom,num-grp-pins = <1>;
+			label = "lis3dh_int_pin";
+			lis3dh_int1_default: int1_default {
+				drive-strength = <6>;
+				bias-pull-down;
+			};
+			lis3dh_int1_sleep: int1_sleep {
+				drive-strength = <2>;
+				bias-pull-down;
+			};
+		};
+
 		ext_buck_vsel {
 			qcom,pins = <&gp 111>;
 			qcom,num-grp-pins = <1>;
