@@ -284,96 +284,17 @@
 	};
 
 	i2c@78b6000 { /* BLSP1 QUP2 */
-//#ifdef VENDOR_EDIT
-//added by xiaopeng.li 2015.5.19 for proximity sensor start
-		stmvl6180-tof@29 { /* proximity sensor start */
+		stmvl6180-tof@29 { /* Proximity sensor */
 			compatible = "stmv,vl6180";
 			reg = <0x29>;
 			interrupt-parent = <&msm_gpio>;
 			interrupts = <114 0x8>;
 			st,irq-gpio= <&msm_gpio 114 0x00>;
-		  st,standby-gpio = <&msm_gpio 51 0x00>;
-		  vdd_1v8-supply = <&pm8916_l17>;
-		  vcc_i2c_1v8-supply = <&pm8916_l6>;
-		};
-//added by xiaopeng.li 2015.5.19 for proximity sensor end
-//#endif/*VENDOR_EDIT*/
-		mpu6050@68 { /* Gyroscope and accelerometer sensor combo */
-			compatible = "invn,mpu6050";
-			reg = <0x68>;
-			pinctrl-names = "mpu_default","mpu_sleep";
-			pinctrl-0 = <&mpu6050_default>;
-			pinctrl-1 = <&mpu6050_sleep>;
-			interrupt-parent = <&msm_gpio>;
-			interrupts = <115 0x2>;
-			vdd-supply = <&pm8916_l17>;
-			vlogic-supply = <&pm8916_l16>;
-			vi2c-supply = <&pm8916_l6>;
-			invn,gpio-int = <&msm_gpio 115 0x2>;
-			invn,place = "Portrait Down Back Side";
+			st,standby-gpio = <&msm_gpio 51 0x00>;
+			vdd_1v8-supply = <&pm8916_l17>;
+			vcc_i2c_1v8-supply = <&pm8916_l6>;
 		};
 
-		avago@39 { /* Ambient light and proximity sensor */
-			compatible = "avago,apds9900";
-			reg = <0x39>;
-			pinctrl-names = "default","sleep";
-			pinctrl-0 = <&apds99xx_default>;
-			pinctrl-1 = <&apds99xx_sleep>;
-			interrupt-parent = <&msm_gpio>;
-			interrupts = <113 0x2002>;
-			vdd-supply = <&pm8916_l17>;
-			vio-supply = <&pm8916_l6>;
-			avago,irq-gpio = <&msm_gpio 113 0x2002>;
-			avago,ps-threshold = <600>;
-			avago,ps-hysteresis-threshold = <500>;
-			avago,ps-pulse = <10>;
-			avago,ps-pgain = <0>;
-			avago,als-B = <186>;
-			avago,als-C = <75>;
-			avago,als-D = <129>;
-			avago,ga-value = <560>;
-		};
-
-		/* LiuPing@Phone.BSP.Sensor, 2014/07/19, add for alsps:stk3x1x */
-		stk@48 {
-			compatible = "stk,stk3x1x";
-			reg = <0x48>;
-			interrupt-parent = <&msm_gpio>;
-			interrupts = <9 0x2>;
-			vdd-supply = <&pm8916_l17>;
-			vio-supply = <&pm8916_l6>;
-			stk,irq-gpio = <&msm_gpio 9 0x02>;
-			stk,transmittance = <340>;
-			stk,state-reg = <0x00>;
-			stk,psctrl-reg = <0x31>;
-			stk,alsctrl-reg = <0x3a>;
-			stk,ledctrl-reg = <0x3F>;
-			stk,wait-reg = <0x10>;
-			stk,ps-thdh = <1400>;
-			stk,ps-thdl = <1300>;
-			//stk,use-fir;
-		};
-
-		/* LiuPing@Phone.BSP.Sensor, 2015/03/02, add for alsps:36686. */
-		capella@60 {
-				compatible = "capella,cm36686";
-				reg = <0x60>;
-				interrupt-parent = <&msm_gpio>;
-				interrupts = <9 0x2>;
-				vdd-supply = <&pm8916_l17>;
-				vio-supply = <&pm8916_l6>;
-				capella,use-polling;
-				capella,interrupt-gpio = <&msm_gpio 9 0x02>;
-				capella,levels = <0x0A 0xA0 0xE1 0x140 0x280 0x500 0xA28 0x16A8 0x1F40 0x2800>;
-				capella,ps_close_thd_set = <0xc8>;  /* 200 */
-				capella,ps_away_thd_set = <0xbe>;  /* 190 */
-				capella,als_gain = <500>;   /* als gain */
-				capella,ls_cmd = <0x44>;  /* ALS_IT=160ms, INT_PERS=2*/
-				capella,ps_conf1_val = <0x008d>;  /*CM36686_PS_IT_1T | CM36686_PS_DR_1_40 | CM36686_PS_PERS_2*/
-				capella,ps_conf3_val = <0x0202>;  /* CM36686_PS_MS_NORMAL | CM36686_LED_I_100 | CM36686_PS_SMART_PERS_ENABLE, */
-		};
-
-		/* LiuPing@Phone.BSP.Sensor, 2014/09/02, add for gsensor:lis3dh */
 		st@19 { /* Accelerometer sensor */
 			compatible = "st,lis3dh";
 			reg = <0x19>;
@@ -388,29 +309,9 @@
 			st,g-range = <2>;
 			st,gpio-int1 = <&msm_gpio 112 0x2002>;
 			st,negate-x;
-			//st,negate-y;
-			//st,negate-z;
 		};
 
-		kionix@1f {
-			compatible = "kionix,kxtj9";
-			reg = <0x1f>;
-			interrupt-parent = <&msm_gpio>;
-			vdd-supply = <&pm8916_l17>;
-			vio-supply = <&pm8916_l6>;
-			kionix,min-interval = <5>;
-			kionix,init-interval = <200>;
-			kionix,axis-map-x = <1>;
-			kionix,axis-map-y = <0>;
-			kionix,axis-map-z = <2>;
-			kionix,g-range = <2>;
-			kionix,negate-x;
-			//kionix,negate-y;
-			//kionix,negate-z;
-			kionix,res-12bit;
-		};
-
-		apds@53 {
+		apds@53 { /* Ambient light and proximity sensor */
 			compatible = "apds,apds9921";
 			reg = <0x53>;
 			interrupt-parent = <&msm_gpio>;
@@ -420,40 +321,17 @@
 			apds,irq-gpio = <&msm_gpio 9 0x02>;
 		};
 
-		/* LiuPing@Phone.BSP.Sensor, 2014/09/04, add for msensor:mmc3416x */
 		memsic@30 { /* Magnetic field sensor */
-		compatible = "memsic,mmc3416x";
-		reg = <0x30>;
-		vdd-supply = <&pm8916_l17>;
-		vio-supply = <&pm8916_l6>;
-		memsic,dir = "obverse-x-axis-forward";
-		memsic,auto-report;
-		};
-
-		yamaha@2e { /* Magnetic field sensor */
-			compatible = "yamaha,yas533";
-			reg = <0x2e>;
+			compatible = "memsic,mmc3416x";
+			reg = <0x30>;
 			vdd-supply = <&pm8916_l17>;
 			vio-supply = <&pm8916_l6>;
-			yamaha,dir = <1>;
+			memsic,dir = "obverse-x-axis-forward";
+			memsic,auto-report;
 		};
-
-		akm@c {
-			compatible = "ak,ak8963";
-			reg = <0x0c>;
-			pinctrl-names = "ak8963_default", "ak8963_sleep";
-			pinctrl-0 = <&ak8963_default>;
-			pinctrl-1 = <&ak8963_sleep>;
-			interrupt-parent = <&msm_gpio>;
-			interrupts = <69 0x2>;
-			vdd-supply = <&pm8916_l17>;
-			vio-supply = <&pm8916_l6>;
-			ak,layout = <0x6>;
-			ak,auto-report;
-		};
-
 	};
 };
+
 /*OPPO 2014-08-20 zhzhyon Add for ak4375*/
 &i2c_3 {
 		  ak4375@1a {

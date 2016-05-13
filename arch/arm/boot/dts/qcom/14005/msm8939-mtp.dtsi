@@ -191,7 +191,6 @@
 	};
 
 	i2c@78b6000 { /* BLSP1 QUP2 */
-		/* LiuPing@Phone.BSP.Sensor, 2014/09/02, add for gsensor:lis3dh */
 		st@19 { /* Accelerometer sensor */
 			compatible = "st,lis3dh";
 			reg = <0x19>;
@@ -209,7 +208,6 @@
 			st,negate-z;
 		};
 
-		/* LiuPing@Phone.BSP.Sensor, 2014/09/04, add for msensor:mmc3416x */
 		memsic@30 { /* Magnetic field sensor */
 			compatible = "memsic,mmc3416x";
 			reg = <0x30>;
@@ -217,11 +215,10 @@
 			vio-supply = <&pm8916_l5>;
 			memsic,dir = "obverse-x-axis-forward";
 			memsic,auto-report;
-			sensor,vdd-gpio = <&msm_gpio 102 0x00>;   /* set gpio to control ex-ldo for vdd supply in 14005. */
+			sensor,vdd-gpio = <&msm_gpio 102 0x00>;
 		};
 
-		/* LiuPing@Phone.BSP.Sensor, 2014/07/19, add for alsps:stk3x1x */
-		stk@48 {
+		stk@48 { /* Ambient light and proximity sensor */
 			compatible = "stk,stk3x1x";
 			reg = <0x48>;
 			interrupt-parent = <&msm_gpio>;
@@ -237,8 +234,7 @@
 			stk,wait-reg = <0x07>;
 			stk,ps-thdh = <1400>;
 			stk,ps-thdl = <1300>;
-			//stk,use-fir;
-			sensor,vdd-gpio = <&msm_gpio 102 0x00>;   /* set gpio to control ex-ldo for vdd supply in 14005. */
+			sensor,vdd-gpio = <&msm_gpio 102 0x00>;
 		};
 	};
 
