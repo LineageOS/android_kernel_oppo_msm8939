@@ -112,8 +112,6 @@ enum {
     HEADPHONE_MODE,
     NORMAL_CHARGER_MODE,
 };
-extern int opchg_set_switch_mode(u8 mode);
-extern void opchg_check_earphone_off(void);
 atomic_t otg_id_state = ATOMIC_INIT(1);
 atomic_t headset_status = ATOMIC_INIT(0);
 atomic_t oppo_otg_state = ATOMIC_INIT(0);
@@ -5002,27 +5000,18 @@ static ssize_t show_OTG_status(struct device *dev,struct device_attribute *attr,
 static ssize_t store_OTG_status(struct device *dev,struct device_attribute *attr, const char *buf, size_t size)
 {
 	char *pvalue = NULL;
-	int otg_flag = 0;
 	struct msm_otg *motg = the_msm_otg;
 
 	if(buf != NULL && size != 0) {
-		otg_flag = simple_strtoul(buf,&pvalue,16);
-		pr_err("[store_OTG_status]otg_flag=0x%x\n",otg_flag);
-		mutex_lock(&(motg->otg_mutex_lock));
-		if (otg_flag) {
-			atomic_set(&otg_id_state,0);
-			opchg_check_earphone_off();
-			oppo_headset_detect_plug(0);
-			atomic_set(&headset_status, 0);
-			atomic_set(&oppo_otg_state, 1);
-			opchg_set_switch_mode(NORMAL_CHARGER_MODE);
-			oppo_headset_detect_plug(0);
+		int otg_id_target = !simple_strtoul(buf, &pvalue, 16);
+		pr_err("[store_OTG_status]otg_id_target=0x%x\n", otg_id_target);
+		mutex_lock(&motg->otg_mutex_lock);
+		if (atomic_read(&otg_id_state) != otg_id_target) {
+			atomic_set(&otg_id_state, otg_id_target);
+			atomic_set(&headset_status, otg_id_target);
+			atomic_set(&oppo_otg_state, !otg_id_target);
+			oppo_headset_detect_plug(otg_id_target);
 			oppo_otg_id_status(atomic_read(&otg_id_state));
-		} else {
-			if (atomic_read(&otg_id_state)== 0) {
-				atomic_set(&otg_id_state, 1);
-				oppo_otg_id_status(atomic_read(&otg_id_state));
-			}
 		}
 		mutex_unlock(&motg->otg_mutex_lock);
 	}
