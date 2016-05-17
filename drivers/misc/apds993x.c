@@ -1,3 +1,15 @@
+/*************************************************************
+ ** Copyright (C), 2012-2016, OPPO Mobile Comm Corp., Ltd
+ ** VENDOR_EDIT
+ ** File        : apds993x.c
+ ** Description :
+ ** Date        : 2014-10-31
+ ** Author      : BSP.Sensor
+ **
+ ** ------------------ Revision History: ---------------------
+ **      <author>        <date>          <desc>
+ *************************************************************/
+
 /*
  * apds993x.c - Linux kernel modules for ambient light + proximity sensor
  *
@@ -37,6 +49,10 @@
 #include <linux/regulator/consumer.h>
 #include <linux/of_gpio.h>
 #include <linux/sensors.h>
+#ifdef VENDOR_EDIT
+#include <linux/sensors_ftm.h>
+#include <linux/wakelock.h>
+#endif
 
 #define APDS993X_HAL_USE_SYS_ENABLE
 
@@ -192,6 +208,22 @@ static int apds993x_ps_hsyteresis_threshold = 0;
 static int apds993x_ps_pulse_number = 0;
 static int apds993x_ps_pgain = 0;
 
+#ifdef VENDOR_EDIT
+static unsigned int last_ps_state = 0;
+
+#define APDS993X_ALSPS_DYNAMIC_THRESHOLD
+
+#ifdef APDS993X_ALSPS_DYNAMIC_THRESHOLD
+static int ps_min = 0;
+static int ps_adjust_max = 850;
+static int dirty_adjust_low_thd = 150, dirty_adjust_high_thd = 300;
+static int ps_thd_low_highlight = 600, ps_thd_high_highlight = 650;
+
+static struct delayed_work sample_ps_work;
+static DECLARE_WAIT_QUEUE_HEAD(enable_wq);
+#endif
+#endif
+
 typedef enum
 {
 	APDS993X_ALS_RES_10240 = 0,    /* 27.2ms integration time */
@@ -213,6 +245,9 @@ typedef enum
 struct apds993x_data {
 	struct i2c_client *client;
 	struct mutex update_lock;
+#ifdef VENDOR_EDIT
+	struct wake_lock ps_wakelock;
+#endif
 	struct mutex op_mutex;
 	struct delayed_work	dwork;		/* for PS interrupt */
 	struct delayed_work	als_dwork;	/* for ALS polling */
@@ -336,6 +371,10 @@ static struct sensors_classdev sensors_proximity_cdev = {
  */
 static struct apds993x_data *pdev_data = NULL;
 
+#ifdef VENDOR_EDIT
+static int g_is_resumed = 1;
+#endif
+
 /* global i2c_client to support ioctl */
 static struct i2c_client *apds993x_i2c_client = NULL;
 static struct workqueue_struct *apds993x_workqueue = NULL;
@@ -354,6 +393,10 @@ static int apds993x_ga = 0;
 static int apds993x_coe_b = 0;
 static int apds993x_coe_c = 0;
 static int apds993x_coe_d = 0;
+
+#ifdef VENDOR_EDIT
+static int apds993x_als_gain = 100;   // the true: lux = (apds993x_als_gain/100)*lux.
+#endif
 
 #ifdef ALS_POLLING_ENABLED
 static int apds993x_set_als_poll_delay(struct i2c_client *client, unsigned int val);
@@ -381,6 +424,13 @@ static int apds993x_set_command(struct i2c_client *client, int command)
 
 	mutex_lock(&data->update_lock);
 	ret = i2c_smbus_write_byte(client, clearInt);
+#ifdef VENDOR_EDIT
+	if (ret) {
+		pr_err("%s: write i2c error, ret=%d\n", __func__, ret);
+		mutex_unlock(&data->update_lock);
+		return ret;
+	}
+#endif
 	mutex_unlock(&data->update_lock);
 
 	return ret;
@@ -663,6 +713,7 @@ RECALIBRATION:
 	return data->cross_talk;
 }
 
+#ifndef VENDOR_EDIT
 /* apply the Cross-talk value to threshold */
 static void apds993x_set_ps_threshold_adding_cross_talk(
 		struct i2c_client *client, int cal_data)
@@ -679,6 +730,7 @@ static void apds993x_set_ps_threshold_adding_cross_talk(
 				+ cal_data;
 	dev_dbg(&client->dev, "%s: configurations are set\n", __func__);
 }
+#endif
 
 static int LuxCalculation(struct i2c_client *client, int ch0data, int ch1data)
 {
@@ -691,7 +743,11 @@ static int LuxCalculation(struct i2c_client *client, int ch0data, int ch1data)
 	if (ch0data >= apds993x_als_res_tb[data->als_atime_index] ||
 	    ch1data >= apds993x_als_res_tb[data->als_atime_index]) {
 		luxValue = data->als_prev_lux;
+#ifdef VENDOR_EDIT
+		return 1999;  // when in high light, maybe get the last invalid value which is low .
+#else
 		return luxValue;
+#endif
 	}
 
 	/* re-adjust COE_B to avoid 2 decimal point */
@@ -707,22 +763,41 @@ static int LuxCalculation(struct i2c_client *client, int ch0data, int ch1data)
 	else
 		IAC = 0;
 
+#ifdef VENDOR_EDIT
+	if (ch0data != 0 && ch1data * 100 / ch0data >= 45) {
+		IAC = ch1data / 10;
+	} else {
+		if (IAC1 < 0 && IAC2 < 0) {
+			IAC = 0;	/* cdata and irdata saturated */
+			return 2000;
+		}
+	}
+#else
 	if (IAC1 < 0 && IAC2 < 0) {
 		IAC = 0;	/* cdata and irdata saturated */
 		return -1; 	/* don't report first, change gain may help */
 	}
+#endif
 
 	if (data->als_reduce) {
 		luxValue = ((IAC * apds993x_ga * APDS993X_DF) / 100) * 65 / 10 /
 			((apds993x_als_integration_tb[data->als_atime_index] /
 			  100) * apds993x_als_again_tb[data->als_again_index]);
 	} else {
+#ifdef VENDOR_EDIT
+		luxValue = ((IAC * apds993x_ga * APDS993X_DF) /100 * 100 / 3) /
+#else
 		luxValue = ((IAC * apds993x_ga * APDS993X_DF) /100) /
+#endif
 			((apds993x_als_integration_tb[data->als_atime_index] /
 			  100) * apds993x_als_again_tb[data->als_again_index]);
 	}
 
+#ifdef VENDOR_EDIT
+	return luxValue * apds993x_als_gain / 100;
+#else
 	return luxValue;
+#endif
 }
 
 static inline void apds993x_report_value(struct input_dev *dev,
@@ -741,16 +816,46 @@ static inline void apds993x_report_value(struct input_dev *dev,
 
 static void apds993x_change_ps_threshold(struct i2c_client *client)
 {
+#ifdef VENDOR_EDIT
+	int ret = 0;
+#endif
 	struct apds993x_data *data = i2c_get_clientdata(client);
 
 	data->ps_data =	i2c_smbus_read_word_data(
 			client, CMD_WORD|APDS993X_PDATAL_REG);
+#ifdef VENDOR_EDIT
+	if (data->ps_data < 0) {
+		pr_err("%s: read ps_data=%d  failed !\n",__func__, data->ps_data);
+		return;
+	}
+#endif
 
 	if ((data->ps_data > data->pilt) && (data->ps_data >= data->piht)) {
 		/* far-to-near detected */
 		data->ps_detection = 1;
 
 		/* FAR-to-NEAR detection */
+#ifdef VENDOR_EDIT
+		if (last_ps_state != data->ps_detection) {
+			apds993x_report_value(data->input_dev_ps, ABS_DISTANCE,
+					0);
+			wake_lock_timeout(&data->ps_wakelock, HZ/2);
+		}
+		ret = i2c_smbus_write_word_data(client,
+				CMD_WORD|APDS993X_PILTL_REG,
+				data->pilt);
+		if (ret) {
+			pr_err("%s: write i2c error, ret=%d\n", __func__, ret);
+			return;
+		}
+
+		ret = i2c_smbus_write_word_data(client,
+				CMD_WORD|APDS993X_PIHTL_REG, 1023);
+		if (ret) {
+			pr_err("%s: write i2c error, ret=%d\n", __func__, ret);
+			return;
+		}
+#else
 		apds993x_report_value(data->input_dev_ps, ABS_DISTANCE, 0);
 
 		i2c_smbus_write_word_data(client,
@@ -761,6 +866,7 @@ static void apds993x_change_ps_threshold(struct i2c_client *client)
 
 		data->pilt = data->ps_hysteresis_threshold;
 		data->piht = 1023;
+#endif
 
 		pr_info("%s: far-to-near\n", __func__);
 	} else if ((data->ps_data <= data->pilt) &&
@@ -769,6 +875,27 @@ static void apds993x_change_ps_threshold(struct i2c_client *client)
 		data->ps_detection = 0;
 
 		/* NEAR-to-FAR detection */
+#ifdef VENDOR_EDIT
+		if (last_ps_state != data->ps_detection) {
+			apds993x_report_value(data->input_dev_ps, ABS_DISTANCE,
+					1);
+			wake_lock_timeout(&data->ps_wakelock, HZ/2);
+		}
+		ret = i2c_smbus_write_word_data(client,
+				CMD_WORD|APDS993X_PILTL_REG, 0);
+		if (ret) {
+			pr_err("%s: write i2c error, ret=%d\n", __func__, ret);
+			return;
+		}
+
+		ret = i2c_smbus_write_word_data(client,
+				CMD_WORD|APDS993X_PIHTL_REG,
+				data->piht);
+		if (ret) {
+			pr_err("%s: write i2c error, ret=%d\n", __func__, ret);
+			return;
+		}
+#else
 		apds993x_report_value(data->input_dev_ps, ABS_DISTANCE, 1);
 
 		i2c_smbus_write_word_data(client,
@@ -779,9 +906,14 @@ static void apds993x_change_ps_threshold(struct i2c_client *client)
 
 		data->pilt = 0;
 		data->piht = data->ps_threshold;
+#endif
 
 		pr_info("%s: near-to-far\n", __func__);
 	}
+
+#ifdef VENDOR_EDIT
+	last_ps_state = data->ps_detection;
+#endif
 }
 
 static void apds993x_change_als_threshold(struct i2c_client *client)
@@ -980,6 +1112,7 @@ static void apds993x_als_polling_work_handler(struct work_struct *work)
 	 * PS was previously in far-to-near condition
 	 */
 	v = (75 * (1024 * (256 - data->atime))) / 100;
+#ifndef VENDOR_EDIT
 	if ((data->ps_detection == 1) && (ch0data > v)) {
 		/*
 		 * need to inform input event as there will be no interrupt
@@ -1000,6 +1133,7 @@ static void apds993x_als_polling_work_handler(struct work_struct *work)
 
 		pr_info("%s: FAR\n", __func__);
 	}
+#endif
 
 	if (lux_is_valid)
 		/* report the lux level */
@@ -1063,8 +1197,15 @@ static void apds993x_work_handler(struct work_struct *work)
 	status = i2c_smbus_read_byte_data(client, CMD_BYTE|APDS993X_STATUS_REG);
 	enable = i2c_smbus_read_byte_data(client, CMD_BYTE|APDS993X_ENABLE_REG);
 
+#ifdef VENDOR_EDIT
+	if (status < 0 || enable < 0) {
+		pr_err("%s: i2c error , status = %d  enable = %d \n", __func__, status, enable);
+		goto exit;
+	}
+#else
 	/* disable 993x's ADC first */
 	i2c_smbus_write_byte_data(client, CMD_BYTE|APDS993X_ENABLE_REG, 1);
+#endif
 
 	pr_debug("%s: status = %x\n", __func__, status);
 
@@ -1096,11 +1237,15 @@ static void apds993x_work_handler(struct work_struct *work)
 		    (75 * (apds993x_als_res_tb[data->als_atime_index])) / 100) {
 			apds993x_change_ps_threshold(client);
 		} else {
+#ifdef VENDOR_EDIT
+			apds993x_change_ps_threshold(client);
+#else
 			if (data->ps_detection == 1)
 				apds993x_change_ps_threshold(client);
 			else
 				pr_info("%s: background ambient noise\n",
 						__func__);
+#endif
 		}
 
 		/* 0 = CMD_CLR_PS_INT */
@@ -1113,8 +1258,20 @@ static void apds993x_work_handler(struct work_struct *work)
 		apds993x_set_command(client, 1);
 	}
 
+#ifdef VENDOR_EDIT
+	if (data->irq)
+		enable_irq(data->irq);
+	return;
+
+exit:
+	apds993x_set_command(client, 2);  //  2 = CMD_CLR_PS_ALS_INT
+	msleep(30);
+	if (data->irq)
+		enable_irq(data->irq);
+#else
 	i2c_smbus_write_byte_data(client,
 			CMD_BYTE|APDS993X_ENABLE_REG, data->enable);
+#endif
 }
 
 /* assume this is ISR */
@@ -1123,6 +1280,9 @@ static irqreturn_t apds993x_interrupt(int vec, void *info)
 	struct i2c_client *client=(struct i2c_client *)info;
 	struct apds993x_data *data = i2c_get_clientdata(client);
 
+#ifdef VENDOR_EDIT
+	disable_irq_nosync(data->irq);
+#endif
 	apds993x_reschedule_work(data, 0);
 
 	return IRQ_HANDLED;
@@ -1200,7 +1360,13 @@ static int apds993x_enable_als_sensor(struct i2c_client *client, int val)
 			 * that's why we have to cancel it first.
 			 */
 			cancel_delayed_work_sync(&data->als_dwork);
+#ifdef VENDOR_EDIT
+			// 200ms > atime + ptime + wtime.
+			queue_delayed_work(apds993x_workqueue, &data->als_dwork,
+					msecs_to_jiffies(200));
+#else
 			queue_delayed_work(apds993x_workqueue, &data->als_dwork, msecs_to_jiffies(data->als_poll_delay));
+#endif
 #endif
 		}
 	} else {
@@ -1294,6 +1460,9 @@ static int apds993x_enable_ps_sensor(struct i2c_client *client, int val)
 	struct apds993x_data *data = i2c_get_clientdata(client);
 	struct apds993x_platform_data *pdata = data->platform_data;
 	int rc;
+#ifdef VENDOR_EDIT
+	uint16_t ps;
+#endif
 
 	pr_debug("%s: val=%d\n", __func__, val);
 
@@ -1306,6 +1475,10 @@ static int apds993x_enable_ps_sensor(struct i2c_client *client, int val)
 		dev_err(&client->dev, "can not enable when calibration\n");
 		return -EBUSY;
 	}
+
+#ifdef VENDOR_EDIT
+	data->ps_detection = 0;
+#endif
 
 	if (val == 1) {
 		/* turn on p sensor */
@@ -1328,6 +1501,43 @@ static int apds993x_enable_ps_sensor(struct i2c_client *client, int val)
 			/* Power Off */
 			apds993x_set_enable(client,0);
 
+#ifdef VENDOR_EDIT
+			apds993x_set_enable(client, 0x27);
+			msleep(50);
+
+#ifdef APDS993X_ALSPS_DYNAMIC_THRESHOLD
+			if (ps_min != 0 && ps_min + dirty_adjust_high_thd <
+					ps_adjust_max) {
+				apds993x_ps_detection_threshold =
+					ps_min + dirty_adjust_low_thd;
+				apds993x_set_pilt(client,
+					apds993x_ps_detection_threshold);
+
+				apds993x_ps_detection_threshold =
+					ps_min + dirty_adjust_high_thd;
+				apds993x_set_piht(client,
+					apds993x_ps_detection_threshold);
+			} else {
+				apds993x_ps_detection_threshold =
+					ps_thd_high_highlight;
+				apds993x_set_pilt(client, ps_thd_low_highlight);
+				apds993x_set_piht(client,
+					ps_thd_high_highlight);
+			}
+#endif
+
+			ps = i2c_smbus_read_word_data(client,
+					CMD_WORD | APDS993X_PDATAL_REG);
+			if (ps >= data->piht)
+				data->ps_detection = 1;
+			else if (ps <= data->pilt)
+				data->ps_detection = 0;
+
+			last_ps_state = data->ps_detection;
+			apds993x_report_value(data->input_dev_ps, ABS_DISTANCE,
+					data->ps_detection ? 0 : 1);
+			wake_lock_timeout(&data->ps_wakelock, HZ/2);
+#else
 			/* init threshold for proximity */
 			apds993x_set_pilt(client,
 					apds993x_ps_detection_threshold);
@@ -1338,10 +1548,13 @@ static int apds993x_enable_ps_sensor(struct i2c_client *client, int val)
 				apds993x_set_ps_threshold_adding_cross_talk(
 						client, data->cross_talk);
 			}
+#endif
 
 			if (data->enable_als_sensor==0) {
 				/* only enable PS interrupt */
+#ifndef VENDOR_EDIT
 				apds993x_set_enable(client, 0x27);
+#endif
 				if (data->irq) {
 					enable_irq(data->irq);
 					irq_set_irq_wake(client->irq, 1);
@@ -1349,7 +1562,9 @@ static int apds993x_enable_ps_sensor(struct i2c_client *client, int val)
 			} else {
 #ifdef ALS_POLLING_ENABLED
 				/* enable PS interrupt */
+#ifndef VENDOR_EDIT
 				apds993x_set_enable(client, 0x27);
+#endif
 				if (data->irq) {
 					enable_irq(data->irq);
 					irq_set_irq_wake(client->irq, 1);
@@ -1361,6 +1576,9 @@ static int apds993x_enable_ps_sensor(struct i2c_client *client, int val)
 #endif
 			}
 		}
+#ifdef APDS993X_ALSPS_DYNAMIC_THRESHOLD
+		wake_up(&enable_wq);
+#endif
 	} else {
 		/*
 		 * turn off p sensor - kk 25 Apr 2011
@@ -1992,6 +2210,32 @@ static DEVICE_ATTR(als_poll_delay, S_IWUSR | S_IRUGO,
 
 #endif
 
+#ifdef VENDOR_EDIT
+static ssize_t apds993x_show_allreg(struct device *dev,
+			struct device_attribute *attr, char *buf)
+{
+	struct i2c_client *client = to_i2c_client(dev);
+	int reg, reg_val;
+	char str[1000] = {0};
+	char *p = str;
+
+	for (reg = 0; reg < 0x20; reg++) {
+		reg_val = i2c_smbus_read_byte_data(client, CMD_BYTE | reg);
+		if (reg_val < 0) {
+			pr_err("%s, ret=%d",__func__, reg_val);
+			return -EINVAL;
+		}
+
+		pr_err("%s reg:0x%x val:0x%x \n", __func__, reg, reg_val);
+		p += sprintf(p, "reg 0x%x:0x%x\n", reg, reg_val);
+	}
+
+	return sprintf(buf, "%s\n", str);
+}
+
+static DEVICE_ATTR(allreg, S_IRUGO, apds993x_show_allreg, NULL);
+#endif
+
 static struct attribute *apds993x_attributes[] = {
 	&dev_attr_ch0data.attr,
 	&dev_attr_ch1data.attr,
@@ -2006,6 +2250,9 @@ static struct attribute *apds993x_attributes[] = {
 	&dev_attr_ps_run_calibration.attr,
 	&dev_attr_ps_default_crosstalk.attr,
 	&dev_attr_ps_cal_result.attr,
+#ifdef VENDOR_EDIT
+	&dev_attr_allreg.attr,
+#endif
 	NULL
 };
 
@@ -2112,6 +2359,7 @@ static int apds993x_init_device(struct i2c_client *client)
 	if (err < 0)
 		return err;
 
+#ifndef VENDOR_EDIT
 	/* init threshold for proximity */
 	err = apds993x_set_pilt(client, 0);
 	if (err < 0)
@@ -2126,6 +2374,7 @@ static int apds993x_init_device(struct i2c_client *client)
 		apds993x_set_ps_threshold_adding_cross_talk(client,
 				data->cross_talk);
 	}
+#endif
 	data->ps_detection = 0; /* initial value = far*/
 
 	/* force first ALS interrupt to get the environment reading */
@@ -2138,7 +2387,11 @@ static int apds993x_init_device(struct i2c_client *client)
 		return err;
 
 	/* 2 consecutive Interrupt persistence */
+#ifdef VENDOR_EDIT
+	err = apds993x_set_pers(client, APDS993X_PPERS_1|APDS993X_APERS_1);
+#else
 	err = apds993x_set_pers(client, APDS993X_PPERS_2|APDS993X_APERS_2);
+#endif
 	if (err < 0)
 		return err;
 
@@ -2169,6 +2422,12 @@ static int apds993x_suspend(struct device *dev)
 			dev_err(&data->client->dev,
 				"Disable light sensor fail! rc=%d\n", rc);
 	}
+#ifdef VENDOR_EDIT
+	if (data->irq && data->enable_ps_sensor)
+		disable_irq(data->irq);
+
+	g_is_resumed = 0;
+#endif
 
 	return 0;
 }
@@ -2189,6 +2448,12 @@ static int apds993x_resume(struct device *dev)
 			dev_err(&data->client->dev,
 				"Disable light sensor fail! rc=%d\n", rc);
 	}
+#ifdef VENDOR_EDIT
+	if (data->irq && data->enable_ps_sensor)
+		enable_irq(data->irq);
+
+	g_is_resumed = 1;
+#endif
 
 	return 0;
 }
@@ -2376,6 +2641,15 @@ static int sensor_platform_hw_init(void)
 		}
 		data->irq = client->irq =
 			gpio_to_irq(data->platform_data->irq_gpio);
+
+#ifdef VENDOR_EDIT
+		error = gpio_direction_input(data->platform_data->irq_gpio);
+		if (error < 0) {
+			pr_err("%s: gpio_direction_input, err=%d", __func__,
+				error);
+			return error;
+		}
+#endif
 	} else {
 		dev_err(&client->dev, "irq gpio not provided\n");
 	}
@@ -2511,8 +2785,358 @@ static int sensor_parse_dt(struct device *dev,
 
 	pdata->default_cal = of_property_read_bool(np, "avago,default-cal");
 
+#ifdef VENDOR_EDIT
+	rc = of_property_read_u32(np, "avago,als-gain", &tmp);
+	if (rc)
+		apds993x_als_gain = 100;
+	else
+		apds993x_als_gain = tmp;
+#endif
+
 	return 0;
 }
+
+#ifdef VENDOR_EDIT
+#ifdef APDS993X_ALSPS_DYNAMIC_THRESHOLD
+static void sample_work_func(struct work_struct *work)
+{
+	struct apds993x_data *data;
+	struct apds993x_platform_data *pdata;
+	struct i2c_client *client;
+	int ret;
+	int i;
+	uint16_t ps, als;
+
+	if (apds993x_i2c_client != NULL)
+		client = apds993x_i2c_client;
+	else {
+		printk(KERN_EMERG"%s:apds993x: sample fail because of global"
+			" pointer is NULL\n",__func__);
+		return;
+	}
+	data = i2c_get_clientdata(apds993x_i2c_client);
+	if (data == NULL)
+		return;
+	pdata = data->platform_data;
+
+	if ((data->enable_als_sensor == 0) && (data->enable_ps_sensor == 0)) {
+		/* Power on and initalize the device */
+			if (pdata->power_on)
+				pdata->power_on(true);
+
+			ret = apds993x_init_device(client);
+			if (ret) {
+				dev_err(&client->dev,
+					"Failed to init apds993x\n");
+				return;
+			}
+		}
+
+		if (data->enable_ps_sensor == 0)
+			apds993x_set_enable(client, 0x07);
+
+		msleep(10);
+		for (i = 0; i < 10; i++) {
+			als = i2c_smbus_read_word_data(client,
+					CMD_WORD|APDS993X_CH0DATAL_REG);
+			if (als < 8000) {
+				ps = i2c_smbus_read_word_data(client,
+						CMD_WORD|APDS993X_PDATAL_REG);
+
+				if ((ps != 0) &&
+				    ((ps_min == 0) || (ps_min > ps)))
+					ps_min = ps;
+			}
+			msleep(10);
+		}
+
+		if (ps_min > ps_adjust_max)
+			ps_min = 0;
+
+		if (data->enable_ps_sensor == 0)
+			apds993x_set_enable(client, 0x0);
+
+		if ((data->enable_als_sensor == 0) &&
+		    (data->enable_ps_sensor == 0) && (pdata->power_on))
+			pdata->power_on(false);
+}
+#endif
+
+static ssize_t apds993x_alsps_enable_store(struct kobject *kobj,
+		struct kobj_attribute *attr, const char *buf, size_t count)
+{
+	u32 data[2];
+	int ret = -EINVAL;
+
+	sscanf(buf, "%x %x", (unsigned int *)&data[0],(unsigned int *)&data[1]);
+	switch (data[0]) {
+		case SENSOR_TYPE_LIGHT:
+			ret = apds993x_enable_als_sensor(apds993x_i2c_client,
+					(int)data[1]);
+			if (ret < 0)
+				pr_err("%s: %s als fail\n",__func__,
+					(data[1] == 1) ? "enable" : "disable");
+			break;
+
+		case SENSOR_TYPE_PROXIMITY:
+			ret = apds993x_enable_ps_sensor(apds993x_i2c_client,
+					(int)data[1]);
+			if (ret < 0)
+				pr_err("%s: %s prox fail\n",__func__,
+					(data[1] == 1) ? "enable" : "disable");
+			break;
+
+		default:
+			ret = -EINVAL;
+			pr_err("%s: this type of sensor is not supported\n",
+				__func__);
+			break;
+	}
+
+	if (ret == 0)
+		pr_info("%s: Enable sensor SUCCESS\n",__func__);
+
+	return count;
+}
+
+static ssize_t apds993x_alsps_enable_show(struct kobject *kobj,
+		struct kobj_attribute *attr, char *buf)
+{
+	return snprintf(buf, PAGE_SIZE, "als:%d  prox:%d\n",
+		pdev_data->enable_als_sensor, pdev_data->enable_ps_sensor);
+}
+
+static struct kobj_attribute enable = {
+	.attr = {"enable", 0664},
+	.show = apds993x_alsps_enable_show,
+	.store = apds993x_alsps_enable_store,
+};
+
+static ssize_t apds993x_prox_raw_show(struct kobject *kobj,
+		struct kobj_attribute *attr, char *buf)
+{
+	uint16_t ps_data;
+	ps_data = i2c_smbus_read_word_data(apds993x_i2c_client,
+			CMD_WORD|APDS993X_PDATAL_REG);
+
+	return snprintf(buf, PAGE_SIZE, "%d\n", ps_data);
+}
+
+static struct kobj_attribute prox_raw = {
+	.attr = {"prox_raw", 0444},
+	.show = apds993x_prox_raw_show,
+};
+
+static ssize_t apds993x_als_raw_show(struct kobject *kobj,
+		struct kobj_attribute *attr, char *buf)
+{
+	int ch0data, ch1data, pdata;
+	int luxValue = 0;
+
+	ch0data = i2c_smbus_read_word_data(apds993x_i2c_client,
+			CMD_WORD|APDS993X_CH0DATAL_REG);
+	ch1data = i2c_smbus_read_word_data(apds993x_i2c_client,
+			CMD_WORD|APDS993X_CH1DATAL_REG);
+	pdata = i2c_smbus_read_word_data(apds993x_i2c_client,
+			CMD_WORD|APDS993X_PDATAL_REG);
+
+	luxValue = LuxCalculation(apds993x_i2c_client, ch0data, ch1data);
+
+	return snprintf(buf, PAGE_SIZE, "%d\n", luxValue);
+}
+
+static struct kobj_attribute als_raw =
+{
+	.attr = {"als_raw", 0444},
+	.show = apds993x_als_raw_show,
+};
+
+#ifdef APDS993X_ALSPS_DYNAMIC_THRESHOLD
+static ssize_t apds993x_name_show(struct kobject *kobj,
+		struct kobj_attribute *attr, char *buf)
+{
+	return snprintf(buf, PAGE_SIZE, "%s", "apds993x");
+}
+
+static struct kobj_attribute name = {
+	.attr = {"name", 0444},
+	.show = apds993x_name_show,
+};
+
+static ssize_t apds993x_high_light_show(struct kobject *kobj,
+		struct kobj_attribute *attr, char *buf)
+{
+	int ch0data = i2c_smbus_read_word_data(apds993x_i2c_client,
+			CMD_WORD|APDS993X_CH0DATAL_REG);
+	return snprintf(buf, PAGE_SIZE, "%d\n", (ch0data < 8000) ? 0 : 1);
+}
+
+static struct kobj_attribute is_high_light = {
+	.attr = {"is_high_light", 0444},
+	.show = apds993x_high_light_show,
+};
+
+static ssize_t apds993x_ps_enable_show(struct kobject *kobj,
+		struct kobj_attribute *attr, char *buf)
+{
+	struct apds993x_data *data = i2c_get_clientdata(apds993x_i2c_client);
+	return snprintf(buf, PAGE_SIZE, "%d", data->enable_ps_sensor);
+}
+
+static struct kobj_attribute ps_enable = {
+	.attr = {"ps_enable", 0444},
+	.show = apds993x_ps_enable_show,
+};
+
+static ssize_t apds993x_alsps_ps_thd_store(struct kobject *kobj,
+		struct kobj_attribute *attr, const char *buf, size_t count)
+{
+	int ret;
+	u32 data[2];
+	struct apds993x_data *p_data = i2c_get_clientdata(apds993x_i2c_client);
+
+	if (sscanf(buf, "%d %d", (unsigned int *)&data[0],
+			(unsigned int *)&data[1]) == 2) {
+		p_data->piht = data[1];
+		p_data->pilt = data[0];
+		if (p_data->ps_detection == 0) {
+			ret = i2c_smbus_write_word_data(apds993x_i2c_client,
+					CMD_WORD|APDS993X_PILTL_REG, 0);
+			if (ret) {
+				pr_err("%s: write i2c error, ret=%d\n",
+					__func__, ret);
+				return count;
+			}
+
+			ret = i2c_smbus_write_word_data(apds993x_i2c_client,
+					CMD_WORD|APDS993X_PIHTL_REG,
+					p_data->piht);
+			if (ret) {
+				pr_err("%s: write i2c error, ret=%d\n",
+					__func__, ret);
+				return count;
+			}
+		} else {
+			ret = i2c_smbus_write_word_data(apds993x_i2c_client,
+					CMD_WORD|APDS993X_PILTL_REG,
+					p_data->pilt);
+			if (ret) {
+				pr_err("%s: write i2c error, ret=%d\n",
+					__func__, ret);
+				return count;
+			}
+			ret = i2c_smbus_write_word_data(apds993x_i2c_client,
+					CMD_WORD|APDS993X_PIHTL_REG, 1023);
+			if (ret) {
+				pr_err("%s: write i2c error, ret=%d\n",
+					__func__, ret);
+				return count;
+			}
+		}
+	} else
+		pr_err("%s bad buf format\n", __func__);
+
+	return count;
+}
+
+static struct kobj_attribute ps_thd = {
+	.attr = {"ps_thd", 0220},
+	.store = apds993x_alsps_ps_thd_store,
+};
+
+static ssize_t apds993x_alsps_ps_min_store(struct kobject *kobj,
+		struct kobj_attribute *attr, const char *buf, size_t count)
+{
+	u32 data;
+	if (sscanf(buf, "%d", (unsigned int *)&data) == 1)
+		ps_min = data;
+	else
+		pr_err("%s bad buf format\n", __func__);
+
+	return count;
+}
+
+static ssize_t apds993x_alsps_ps_min_show(struct kobject *kobj,
+		struct kobj_attribute *attr, char *buf)
+{
+	return snprintf(buf, PAGE_SIZE, "%d\n", ps_min);
+}
+
+static struct kobj_attribute ps_min_val = {
+	.attr = {"ps_min", 0664},
+	.show = apds993x_alsps_ps_min_show,
+	.store = apds993x_alsps_ps_min_store,
+};
+
+static ssize_t apds993x_alsps_algo_info_store(struct kobject *kobj,
+		struct kobj_attribute *attr, const char *buf, size_t count)
+{
+	u32 data[5];
+	if (sscanf(buf, "%d %d %d %d %d", (unsigned int *)&data[0],
+		(unsigned int *)&data[1], (unsigned int *)&data[2],
+		(unsigned int *)&data[3], (unsigned int *)&data[4]) == 5) {
+		ps_thd_low_highlight = data[0];
+		ps_thd_high_highlight = data[1];
+		ps_adjust_max = data[2];
+		dirty_adjust_low_thd = data[3];
+		dirty_adjust_high_thd = data[4];
+	} else
+		pr_err("%s bad buf format\n", __func__);
+
+	return count;
+}
+
+static struct kobj_attribute algo_info = {
+	.attr = {"algo_info", 0220},
+	.store = apds993x_alsps_algo_info_store,
+};
+
+static ssize_t apds993x_algo_wakeup_show(struct kobject *kobj,
+		struct kobj_attribute *attr, char *buf)
+{
+	struct apds993x_data *data = i2c_get_clientdata(apds993x_i2c_client);
+	wait_event_interruptible(enable_wq, data->enable_ps_sensor);
+	return snprintf(buf, PAGE_SIZE, "%d\n", data->enable_ps_sensor);
+}
+
+static struct kobj_attribute algo_wakeup = {
+	.attr = {"algo_wakeup", 0444},
+	.show = apds993x_algo_wakeup_show,
+};
+
+static ssize_t apds993x_far_status_show(struct kobject *kobj,
+		struct kobj_attribute *attr, char *buf)
+{
+	struct apds993x_data *data = i2c_get_clientdata(apds993x_i2c_client);
+	return snprintf(buf, PAGE_SIZE, "%d\n", data->ps_detection ? 0 : 1);
+}
+
+static struct kobj_attribute far_status = {
+	.attr = {"far_status", 0444},
+	.show = apds993x_far_status_show,
+};
+#endif
+
+static const struct attribute *apds993x_ftm_attrs[] =
+{
+	&enable.attr,
+	&prox_raw.attr,
+	&als_raw.attr,
+#ifdef APDS993X_ALSPS_DYNAMIC_THRESHOLD
+	&name.attr,
+	&is_high_light.attr,
+	&ps_enable.attr,
+	&ps_thd.attr,
+	&far_status.attr,
+	&ps_min_val.attr,
+	&algo_wakeup.attr,
+	&algo_info.attr,
+#endif
+	NULL
+};
+
+static struct dev_ftm apds993x_ftm;
+#endif
 
 /*
  * I2C init/probing/exit functions
@@ -2579,6 +3203,11 @@ static int apds993x_probe(struct i2c_client *client,
 	data->client = client;
 	apds993x_i2c_client = client;
 
+#ifdef VENDOR_EDIT
+	wake_lock_init(&data->ps_wakelock, WAKE_LOCK_SUSPEND,
+			"apds_input_wakelock");
+#endif
+
 	/* initialize pinctrl */
 	err = apds993x_pinctrl_init(data);
 	if (err) {
@@ -2608,9 +3237,15 @@ static int apds993x_probe(struct i2c_client *client,
 	data->enable_als_sensor = 0;	// default to 0
 	data->enable_ps_sensor = 0;	// default to 0
 	atomic_set(&data->ps_cal_status, 0);
+#ifdef VENDOR_EDIT
+	data->als_poll_delay = 50;	// default to 50ms
+	data->als_atime_index = APDS993X_ALS_RES_19456;	// 50ms ATIME
+	data->als_again_index = APDS993X_ALS_GAIN_16X;	// 16x AGAIN
+#else
 	data->als_poll_delay = 100;	// default to 100ms
 	data->als_atime_index = APDS993X_ALS_RES_37888;	// 100ms ATIME
 	data->als_again_index = APDS993X_ALS_GAIN_8X;	// 8x AGAIN
+#endif
 	data->als_reduce = 0;	// no ALS 6x reduction
 	data->als_prev_lux = 0;
 
@@ -2757,6 +3392,22 @@ static int apds993x_probe(struct i2c_client *client,
 
 	pr_info("%s: Support ver. %s enabled\n", __func__, DRIVER_VERSION);
 
+#ifdef VENDOR_EDIT
+#ifdef APDS993X_ALSPS_DYNAMIC_THRESHOLD
+	INIT_DELAYED_WORK(&sample_ps_work, sample_work_func);
+	queue_delayed_work(apds993x_workqueue, &sample_ps_work,
+			msecs_to_jiffies(1 * HZ));
+
+	init_waitqueue_head(&enable_wq);
+#endif
+
+	apds993x_ftm.name = "als_prox";
+	apds993x_ftm.i2c_client = data->client;
+	apds993x_ftm.attrs = apds993x_ftm_attrs;
+	apds993x_ftm.priv_data = data;
+	register_single_dev_ftm(&apds993x_ftm);
+#endif
+
 	return 0;
 
 exit_unregister_als_class:
@@ -2777,6 +3428,9 @@ exit_uninit:
 	if (pdata->exit)
 		pdata->exit();
 exit_kfree:
+#ifdef VENDOR_EDIT
+	wake_lock_destroy(&data->ps_wakelock);
+#endif
 	kfree(data);
 	pdev_data = NULL;
 exit:
@@ -2797,6 +3451,10 @@ static int apds993x_remove(struct i2c_client *client)
 	sysfs_remove_group(&client->dev.kobj, &apds993x_attr_group);
 
 	free_irq(client->irq, data);
+
+#ifdef VENDOR_EDIT
+	wake_lock_destroy(&data->ps_wakelock);
+#endif
 
 	if (pdata->power_on)
 		pdata->power_on(false);
