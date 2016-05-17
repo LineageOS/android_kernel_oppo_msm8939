@@ -259,7 +259,7 @@
 
 	i2c@78b6000 { /* BLSP1 QUP2 */
 		avago@39 { /* Ambient light and proximity sensor */
-			compatible = "avago,apds9900_ex";
+			compatible = "avago,apds9900";
 			reg = <0x39>;
 			pinctrl-names = "default","sleep";
 			pinctrl-0 = <&apds99xx_default>;
