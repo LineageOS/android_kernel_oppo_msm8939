@@ -272,7 +272,6 @@ exit:
 
 static void mmc3416x_poll(struct work_struct *work)
 {
-	ktime_t ts = ktime_get_boottime();
 	int ret;
 	s8 *tmp;
 	struct mmc3416x_vec vec;
@@ -296,10 +295,6 @@ static void mmc3416x_poll(struct work_struct *work)
 	input_report_abs(memsic->idev, ABS_X, report.x);
 	input_report_abs(memsic->idev, ABS_Y, report.y);
 	input_report_abs(memsic->idev, ABS_Z, report.z);
-	input_event(memsic->idev, EV_SYN, SYN_TIME_SEC,
-			ktime_to_timespec(ts).tv_sec);
-	input_event(memsic->idev, EV_SYN, SYN_TIME_NSEC,
-			ktime_to_timespec(ts).tv_nsec);
 	input_sync(memsic->idev);
 
 exit:
