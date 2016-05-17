@@ -183,10 +183,6 @@ enum power_supply_property {
 	POWER_SUPPLY_PROP_BATTERY_CHARGER_ENABLE,//dengnw add for charger enable for mmi test
 	POWER_SUPPLY_PROP_BATTERY_NOTIFY,		//dengnw add for charging status
 	//#endif
-	//#ifdef VENDOR_EDIT
-	//Fuchun.Liao@Mobile.BSP.CHG 2015-02-13 add for otg_switch in 14043
-	POWER_SUPPLY_PROP_OTG_SWITCH,
-	//#endif
 //#ifdef VENDOR_EDIT
 //Fuchun.Liao@Mobile.BSP.CHG 2015-02-13 add for otg_switch in 14043
 	POWER_SUPPLY_PROP_POWER_OFF,
