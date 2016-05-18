@@ -35,6 +35,7 @@
 			synaptics,max-y-point = <1745>;
 			vcc_i2c_1v8-supply = <&pm8916_l5>;
 			/* huqiao@EXP.BasicDrv.Basic add for 15062 TP */
+			synaptics,black-gesture-enabled;
 			//synaptics,glove-mode-enabled;
 			synaptics,i2c-pull-up;
 			synaptics,power-down;
