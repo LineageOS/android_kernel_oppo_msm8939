@@ -1916,14 +1916,14 @@ static int apds9921_probe(struct i2c_client *client,
 	printk("%s interrupt is hooked\n", __func__);
 
 	/* Register to Input Device */
-	data->input_dev_als = input_allocate_device();
+	data->input_dev_als = devm_input_allocate_device(&client->dev);
 	if (!data->input_dev_als) {
 		err = -ENOMEM;
 		printk("Failed to allocate input device als\n");
 		goto exit_free_irq;
 	}
 
-	data->input_dev_ps = input_allocate_device();
+	data->input_dev_ps = devm_input_allocate_device(&client->dev);
 	if (!data->input_dev_ps) {
 		err = -ENOMEM;
 		printk("Failed to allocate input device ps\n");
@@ -1952,7 +1952,7 @@ static int apds9921_probe(struct i2c_client *client,
 		err = -ENOMEM;
 		printk("Unable to register input device ps: %s\n",
 				data->input_dev_ps->name);
-		goto exit_unregister_dev_als;
+		goto exit_free_dev_ps;
 	}
 
 #ifdef APDS9921_ALSPS_DYNAMIC_THRESHOLD
@@ -1975,7 +1975,7 @@ static int apds9921_probe(struct i2c_client *client,
 	err = sensors_classdev_register(&data->input_dev_als->dev, &data->als_cdev);
 	if (err) {
 		pr_err("%s: Unable to register to sensors class: %d\n",__func__, err);
-		goto exit_unregister_dev_ps;
+		goto exit_free_dev_ps;
 	}
 
 	err = sensors_classdev_register(&data->input_dev_ps->dev, &data->ps_cdev);
@@ -2006,10 +2006,6 @@ exit_unregister_ps_ioctl:
 	sensors_classdev_unregister(&data->ps_cdev);
 exit_unregister_als_ioctl:
 	sensors_classdev_unregister(&data->als_cdev);
-exit_unregister_dev_ps:
-	input_unregister_device(data->input_dev_ps);
-exit_unregister_dev_als:
-	input_unregister_device(data->input_dev_als);
 exit_free_dev_ps:
 exit_free_dev_als:
 exit_free_irq:
@@ -2035,9 +2031,6 @@ static int apds9921_remove(struct i2c_client *client)
 	apds9921_dd_set_main_ctrl(client, 0);
 
 	sysfs_remove_group(&client->dev.kobj, &apds9921_attr_group);
-
-	input_unregister_device(data->input_dev_ps);
-	input_unregister_device(data->input_dev_als);
 
 	free_irq(data->irq, client);
 
