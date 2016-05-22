@@ -2121,7 +2121,7 @@ static struct i2c_driver apds9921_driver = {
 
 static int __init apds9921_init(void)
 {
-	apds_workqueue = create_workqueue("proximity_als");
+	apds_workqueue = create_freezable_workqueue("proximity_als");
 
 	if (!apds_workqueue)
 		return -ENOMEM;
