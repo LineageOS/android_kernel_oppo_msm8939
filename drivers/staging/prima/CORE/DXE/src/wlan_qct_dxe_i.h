@@ -635,6 +635,7 @@ typedef struct
    wpt_uint32                      numDesc;
    wpt_uint32                      numFreeDesc;
    wpt_uint32                      numRsvdDesc;
+   wpt_uint32                      desc_write_fail_count;
    wpt_uint32                      maxFrameSize;
    wpt_uint32                      numFragmentCurrentChain;
    wpt_uint32                      numFrameBeforeInt;
@@ -692,6 +693,13 @@ typedef struct
 #endif
    wpt_timer                       dxeSSRTimer;
 } WLANDXE_CtrlBlkType;
+
+typedef struct
+{
+   u64                             *rxIntDisableReturn;
+   wpt_uint8                       rxIntChanlSrc;
+   wpt_uint8                       txCmpIntChanlSrc;
+} WLANDXE_EnvInformation;
 
 /*==========================================================================
   @  Function Name 

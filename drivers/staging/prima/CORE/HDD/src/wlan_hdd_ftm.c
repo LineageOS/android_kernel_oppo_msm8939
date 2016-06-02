@@ -89,9 +89,7 @@
 #define FTM_CHAIN_SEL_R0_ON         1
 #define FTM_CHAIN_SEL_T0_ON         2
 #define FTM_CHAIN_SEL_R0_T0_ON      3
-#define FTM_CHAIN_SEL_ANTENNA_0     7
-#define FTM_CHAIN_SEL_ANTENNA_1     8
-#define FTM_CHAIN_SEL_MAX           8
+#define FTM_CHAIN_SEL_MAX           3
 
 #define WCNSS_TXFIR_OFFSET          0x00018000
 
@@ -1216,14 +1214,6 @@ static VOS_STATUS wlan_ftm_priv_enable_chain(hdd_adapter_t *pAdapter,v_U16_t cha
 
         case FTM_CHAIN_SEL_T0_ON:
             chainSelect = PHY_CHAIN_SEL_T0_ON;
-            break;
-
-        case FTM_CHAIN_SEL_ANTENNA_0:
-            chainSelect = PHY_CHAIN_SEL_ANT_0;
-            break;
-
-        case FTM_CHAIN_SEL_ANTENNA_1:
-            chainSelect = PHY_CHAIN_SEL_ANT_1;
             break;
     }
 
@@ -5060,6 +5050,13 @@ static int iw_ftm_setchar_getnone(struct net_device *dev, struct iw_request_info
     hdd_adapter_t *pAdapter;
     struct iw_point s_priv_data;
 
+    if (!capable(CAP_NET_ADMIN))
+    {
+        VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
+                  FL("permission check failed"));
+        return -EPERM;
+    }
+
     ret =0;
     /* helper function to get iwreq_data with compat handling. */
     if (hdd_priv_get_data(&s_priv_data, wrqu))
@@ -5563,6 +5560,13 @@ static int iw_ftm_set_var_ints_getnone(struct net_device *dev, struct iw_request
     hdd_adapter_t *pAdapter = (netdev_priv(dev));
     int sub_cmd = wrqu->data.flags;
     int *value = (int*)wrqu->data.pointer;
+
+    if (!capable(CAP_NET_ADMIN))
+    {
+         VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
+            FL("permission check failed"));
+         return -EPERM;
+    }
 
     if(wrqu->data.length != 2)
     {

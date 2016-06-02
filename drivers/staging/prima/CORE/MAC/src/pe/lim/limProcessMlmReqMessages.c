@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2015 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2014 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -36,7 +36,7 @@
  *
  */
 #include "palTypes.h"
-#include "wniCfg.h"
+#include "wniCfgSta.h"
 #include "aniGlobal.h"
 #include "sirApi.h"
 #include "sirParams.h"
@@ -88,6 +88,8 @@ static void limProcessAuthFailureTimeout(tpAniSirGlobal);
 static void limProcessAuthRspTimeout(tpAniSirGlobal, tANI_U32);
 static void limProcessAssocFailureTimeout(tpAniSirGlobal, tANI_U32);
 static void limProcessPeriodicJoinProbeReqTimer(tpAniSirGlobal);
+static void limProcessAuthRetryTimer(tpAniSirGlobal);
+
 
 static void limProcessMlmRemoveKeyReq(tpAniSirGlobal pMac, tANI_U32 * pMsgBuf);
 void 
@@ -158,6 +160,9 @@ limProcessMlmReqMessages(tpAniSirGlobal pMac, tpSirMsgQ Msg)
                                             limProcessInsertSingleShotNOATimeout(pMac); break;
         case SIR_LIM_CONVERT_ACTIVE_CHANNEL_TO_PASSIVE:
                                             limConvertActiveChannelToPassiveChannel(pMac); break;
+        case SIR_LIM_AUTH_RETRY_TIMEOUT:
+                                            limProcessAuthRetryTimer(pMac);
+                                            break;
         case SIR_LIM_DISASSOC_ACK_TIMEOUT:  limProcessDisassocAckTimeout(pMac); break;
         case SIR_LIM_DEAUTH_ACK_TIMEOUT:    limProcessDeauthAckTimeout(pMac); break;
         case LIM_MLM_ADDBA_REQ:             limProcessMlmAddBAReq( pMac, Msg->bodyptr ); break;
@@ -266,12 +271,9 @@ limSuspendLink(tpAniSirGlobal pMac, tSirLinkTrafficCheck trafficCheck,  SUSPEND_
       return;
    }
 
-   if( pMac->lim.gpLimSuspendCallback ||
-       pMac->lim.gLimSystemInScanLearnMode )
+   if( pMac->lim.gpLimSuspendCallback )
    {
-      limLog( pMac, LOGE, FL("Something is wrong, SuspendLinkCbk:%p "
-              "IsSystemInScanLearnMode:%d"), pMac->lim.gpLimSuspendCallback,
-               pMac->lim.gLimSystemInScanLearnMode );
+      limLog( pMac, LOGE, "%s:%d: gLimSuspendLink callback is not NULL...something is wrong", __func__, __LINE__ );
       callback( pMac, eHAL_STATUS_FAILURE, data ); 
       return;
    }
@@ -663,12 +665,6 @@ void limCovertChannelScanType(tpAniSirGlobal pMac,tANI_U8 channelNum, tANI_BOOLE
     if (len > WNI_CFG_SCAN_CONTROL_LIST_LEN)
     {
         limLog(pMac, LOGE, FL("Invalid scan control list length:%d"), len);
-        return ;
-    }
-    if (pMac->fActiveScanOnDFSChannels)
-    {
-        limLog(pMac, LOG1, FL("DFS feature triggered,"
-                              "block scan type conversion"));
         return ;
     }
     for (i=0; (i+1) < len; i+=2)
@@ -1515,18 +1511,18 @@ void limSetOemDataReqMode(tpAniSirGlobal pMac, eHalStatus status, tANI_U32* data
     if(status != eHAL_STATUS_SUCCESS)
     {
         limLog(pMac, LOGE, FL("OEM_DATA: failed in suspend link"));
-        /* If failed to suspend the link, there is no need
-         * to resume link. Return failure.
-         */
-        limSetOemDataReqModeFailed(pMac, status, data);
+        goto error;
     }
     else
     {
         PELOGE(limLog(pMac, LOGE, FL("OEM_DATA: Calling limSendHalOemDataReq"));)
         limSendHalOemDataReq(pMac);
+        return;
     }
 
-    return;
+error:
+    limResumeLink(pMac, limSetOemDataReqModeFailed, NULL);
+    return ;
 } /*** end limSendHalOemDataReq() ***/
 
 #endif //FEATURE_OEM_DATA_SUPPORT
@@ -2287,12 +2283,6 @@ limProcessMlmJoinReq(tpAniSirGlobal pMac, tANI_U32 *pMsgBuf)
           //suspend link
           limLog(pMac, LOG1, FL("Suspend link as LimSession on sessionid %d"
           "is off channel"),sessionId);
-          if (limIsLinkSuspended(pMac))
-          {
-            limLog(pMac, LOGE, FL("Link is already suspended for some other"
-                   " reason. Return failure on sessionId:%d"), sessionId);
-            goto error;
-          }
           limSuspendLink(pMac, eSIR_DONT_CHECK_LINK_TRAFFIC_BEFORE_SCAN, 
                    limProcessMlmPostJoinSuspendLink, (tANI_U32*)psessionEntry );
         }
@@ -2314,26 +2304,31 @@ limProcessMlmJoinReq(tpAniSirGlobal pMac, tANI_U32 *pMsgBuf)
     else
     {
         /**
-         * Should not have received JOIN req in states other than
-         * Idle state or on AP.
-         * Return join confirm with invalid parameters code.
-         */
+              * Should not have received JOIN req in states other than
+              * Idle state or on AP.
+              * Return join confirm with invalid parameters code.
+              */
+        PELOGE(limLog(pMac, LOGE,
+               FL("Unexpected Join request for role %d state %d"),
+               psessionEntry->limSystemRole,
+               psessionEntry->limMlmState);)
+        limPrintMlmState(pMac, LOGE, psessionEntry->limMlmState);
+        
         limLog(pMac, LOGE,
                FL("SessionId:%d Unexpected Join request for role %d state %d "),
                psessionEntry->peSessionId,psessionEntry->limSystemRole,
                psessionEntry->limMlmState);
-        limPrintMlmState(pMac, LOGE, psessionEntry->limMlmState);
     }
 
 error: 
-    vos_mem_free(pMsgBuf);
-    if (psessionEntry != NULL)
-        psessionEntry->pLimMlmJoinReq = NULL;
 
-    mlmJoinCnf.resultCode = eSIR_SME_RESOURCES_UNAVAILABLE;
-    mlmJoinCnf.sessionId = sessionId;
-    mlmJoinCnf.protStatusCode = eSIR_MAC_UNSPEC_FAILURE_STATUS;
-    limPostSmeMessage(pMac, LIM_MLM_JOIN_CNF, (tANI_U32 *) &mlmJoinCnf);
+        
+        mlmJoinCnf.resultCode = eSIR_SME_RESOURCES_UNAVAILABLE;
+        mlmJoinCnf.sessionId = sessionId;
+        mlmJoinCnf.protStatusCode = eSIR_MAC_UNSPEC_FAILURE_STATUS;
+        limPostSmeMessage(pMac, LIM_MLM_JOIN_CNF, (tANI_U32 *) &mlmJoinCnf);
+
+
 } /*** limProcessMlmJoinReq() ***/
 
 
@@ -2493,14 +2488,17 @@ limProcessMlmAuthReq(tpAniSirGlobal pMac, tANI_U32 *pMsgBuf)
                                   (tANI_U8) pMac->lim.gpLimMlmAuthReq->authType;
         authFrameBody.authTransactionSeqNumber = SIR_MAC_AUTH_FRAME_1;
         authFrameBody.authStatusCode = 0;
+        pMac->authAckStatus = LIM_AUTH_ACK_NOT_RCD;
         limSendAuthMgmtFrame(pMac,
                              &authFrameBody,
                              pMac->lim.gpLimMlmAuthReq->peerMacAddr,
-                             LIM_NO_WEP_IN_FC,psessionEntry);
+                             LIM_NO_WEP_IN_FC, psessionEntry, eSIR_TRUE);
 
         //assign appropriate sessionId to the timer object
         pMac->lim.limTimers.gLimAuthFailureTimer.sessionId = sessionId;
- 
+        /* assign appropriate sessionId to the timer object */
+        pMac->lim.limTimers.gLimPeriodicAuthRetryTimer.sessionId = sessionId;
+        limDeactivateAndChangeTimer(pMac, eLIM_AUTH_RETRY_TIMER);
         // Activate Auth failure timer
         MTRACE(macTrace(pMac, TRACE_CODE_TIMER_ACTIVATE, psessionEntry->peSessionId, eLIM_AUTH_FAIL_TIMER));
         if (tx_timer_activate(&pMac->lim.limTimers.gLimAuthFailureTimer)
@@ -2513,7 +2511,17 @@ limProcessMlmAuthReq(tpAniSirGlobal pMac, tANI_U32 *pMsgBuf)
             // Cleanup as if auth timer expired
             limProcessAuthFailureTimeout(pMac);
         }
-
+        else
+        {
+            MTRACE(macTrace(pMac, TRACE_CODE_TIMER_ACTIVATE,
+                    psessionEntry->peSessionId, eLIM_AUTH_RETRY_TIMER));
+            // Activate Auth Retry timer
+            if (tx_timer_activate(&pMac->lim.limTimers.gLimPeriodicAuthRetryTimer)
+                                                                   != TX_SUCCESS)
+            {
+               limLog(pMac, LOGP, FL("could not activate Auth Retry timer"));
+            }
+        }
         return;
     }
     else
@@ -2844,6 +2852,9 @@ limProcessMlmDisassocReqNtf(tpAniSirGlobal pMac, eHalStatus suspendStatus, tANI_
     tLimMlmDisassocCnf       mlmDisassocCnf;
     tpPESession              psessionEntry;
     extern tANI_BOOLEAN     sendDisassocFrame;
+    tSirSmeDisassocRsp      *pSirSmeDisassocRsp;
+    tANI_U32                *pMsg;
+    tANI_U8                 *pBuf;
 
     if(eHAL_STATUS_SUCCESS != suspendStatus)
     {
@@ -2939,11 +2950,37 @@ limProcessMlmDisassocReqNtf(tpAniSirGlobal pMac, eHalStatus suspendStatus, tANI_
            "or in some transit state, Addr= "
            MAC_ADDRESS_STR),MAC_ADDR_ARRAY(pMlmDisassocReq->peerMacAddr));)
 
-        /// Prepare and Send LIM_MLM_DISASSOC_CNF
+        /*
+         * Disassociation response due to
+         * host triggered disassociation
+         */
 
-        mlmDisassocCnf.resultCode = eSIR_SME_INVALID_PARAMETERS;
+         pSirSmeDisassocRsp = vos_mem_malloc(sizeof(tSirSmeDisassocRsp));
+         if ( NULL == pSirSmeDisassocRsp )
+         {
+            // Log error
+             limLog(pMac, LOGP,
+                FL("call to AllocateMemory failed for eWNI_SME_DISASSOC_RSP"));
+             return;
+         }
+         limLog(pMac, LOG1, FL("send eWNI_SME_DISASSOC_RSP with "
+                "retCode: %d for "MAC_ADDRESS_STR),eSIR_SME_DEAUTH_STATUS,
+                 MAC_ADDR_ARRAY(pMlmDisassocReq->peerMacAddr));
+         pSirSmeDisassocRsp->messageType = eWNI_SME_DISASSOC_RSP;
+         pSirSmeDisassocRsp->length      = sizeof(tSirSmeDisassocRsp);
+         pSirSmeDisassocRsp->sessionId = pMlmDisassocReq->sessionId;
+         pSirSmeDisassocRsp->transactionId = 0;
+         pSirSmeDisassocRsp->statusCode = eSIR_SME_DEAUTH_STATUS;
 
-        goto end;
+         pBuf  = (tANI_U8 *) pSirSmeDisassocRsp->peerMacAddr;
+         vos_mem_copy( pBuf, pMlmDisassocReq->peerMacAddr, sizeof(tSirMacAddr));
+
+         pMsg = (tANI_U32*) pSirSmeDisassocRsp;
+
+         limSendSmeDisassocDeauthNtf( pMac, eHAL_STATUS_SUCCESS,
+                                                (tANI_U32*) pMsg );
+         return;
+
     }
 
     //pStaDs->mlmStaContext.rxPurgeReq = 1;
@@ -3167,6 +3204,9 @@ limProcessMlmDeauthReqNtf(tpAniSirGlobal pMac, eHalStatus suspendStatus, tANI_U3
     tLimMlmDeauthReq        *pMlmDeauthReq;
     tLimMlmDeauthCnf        mlmDeauthCnf;
     tpPESession             psessionEntry;
+    tSirSmeDeauthRsp        *pSirSmeDeauthRsp;
+    tANI_U8                 *pBuf;
+    tANI_U32                *pMsg;
 
 
     if(eHAL_STATUS_SUCCESS != suspendStatus)
@@ -3348,11 +3388,38 @@ limProcessMlmDeauthReqNtf(tpAniSirGlobal pMac, eHalStatus suspendStatus, tANI_U3
            FL("received MLM_DEAUTH_REQ for STA that either has no context or in some transit state, Addr="
            MAC_ADDRESS_STR),MAC_ADDR_ARRAY(pMlmDeauthReq->peerMacAddr));)
 
-        /// Prepare and Send LIM_MLM_DEAUTH_CNF
+        /*
+         * Deauthentication response to host triggered
+         * deauthentication.
+         */
+        pSirSmeDeauthRsp = vos_mem_malloc(sizeof(tSirSmeDeauthRsp));
+        if ( NULL == pSirSmeDeauthRsp )
+        {
+            // Log error
+            limLog(pMac, LOGP,
+                   FL("call to AllocateMemory failed for eWNI_SME_DEAUTH_RSP"));
 
-        mlmDeauthCnf.resultCode    = eSIR_SME_INVALID_PARAMETERS;
+            return;
+        }
+        limLog(pMac, LOG1, FL("send eWNI_SME_DEAUTH_RSP with "
+               "retCode: %d for"MAC_ADDRESS_STR),eSIR_SME_DEAUTH_STATUS,
+               MAC_ADDR_ARRAY(pMlmDeauthReq->peerMacAddr));
+        pSirSmeDeauthRsp->messageType = eWNI_SME_DEAUTH_RSP;
+        pSirSmeDeauthRsp->length  = sizeof(tSirSmeDeauthRsp);
+        pSirSmeDeauthRsp->statusCode = eSIR_SME_DEAUTH_STATUS;
+        pSirSmeDeauthRsp->sessionId = pMlmDeauthReq->sessionId;
+        pSirSmeDeauthRsp->transactionId = 0;
 
-        goto end;
+        pBuf  = (tANI_U8 *) pSirSmeDeauthRsp->peerMacAddr;
+        vos_mem_copy( pBuf, pMlmDeauthReq->peerMacAddr, sizeof(tSirMacAddr));
+
+        pMsg = (tANI_U32*)pSirSmeDeauthRsp;
+
+        limSendSmeDisassocDeauthNtf( pMac, eHAL_STATUS_SUCCESS,
+                                            (tANI_U32*) pMsg );
+
+        return;
+
     }
 
     //pStaDs->mlmStaContext.rxPurgeReq     = 1;
@@ -4221,6 +4288,75 @@ static void limProcessPeriodicJoinProbeReqTimer(tpAniSirGlobal pMac)
     }
     return;
 } /*** limProcessPeriodicJoinProbeReqTimer() ***/
+
+/**
+ * limProcessAuthRetryTimer()
+ *
+ *FUNCTION:
+ * This function is called to process Auth Retry request
+ *  send during joining process.
+ *
+ *LOGIC:
+ *
+ *ASSUMPTIONS:
+ *
+ *NOTE:
+ *
+ * @param  pMac      Pointer to Global MAC structure
+ * @return None
+ */
+
+static void limProcessAuthRetryTimer(tpAniSirGlobal pMac)
+{
+    tpPESession  psessionEntry;
+    limLog(pMac, LOG1, FL(" ENTER "));
+    if ((psessionEntry =
+         peFindSessionBySessionId(pMac,
+            pMac->lim.limTimers.gLimPeriodicAuthRetryTimer.sessionId)) == NULL)
+    {
+        limLog(pMac, LOGE,FL("session does not exist for given SessionId : %d"),
+                     pMac->lim.limTimers.gLimPeriodicAuthRetryTimer.sessionId);
+        return;
+    }
+
+    if ((VOS_TRUE ==
+            tx_timer_running(&pMac->lim.limTimers.gLimAuthFailureTimer)) &&
+           (psessionEntry->limMlmState == eLIM_MLM_WT_AUTH_FRAME2_STATE) &&
+                      (LIM_AUTH_ACK_RCD_SUCCESS != pMac->authAckStatus))
+    {
+        tSirMacAuthFrameBody    authFrameBody;
+
+        /* Send the auth retry only in case we have received ack failure
+         * else just restart the retry timer.
+         */
+        if (LIM_AUTH_ACK_RCD_FAILURE == pMac->authAckStatus)
+        {
+          /// Prepare & send Authentication frame
+          authFrameBody.authAlgoNumber =
+                 (tANI_U8) pMac->lim.gpLimMlmAuthReq->authType;
+          authFrameBody.authTransactionSeqNumber = SIR_MAC_AUTH_FRAME_1;
+          authFrameBody.authStatusCode = 0;
+          limLog(pMac, LOGW, FL("Retry Auth "));
+          pMac->authAckStatus = LIM_AUTH_ACK_NOT_RCD;
+          limSendAuthMgmtFrame(pMac,
+                        &authFrameBody,
+                        pMac->lim.gpLimMlmAuthReq->peerMacAddr,
+                        LIM_NO_WEP_IN_FC, psessionEntry, eSIR_TRUE);
+        }
+
+        limDeactivateAndChangeTimer(pMac, eLIM_AUTH_RETRY_TIMER);
+
+        // Activate Auth Retry timer
+        if (tx_timer_activate(&pMac->lim.limTimers.gLimPeriodicAuthRetryTimer)
+                                                                != TX_SUCCESS)
+        {
+            limLog(pMac, LOGE,
+               FL("could not activate Auth Retry failure timer"));
+            return;
+        }
+    }
+    return;
+} /*** limProcessAuthRetryTimer() ***/
 
 
 /**

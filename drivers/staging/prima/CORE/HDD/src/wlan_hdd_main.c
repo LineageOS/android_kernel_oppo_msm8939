@@ -2119,35 +2119,6 @@ static int hdd_set_dwell_time(hdd_adapter_t *pAdapter, tANI_U8 *command)
 
     return ret;
 }
-static int hdd_cmd_setFccChannel(hdd_context_t *pHddCtx, tANI_U8 *cmd,
-                                                                 tANI_U8 cmd_len)
-{
-    tANI_U8 *value;
-    tANI_U8 fcc_constraint;
-
-    eHalStatus status;
-    int ret = 0;
-    value =  cmd + cmd_len + 1;
-
-    ret = kstrtou8(value, 10, &fcc_constraint);
-    if ((ret < 0) || (fcc_constraint > 1)) {
-       /*
-        *  If the input value is greater than max value of datatype,
-        *  then also it is a failure
-        */
-        hddLog(VOS_TRACE_LEVEL_ERROR,
-        "%s: value out of range", __func__);
-        return -EINVAL;
-    }
-
-    status = sme_handleSetFccChannel(pHddCtx->hHal, fcc_constraint);
-    if (status != eHAL_STATUS_SUCCESS)
-        ret = -EPERM;
-
-    return ret;
-}
-
-
 
 static int hdd_driver_command(hdd_adapter_t *pAdapter,
                               hdd_priv_data_t *ppriv_data)
@@ -2573,7 +2544,7 @@ static int hdd_driver_command(hdd_adapter_t *pAdapter,
            sme_UpdateIsFastRoamIniFeatureEnabled((tHalHandle)(pHddCtx->hHal), roamMode);
        }
        /* GETROAMMODE */
-       else if (strncmp(command, "GETROAMMODE", SIZE_OF_GETROAMMODE) == 0)
+       else if (strncmp(priv_data.buf, "GETROAMMODE", SIZE_OF_GETROAMMODE) == 0)
        {
 	   tANI_BOOLEAN roamMode = sme_getIsLfrFeatureEnabled((tHalHandle)(pHddCtx->hHal));
 	   char extra[32];
@@ -2638,7 +2609,7 @@ static int hdd_driver_command(hdd_adapter_t *pAdapter,
            pHddCtx->cfg_ini->RoamRssiDiff = roamRssiDiff;
            sme_UpdateRoamRssiDiff((tHalHandle)(pHddCtx->hHal), roamRssiDiff);
        }
-       else if (strncmp(command, "GETROAMDELTA", 12) == 0)
+       else if (strncmp(priv_data.buf, "GETROAMDELTA", 12) == 0)
        {
            tANI_U8 roamRssiDiff = sme_getRoamRssiDiff((tHalHandle)(pHddCtx->hHal));
            char extra[32];
@@ -3220,7 +3191,7 @@ static int hdd_driver_command(hdd_adapter_t *pAdapter,
            pHddCtx->cfg_ini->nProbes = nProbes;
            sme_UpdateRoamScanNProbes((tHalHandle)(pHddCtx->hHal), nProbes);
        }
-       else if (strncmp(command, "GETSCANNPROBES", 14) == 0)
+       else if (strncmp(priv_data.buf, "GETSCANNPROBES", 14) == 0)
        {
            tANI_U8 val = sme_getRoamScanNProbes((tHalHandle)(pHddCtx->hHal));
            char extra[32];
@@ -3277,7 +3248,7 @@ static int hdd_driver_command(hdd_adapter_t *pAdapter,
                sme_UpdateRoamScanHomeAwayTime((tHalHandle)(pHddCtx->hHal), homeAwayTime, eANI_BOOLEAN_TRUE);
            }
        }
-       else if (strncmp(command, "GETSCANHOMEAWAYTIME", 19) == 0)
+       else if (strncmp(priv_data.buf, "GETSCANHOMEAWAYTIME", 19) == 0)
        {
            tANI_U16 val = sme_getRoamScanHomeAwayTime((tHalHandle)(pHddCtx->hHal));
            char extra[32];
@@ -3385,7 +3356,7 @@ static int hdd_driver_command(hdd_adapter_t *pAdapter,
            pHddCtx->cfg_ini->isWESModeEnabled = wesMode;
            sme_UpdateWESMode((tHalHandle)(pHddCtx->hHal), wesMode);
        }
-       else if (strncmp(command, "GETWESMODE", 10) == 0)
+       else if (strncmp(priv_data.buf, "GETWESMODE", 10) == 0)
        {
            tANI_BOOLEAN wesMode = sme_GetWESMode((tHalHandle)(pHddCtx->hHal));
            char extra[32];
@@ -3482,60 +3453,7 @@ static int hdd_driver_command(hdd_adapter_t *pAdapter,
            pHddCtx->cfg_ini->isFastTransitionEnabled = ft;
            sme_UpdateFastTransitionEnabled((tHalHandle)(pHddCtx->hHal), ft);
        }
-       else if (strncmp(command, "SETDFSSCANMODE", 14) == 0)
-       {
-           tANI_U8 *value = command;
-           tANI_U8 dfsScanMode = DFS_CHNL_SCAN_ENABLED_NORMAL;
 
-           /* Move pointer to ahead of SETDFSSCANMODE<delimiter> */
-           value = value + 15;
-           /* Convert the value from ascii to integer */
-           ret = kstrtou8(value, 10, &dfsScanMode);
-           if (ret < 0)
-           {
-               /* If the input value is greater than max value of
-                               datatype, then also kstrtou8 fails
-                          */
-               VOS_TRACE( VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
-                      "%s: kstrtou8 failed range [%d - %d]", __func__,
-                      CFG_ENABLE_DFS_CHNL_SCAN_MIN,
-                      CFG_ENABLE_DFS_CHNL_SCAN_MAX);
-               ret = -EINVAL;
-               goto exit;
-           }
-
-           if ((dfsScanMode < CFG_ENABLE_DFS_CHNL_SCAN_MIN) ||
-               (dfsScanMode > CFG_ENABLE_DFS_CHNL_SCAN_MAX))
-           {
-               VOS_TRACE( VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
-                      "dfsScanMode value %d is out of range"
-                      " (Min: %d Max: %d)", dfsScanMode,
-                      CFG_ENABLE_DFS_CHNL_SCAN_MIN,
-                      CFG_ENABLE_DFS_CHNL_SCAN_MAX);
-               ret = -EINVAL;
-               goto exit;
-           }
-           VOS_TRACE( VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_INFO,
-                      "%s: Received Command to Set DFS Scan Mode = %d",
-                      __func__, dfsScanMode);
-
-           ret = wlan_hdd_handle_dfs_chan_scan(pHddCtx, dfsScanMode);
-       }
-       else if (strncmp(command, "GETDFSSCANMODE", 14) == 0)
-       {
-           tANI_U8 dfsScanMode = sme_GetDFSScanMode(pHddCtx->hHal);
-           char extra[32];
-           tANI_U8 len = 0;
-
-           len = scnprintf(extra, sizeof(extra), "%s %d", command, dfsScanMode);
-           if (copy_to_user(priv_data.buf, &extra, len + 1))
-           {
-               VOS_TRACE( VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
-                  "%s: failed to copy data to user buffer", __func__);
-               ret = -EFAULT;
-               goto exit;
-           }
-       }
        else if (strncmp(command, "FASTREASSOC", 11) == 0)
        {
            tANI_U8 *value = command;
@@ -3736,7 +3654,7 @@ static int hdd_driver_command(hdd_adapter_t *pAdapter,
            pHddCtx->cfg_ini->isOkcIniFeatureEnabled = okcMode;
        }
 #endif  /* FEATURE_WLAN_OKC */
-       else if (strncmp(command, "GETROAMSCANCONTROL", 18) == 0)
+       else if (strncmp(priv_data.buf, "GETROAMSCANCONTROL", 18) == 0)
        {
            tANI_BOOLEAN roamScanControl = sme_GetRoamScanControl((tHalHandle)(pHddCtx->hHal));
            char extra[32];
@@ -4250,19 +4168,6 @@ static int hdd_driver_command(hdd_adapter_t *pAdapter,
            }
        }
 #endif
-       else if (strncasecmp(command, "SET_FCC_CHANNEL", 15) == 0)
-       {
-          /*
-           * this command wld be called by user-space when it detects WLAN
-           * ON after airplane mode is set. When APM is set, WLAN turns off.
-           * But it can be turned back on. Otherwise; when APM is turned back
-           * off, WLAN wld turn back on. So at that point the command is
-           * expected to come down. 0 means disable, 1 means enable. The
-           * constraint is removed when parameter 1 is set or different
-           * country code is set
-           */
-           ret = hdd_cmd_setFccChannel(pHddCtx, command, 15);
-       }
        else {
            MTRACE(vos_trace(VOS_MODULE_ID_HDD,
                             TRACE_CODE_HDD_UNSUPPORTED_IOCTL,
@@ -4438,17 +4343,18 @@ static VOS_STATUS hdd_parse_ese_beacon_req(tANI_U8 *pValue,
     /*no argument followed by spaces*/
     if ('\0' == *inPtr) return -EINVAL;
 
-    /*getting the first argument ie measurement token*/
+    /*getting the first argument ie Number of IE fields */
     v = sscanf(inPtr, "%31s ", buf);
     if (1 != v) return -EINVAL;
 
     v = kstrtos32(buf, 10, &tempInt);
     if ( v < 0) return -EINVAL;
 
+    tempInt = VOS_MIN(tempInt, SIR_ESE_MAX_MEAS_IE_REQS);
     pEseBcnReq->numBcnReqIe = tempInt;
 
-    VOS_TRACE( VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_INFO_HIGH,
-               "Number of Bcn Req Ie fields(%d)", pEseBcnReq->numBcnReqIe);
+    hddLog(LOG1, "Number of Bcn Req Ie fields: %d", pEseBcnReq->numBcnReqIe);
+
 
     for (j = 0; j < (pEseBcnReq->numBcnReqIe); j++)
     {
@@ -7664,7 +7570,35 @@ hdd_adapter_t * hdd_get_adapter_by_name( hdd_context_t *pHddCtx, tANI_U8 *name )
 
    return NULL;
 
-} 
+}
+
+hdd_adapter_t *hdd_get_adapter_by_sme_session_id( hdd_context_t *pHddCtx,
+                                        tANI_U32 sme_session_id )
+{
+    hdd_adapter_list_node_t *pAdapterNode = NULL, *pNext = NULL;
+    hdd_adapter_t *pAdapter;
+    VOS_STATUS vos_status;
+
+
+    vos_status = hdd_get_front_adapter( pHddCtx, &pAdapterNode);
+
+    while ((NULL != pAdapterNode) && (VOS_STATUS_SUCCESS == vos_status))
+    {
+        pAdapter = pAdapterNode->pAdapter;
+
+        if (pAdapter->sessionId == sme_session_id)
+            return pAdapter;
+
+        vos_status = hdd_get_next_adapter(pHddCtx, pAdapterNode, &pNext);
+        pAdapterNode = pNext;
+    }
+
+    VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
+            "%s: sme_session_id %d does not exist with host",
+            __func__, sme_session_id);
+
+    return NULL;
+}
 
 hdd_adapter_t * hdd_get_adapter( hdd_context_t *pHddCtx, device_mode_t mode )
 {
@@ -10711,6 +10645,52 @@ int wlan_hdd_scan_abort(hdd_adapter_t *pAdapter)
     return 0;
 }
 
+/**
+ * hdd_indicate_mgmt_frame() - Wrapper to indicate management frame to
+ * user space
+ * @frame_ind: Management frame data to be informed.
+ *
+ * This function is used to indicate management frame to
+ * user space
+ *
+ * Return: None
+ *
+ */
+void hdd_indicate_mgmt_frame(tSirSmeMgmtFrameInd *frame_ind)
+{
+   hdd_context_t *hdd_ctx = NULL;
+   hdd_adapter_t *adapter = NULL;
+   v_CONTEXT_t vos_context = NULL;
+
+   /* Get the global VOSS context.*/
+   vos_context = vos_get_global_context(VOS_MODULE_ID_SYS, NULL);
+   if (!vos_context) {
+      hddLog(LOGE, FL("Global VOS context is Null"));
+      return;
+   }
+   /* Get the HDD context.*/
+   hdd_ctx =
+      (hdd_context_t *)vos_get_context(VOS_MODULE_ID_HDD, vos_context );
+
+   if (0 != wlan_hdd_validate_context(hdd_ctx))
+   {
+       return;
+   }
+   adapter = hdd_get_adapter_by_sme_session_id(hdd_ctx,
+                                          frame_ind->sessionId);
+
+   if ((NULL != adapter) &&
+        (WLAN_HDD_ADAPTER_MAGIC == adapter->magic))
+      __hdd_indicate_mgmt_frame(adapter,
+                             frame_ind->frameLen,
+                             frame_ind->frameBuf,
+                             frame_ind->frameType,
+                             frame_ind->rxChan,
+                             frame_ind->rxRssi);
+    return;
+
+}
+
 VOS_STATUS wlan_hdd_cancel_remain_on_channel(hdd_context_t *pHddCtx)
 {
     hdd_adapter_t *pAdapter;
@@ -10741,94 +10721,6 @@ VOS_STATUS wlan_hdd_cancel_remain_on_channel(hdd_context_t *pHddCtx)
         pAdapterNode = pNext;
     }
     return VOS_STATUS_SUCCESS;
-}
-
-/**
- * wlan_hdd_handle_dfs_chan_scan () - handles disable/enable DFS channels
- *
- * @pHddCtx: HDD context within host driver
- * @dfsScanMode: dfsScanMode passed from ioctl
- *
- */
-
-VOS_STATUS wlan_hdd_handle_dfs_chan_scan(hdd_context_t *pHddCtx,
-                                   tANI_U8 dfsScanMode)
-{
-    hdd_adapter_list_node_t *pAdapterNode = NULL, *pNext = NULL;
-    hdd_adapter_t *pAdapter;
-    VOS_STATUS vosStatus;
-    hdd_station_ctx_t *pHddStaCtx;
-    eHalStatus status = eHAL_STATUS_SUCCESS;
-
-    if(!pHddCtx)
-    {
-       hddLog(LOGE, FL("HDD context is Null"));
-       return eHAL_STATUS_FAILURE;
-    }
-
-    if (pHddCtx->scan_info.mScanPending)
-    {
-        hddLog(LOG1, FL("Aborting scan for sessionId: %d"),
-               pHddCtx->scan_info.sessionId);
-        hdd_abort_mac_scan(pHddCtx,
-                           pHddCtx->scan_info.sessionId,
-                           eCSR_SCAN_ABORT_DEFAULT);
-    }
-
-    if (!dfsScanMode)
-    {
-        vosStatus = hdd_get_front_adapter( pHddCtx, &pAdapterNode);
-        while ((NULL != pAdapterNode) &&
-               (VOS_STATUS_SUCCESS == vosStatus))
-        {
-            pAdapter = pAdapterNode->pAdapter;
-
-            if (WLAN_HDD_INFRA_STATION == pAdapter->device_mode)
-            {
-                pHddStaCtx = WLAN_HDD_GET_STATION_CTX_PTR(pAdapter);
-
-                if(!pHddStaCtx)
-                {
-                   hddLog(LOGE, FL("HDD STA context is Null"));
-                   return eHAL_STATUS_FAILURE;
-                }
-
-                /* if STA is already connected on DFS channel,
-                                disconnect immediately*/
-                if (hdd_connIsConnected(pHddStaCtx) &&
-                    (NV_CHANNEL_DFS ==
-                     vos_nv_getChannelEnabledState(
-                         pHddStaCtx->conn_info.operationChannel)))
-                {
-                    status = sme_RoamDisconnect(pHddCtx->hHal,
-                             pAdapter->sessionId,
-                             eCSR_DISCONNECT_REASON_UNSPECIFIED);
-                    hddLog(LOG1, FL("Client connected on DFS channel %d,"
-                           "sme_RoamDisconnect returned with status: %d"
-                           "for sessionid: %d"), pHddStaCtx->conn_info.
-                            operationChannel, status, pAdapter->sessionId);
-                }
-            }
-
-            vosStatus = hdd_get_next_adapter(pHddCtx, pAdapterNode,
-                                              &pNext);
-            pAdapterNode = pNext;
-        }
-    }
-
-    sme_UpdateDFSScanMode(pHddCtx->hHal, dfsScanMode);
-    sme_UpdateDFSRoamMode(pHddCtx->hHal,
-                         (dfsScanMode != DFS_CHNL_SCAN_DISABLED));
-
-    status = sme_HandleDFSChanScan(pHddCtx->hHal);
-    if (!HAL_STATUS_SUCCESS(status))
-    {
-         hddLog(LOGE,
-                FL("Failed in sme_HandleDFSChanScan (err=%d)"), status);
-         return status;
-    }
-
-    return status;
 }
 
 //Register the module init/exit functions

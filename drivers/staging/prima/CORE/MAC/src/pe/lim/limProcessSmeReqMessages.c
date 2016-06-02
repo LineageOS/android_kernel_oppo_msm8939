@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2015 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2013 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -41,7 +41,7 @@
 
 #include "palTypes.h"
 #include "wniApi.h"
-#include "wniCfg.h"
+#include "wniCfgSta.h"
 #include "cfgApi.h"
 #include "sirApi.h"
 #include "schApi.h"
@@ -1372,58 +1372,8 @@ __limProcessSmeScanReq(tpAniSirGlobal pMac, tANI_U32 *pMsgBuf)
                    */
                   limLog(pMac, LOGP,
                           FL("could not retrieve Valid channel list"));
-
-                  if (pMac->lim.gLimRspReqd)
-                  {
-                      pMac->lim.gLimRspReqd = false;
-
-                      limSendSmeScanRsp(pMac, sizeof(tSirSmeScanRsp),
-                                        eSIR_SME_INVALID_PARAMETERS,
-                                        pScanReq->sessionId,
-                                        pScanReq->transactionId);
-                  }
-                  return;
               }
               pMlmScanReq->channelList.numChannels = (tANI_U8) cfg_len;
-
-              //Ignore DFS channels if DFS scan is disabled
-              if(pMac->scan.fEnableDFSChnlScan == DFS_CHNL_SCAN_DISABLED)
-              {
-                  tANI_U8 numChan = 0;
-                  tANI_U8 channel_state;
-                  tANI_U8 *chan_ptr = pMlmScanReq->channelList.channelNumber;
-
-                  limLog(pMac, LOG1,
-                     FL("Ignore DFS channels from valid channel list"));
-
-                  VOS_TRACE_HEX_DUMP(VOS_MODULE_ID_PE, VOS_TRACE_LEVEL_INFO,
-                                pMlmScanReq->channelList.channelNumber,
-                                pMlmScanReq->channelList.numChannels);
-
-                  //Filter DFS channels
-                  for (i = 0; i < cfg_len; i++)
-                  {
-                       channel_state =
-                              vos_nv_getChannelEnabledState(*(chan_ptr + i));
-
-                       //Allow channel if not DFS
-                       if(channel_state != NV_CHANNEL_DFS)
-                       {
-                          *(chan_ptr + numChan) = *(chan_ptr + i);
-                          numChan++;
-                       }
-                  }
-                  pMlmScanReq->channelList.numChannels = (tANI_U8) numChan;
-
-                  limLog(pMac, LOG1, FL("No of valid channels %d, No of"
-                         "channels after filtering %d"), cfg_len, numChan);
-
-                  limLog(pMac, LOG1, FL("Channel list after filtering: "));
-
-                  VOS_TRACE_HEX_DUMP(VOS_MODULE_ID_PE, VOS_TRACE_LEVEL_INFO,
-                                pMlmScanReq->channelList.channelNumber,
-                                pMlmScanReq->channelList.numChannels);
-              }
           }
           else
           {
@@ -2027,14 +1977,6 @@ __limProcessSmeJoinReq(tpAniSirGlobal pMac, tANI_U32 *pMsgBuf)
 #else
             psessionEntry->maxTxPower = VOS_MIN( regMax, (localPowerConstraint) );
 #endif
-        if (!psessionEntry->maxTxPower)
-        {
-            VOS_TRACE(VOS_MODULE_ID_PE, VOS_TRACE_LEVEL_ERROR, FL("Tx power"
-                                    "is zero. Setting it to default value %d"),
-                                     TX_POWER_DEFAULT);
-            psessionEntry->maxTxPower = TX_POWER_DEFAULT;
-        }
-
         VOS_TRACE(VOS_MODULE_ID_PE, VOS_TRACE_LEVEL_INFO,
                         "Regulatory max = %d, local power constraint = %d,"
                         " max tx = %d", regMax, localPowerConstraint,
@@ -2301,13 +2243,6 @@ __limProcessSmeReassocReq(tpAniSirGlobal pMac, tANI_U32 *pMsgBuf)
               );
 
     psessionEntry->maxTxPower = VOS_MIN( regMax, (localPowerConstraint) );
-    if (!psessionEntry->maxTxPower)
-    {
-        VOS_TRACE(VOS_MODULE_ID_PE, VOS_TRACE_LEVEL_ERROR, FL("Tx power "
-                               "is zero. Setting it to default value %d"),
-                                TX_POWER_DEFAULT);
-        psessionEntry->maxTxPower = TX_POWER_DEFAULT;
-    }
 #if defined WLAN_VOWIFI_DEBUG
             limLog( pMac, LOGE, "Regulatory max = %d, local power constraint "
                         "= %d, max tx = %d", regMax, localPowerConstraint,
@@ -2809,6 +2744,21 @@ __limProcessSmeDisassocCnf(tpAniSirGlobal pMac, tANI_U32 *pMsgBuf)
                      MAC_ADDR_ARRAY(smeDisassocCnf.peerMacAddr));)
             return;
         }
+        /*
+         * If MlM state is either of del_sta or del_bss state, then no need to
+         * go ahead and clean up further as there must be some cleanup in
+         * progress from upper layer disassoc/deauth request.
+         */
+        if((pStaDs->mlmStaContext.mlmState == eLIM_MLM_WT_DEL_STA_RSP_STATE) ||
+           (pStaDs->mlmStaContext.mlmState == eLIM_MLM_WT_DEL_BSS_RSP_STATE))
+        {
+            limLog(pMac, LOGE, FL("No need to cleanup for addr:"MAC_ADDRESS_STR
+                   "as Mlm state is %d"),
+                   MAC_ADDR_ARRAY(smeDisassocCnf.peerMacAddr),
+                   pStaDs->mlmStaContext.mlmState);
+           return;
+        }
+
         /* Delete FT session if there exists one */
         limFTCleanup(pMac);
         limCleanupRxPath(pMac, pStaDs, psessionEntry);
@@ -2925,6 +2875,15 @@ __limProcessSmeDeauthReq(tpAniSirGlobal pMac, tANI_U32 *pMsgBuf)
                     limLog(pMac, LOG1, FL("Rcvd SME_DEAUTH_REQ while in "
                        "SME_WT_DEAUTH_STATE. "));
                     break;
+                case eLIM_SME_WT_DISASSOC_STATE:
+                     /*
+                      * PE Recieved a Disassoc frame. Normally it gets
+                      * DISASSOC_CNF but it received DEAUTH_REQ. This means
+                      * host is also trying to disconnect.
+                      */
+                      limLog(pMac, LOG1, FL("Rcvd SME_DEAUTH_REQ while in "
+                             "SME_WT_DISASSOC_STATE. "));
+                      break;
                 default:
                     /**
                      * STA is not in a state to deauthenticate with
@@ -5567,6 +5526,35 @@ __limProcessSmeSpoofMacAddrRequest(tpAniSirGlobal pMac, tANI_U32 *pMsgBuf)
 }
 
 /**
+ * lim_register_mgmt_frame_ind_cb() - Save the Management frame
+ * indication callback in PE.
+ * @pMac: Mac pointer
+ * @pMsgBuf: Msg pointer containing the callback
+ *
+ * This function is used save the Management frame
+ * indication callback in PE.
+ *
+ * Return: None
+ */
+static void lim_register_mgmt_frame_ind_cb(tpAniSirGlobal pMac,
+                                                 tANI_U32 *msg_buf)
+{
+  struct sir_sme_mgmt_frame_cb_req *sme_req =
+             (struct sir_sme_mgmt_frame_cb_req *)msg_buf;
+
+  if (NULL == msg_buf)
+  {
+      limLog(pMac, LOGE, FL("msg_buf is null"));
+      return;
+  }
+  if (sme_req->callback)
+      pMac->mgmt_frame_ind_cb =
+             (sir_mgmt_frame_ind_callback)sme_req->callback;
+  else
+      limLog(pMac, LOGE, FL("sme_req->callback is null"));
+}
+
+/**
  * limProcessSmeReqMessages()
  *
  *FUNCTION:
@@ -5904,7 +5892,9 @@ limProcessSmeReqMessages(tpAniSirGlobal pMac, tpSirMsgQ pMsg)
         case eWNI_SME_MAC_SPOOF_ADDR_IND:
             __limProcessSmeSpoofMacAddrRequest(pMac,  pMsgBuf);
             break ;
-
+        case eWNI_SME_REGISTER_MGMT_FRAME_CB:
+            lim_register_mgmt_frame_ind_cb(pMac, pMsgBuf);
+            break;
         default:
             vos_mem_free((v_VOID_t*)pMsg->bodyptr);
             pMsg->bodyptr = NULL;

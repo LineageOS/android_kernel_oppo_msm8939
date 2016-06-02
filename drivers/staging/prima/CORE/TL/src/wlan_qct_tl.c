@@ -141,7 +141,6 @@
 #include "vos_trace.h"
 #include "wlan_qct_tl_trace.h"
 #include "tlDebug.h"
-#include "cfgApi.h"
 #ifdef FEATURE_WLAN_WAPI
 /*Included to access WDI_RxBdType */
 #include "wlan_qct_wdi_bd.h"
@@ -1177,8 +1176,6 @@ WLANTL_RegisterSTAClient
   WLANTL_CbType*  pTLCb = NULL;
   WLANTL_STAClientType* pClientSTA = NULL;
   v_U8_t    ucTid = 0;/*Local variable to clear previous replay counters of STA on all TIDs*/
-  v_U32_t   istoggleArpEnb = 0;
-  tpAniSirGlobal pMac;
   /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
   /*------------------------------------------------------------------------
@@ -1262,17 +1259,10 @@ WLANTL_RegisterSTAClient
   pClientSTA->wSTADesc.ucSTAId  = pwSTADescType->ucSTAId;
   pClientSTA->ptkInstalled = 0;
 
-  pMac = vos_get_context(VOS_MODULE_ID_PE, pvosGCtx);
-  if ( NULL != pMac )
-  {
-    wlan_cfgGetInt(pMac, WNI_CFG_TOGGLE_ARP_BDRATES, &istoggleArpEnb);
-  }
-  pClientSTA->arpRate = (v_U8_t)istoggleArpEnb;
-
   TLLOG2(VOS_TRACE( VOS_MODULE_ID_TL, VOS_TRACE_LEVEL_INFO_HIGH,
-   "WLAN TL:Registering STA Client ID: %d with UC %d and BC %d toggleArp :%hhu",
-    pwSTADescType->ucSTAId, pwSTADescType->ucUcastSig,
-    pwSTADescType->ucBcastSig, pClientSTA->arpRate));
+             "WLAN TL:Registering STA Client ID: %d with UC %d and BC %d", 
+             pwSTADescType->ucSTAId, 
+              pwSTADescType->ucUcastSig, pwSTADescType->ucBcastSig));
 
   pClientSTA->wSTADesc.wSTAType = pwSTADescType->wSTAType;
 
@@ -7023,25 +7013,26 @@ WLANTL_TxThreadDebugHandler
 
         if( WLAN_STA_SOFTAP == pClientSTA->wSTADesc.wSTAType)
         {
-            TLLOGE(VOS_TRACE(VOS_MODULE_ID_TL, VOS_TRACE_LEVEL_ERROR,
+            TLLOG1(VOS_TRACE(VOS_MODULE_ID_TL, VOS_TRACE_LEVEL_INFO,
                   "TrafficStatistics for SOFTAP Station:"));
-            TLLOGE(VOS_TRACE(VOS_MODULE_ID_TL, VOS_TRACE_LEVEL_ERROR,
+            TLLOG1(VOS_TRACE(VOS_MODULE_ID_TL, VOS_TRACE_LEVEL_INFO,
                   "RUF=%d\tRMF=%d\tRBF=%d", pClientSTA->trafficStatistics.rxUCFcnt,
                                             pClientSTA->trafficStatistics.rxMCFcnt,
                                             pClientSTA->trafficStatistics.rxBCFcnt));
-            TLLOGE(VOS_TRACE(VOS_MODULE_ID_TL, VOS_TRACE_LEVEL_ERROR,
+            TLLOG1(VOS_TRACE(VOS_MODULE_ID_TL, VOS_TRACE_LEVEL_INFO,
                   "RUB=%d\tRMB=%d\tRBB=%d", pClientSTA->trafficStatistics.rxUCBcnt,
                                             pClientSTA->trafficStatistics.rxMCBcnt,
                                             pClientSTA->trafficStatistics.rxBCBcnt));
-            TLLOGE(VOS_TRACE(VOS_MODULE_ID_TL, VOS_TRACE_LEVEL_ERROR,
+            TLLOG1(VOS_TRACE(VOS_MODULE_ID_TL, VOS_TRACE_LEVEL_INFO,
                   "TUF=%d\tTMF=%d\tTBF=%d", pClientSTA->trafficStatistics.txUCFcnt,
                                             pClientSTA->trafficStatistics.txMCFcnt,
                                             pClientSTA->trafficStatistics.txBCFcnt));
-            TLLOGE(VOS_TRACE(VOS_MODULE_ID_TL, VOS_TRACE_LEVEL_ERROR,
+            TLLOG1(VOS_TRACE(VOS_MODULE_ID_TL, VOS_TRACE_LEVEL_INFO,
                   "TUB=%d\tTMB=%d\tTBB=%d", pClientSTA->trafficStatistics.txUCBcnt,
                                             pClientSTA->trafficStatistics.txMCBcnt,
                                             pClientSTA->trafficStatistics.txBCBcnt));
         }
+
     }
    return;
 }
@@ -7933,17 +7924,8 @@ WLANTL_STATxAuth
 #endif /* FEATURE_WLAN_TDLS */
   if( tlMetaInfo.ucIsArp )
   {
-    if (pStaClient->arpRate == 0)
-    {
-        ucTxFlag |= HAL_USE_BD_RATE_1_MASK;
-    }
-    else if (pStaClient->arpRate == 1 || pStaClient->arpRate == 3)
-    {
-        pStaClient->arpRate ^= 0x2;
-        ucTxFlag |= HAL_USE_BD_RATE_1_MASK<<(pStaClient->arpRate-1);
-    }
-    TLLOG2(VOS_TRACE( VOS_MODULE_ID_TL, VOS_TRACE_LEVEL_INFO,
-           "arp pkt sending on BD rate: %hhu", pStaClient->arpRate));
+    /*Send ARP at lowest Phy rate and through WQ5 */
+    ucTxFlag |= HAL_USE_BD_RATE_MASK;
   }
 
   vosStatus = (VOS_STATUS)WDA_DS_BuildTxPacketInfo( pvosGCtx, 

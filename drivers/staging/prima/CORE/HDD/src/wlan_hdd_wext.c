@@ -166,7 +166,6 @@ static const hdd_freq_chan_map_t freq_chan_map[] = { {2412, 1}, {2417, 2},
 #endif
 #define  WE_SET_SCAN_BAND_PREFERENCE     17
 #define  WE_SET_MIRACAST_VENDOR_CONFIG     18
-#define  WE_SET_RTS_CTS_HTVHT             21
 
 
 /* Private ioctls and their sub-ioctls */
@@ -733,8 +732,7 @@ static void hdd_GetRssiCB( v_S7_t rssi, tANI_U32 staId, void *pContext )
 
    /* copy over the rssi */
    pAdapter->rssi = rssi;
-   if (pAdapter->rssi > 0)
-       pAdapter->rssi = 0;
+
    /* notify the caller */
    complete(&pStatsContext->completion);
 
@@ -1001,8 +999,7 @@ static void hdd_GetRoamRssiCB( v_S7_t rssi, tANI_U32 staId, void *pContext )
 
    /* copy over the rssi */
    pAdapter->rssi = rssi;
-   if (pAdapter->rssi > 0)
-       pAdapter->rssi = 0;
+
    /* notify the caller */
    complete(&pStatsContext->completion);
 
@@ -1968,13 +1965,14 @@ static int __iw_set_genie(struct net_device *dev,
                           union iwreq_data *wrqu,
                           char *extra)
 {
-   hdd_adapter_t *pAdapter = WLAN_HDD_GET_PRIV_PTR(dev);
+    hdd_adapter_t *pAdapter = WLAN_HDD_GET_PRIV_PTR(dev);
     hdd_wext_state_t *pWextState = WLAN_HDD_GET_WEXT_STATE_PTR(pAdapter);
     u_int8_t *genie = NULL;
     u_int8_t *base_genie = NULL;
     v_U16_t remLen;
+    int ret = 0;
 
-   ENTER();
+    ENTER();
 
     if ((WLAN_HDD_GET_CTX(pAdapter))->isLogpInProgress) {
         VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_FATAL,
@@ -2022,8 +2020,8 @@ static int __iw_set_genie(struct net_device *dev,
             case IE_EID_VENDOR:
                 if ((IE_LEN_SIZE+IE_EID_SIZE+IE_VENDOR_OUI_SIZE) > eLen) /* should have at least OUI */
                 {
-                    kfree(base_genie);
-                    return -EINVAL;
+                    ret = -EINVAL;
+                    goto exit;
                 }
 
                 if (0 == memcmp(&genie[0], "\x00\x50\xf2\x04", 4))
@@ -2037,8 +2035,8 @@ static int __iw_set_genie(struct net_device *dev,
                        hddLog(VOS_TRACE_LEVEL_FATAL, "Cannot accommodate genIE. "
                                                       "Need bigger buffer space");
                        VOS_ASSERT(0);
-                       kfree(base_genie);
-                       return -ENOMEM;
+                       ret = -EINVAL;
+                       goto exit;
                     }
                     // save to Additional IE ; it should be accumulated to handle WPS IE + other IE
                     memcpy( pWextState->genIE.addIEdata + curGenIELen, genie - 2, eLen + 2);
@@ -2047,6 +2045,14 @@ static int __iw_set_genie(struct net_device *dev,
                 else if (0 == memcmp(&genie[0], "\x00\x50\xf2", 3))
                 {
                     hddLog (VOS_TRACE_LEVEL_INFO, "%s Set WPA IE (len %d)",__func__, eLen + 2);
+                    if ((eLen + 2) > (sizeof(pWextState->WPARSNIE)))
+                    {
+                       hddLog(VOS_TRACE_LEVEL_FATAL, "Cannot accommodate genIE. "
+                                                      "Need bigger buffer space");
+                       ret = -EINVAL;
+                       VOS_ASSERT(0);
+                       goto exit;
+                    }
                     memset( pWextState->WPARSNIE, 0, MAX_WPA_RSN_IE_LEN );
                     memcpy( pWextState->WPARSNIE, genie - 2, (eLen + 2));
                     pWextState->roamProfile.pWPAReqIE = pWextState->WPARSNIE;
@@ -2063,8 +2069,8 @@ static int __iw_set_genie(struct net_device *dev,
                        hddLog(VOS_TRACE_LEVEL_FATAL, "Cannot accommodate genIE. "
                                                       "Need bigger buffer space");
                        VOS_ASSERT(0);
-                       kfree(base_genie);
-                       return -ENOMEM;
+                       ret = -ENOMEM;
+                       goto exit;
                     }
                     // save to Additional IE ; it should be accumulated to handle WPS IE + other IE
                     memcpy( pWextState->genIE.addIEdata + curGenIELen, genie - 2, eLen + 2);
@@ -2073,6 +2079,14 @@ static int __iw_set_genie(struct net_device *dev,
               break;
          case DOT11F_EID_RSN:
                 hddLog (LOG1, "%s Set RSN IE (len %d)",__func__, eLen+2);
+                if ((eLen + 2) > (sizeof(pWextState->WPARSNIE)))
+                {
+                    hddLog(VOS_TRACE_LEVEL_FATAL, "Cannot accommodate genIE. "
+                                                  "Need bigger buffer space");
+                    ret = -EINVAL;
+                    VOS_ASSERT(0);
+                    goto exit;
+                }
                 memset( pWextState->WPARSNIE, 0, MAX_WPA_RSN_IE_LEN );
                 memcpy( pWextState->WPARSNIE, genie - 2, (eLen + 2));
                 pWextState->roamProfile.pRSNReqIE = pWextState->WPARSNIE;
@@ -2081,15 +2095,16 @@ static int __iw_set_genie(struct net_device *dev,
 
          default:
                 hddLog (LOGE, "%s Set UNKNOWN IE %X",__func__, elementId);
-            kfree(base_genie);
-            return 0;
+                goto exit;
     }
         genie += eLen;
         remLen -= eLen;
     }
+
+exit:
     EXIT();
     kfree(base_genie);
-    return 0;
+    return ret;
 }
 
 static int iw_set_genie(struct net_device *dev,
@@ -4856,26 +4871,6 @@ static int __iw_setint_getnone(struct net_device *dev,
 
             break;
         }
-        /* Bit mask value to enable RTS/CTS for different modes
-         * for 2.4 GHz, HT20 - 0x0001, for 2.4 GHz, HT40 - 0x0002
-         * for 2.4 GHz, VHT20 - 0x0004, for 2.4 GHz, VHT40 - 0x0008
-         * for 5 GHz, HT20 - 0x0100, for 5 GHz, HT40 - 0x0200
-         * for 5 GHz, VHT20 - 0x0400, for 5 GHz, VHT40 - 0x0800
-         * for 5 GHz, VHT80 - 0x1000
-         */
-        case WE_SET_RTS_CTS_HTVHT:
-        {
-
-           hddLog( LOG1, FL("WE_SET_RTS_CTS_HTVHT set value %d"), set_value);
-
-           if (eHAL_STATUS_SUCCESS !=
-                        sme_SetRtsCtsHtVht( pHddCtx->hHal, set_value))
-           {
-                hddLog( LOGE, FL("set WE_SET_RTS_CTS_HTVHT failed"));
-                ret = -EINVAL;
-           }
-           break;
-        }
         default:
         {
             hddLog(LOGE, "Invalid IOCTL setvalue command %d value %d",
@@ -4914,6 +4909,13 @@ static int __iw_setchar_getnone(struct net_device *dev,
     hdd_config_t  *pConfig = pHddCtx->cfg_ini;
 #endif /* WLAN_FEATURE_VOWIFI */
     struct iw_point s_priv_data;
+
+    if (!capable(CAP_NET_ADMIN))
+    {
+        VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
+                  FL("permission check failed"));
+        return -EPERM;
+    }
 
     if ((WLAN_HDD_GET_CTX(pAdapter))->isLogpInProgress)
     {
@@ -5179,6 +5181,13 @@ int __iw_set_three_ints_getnone(struct net_device *dev,
     int *value = (int *)extra;
     int sub_cmd = value[0];
     int ret = 0;
+
+    if (!capable(CAP_NET_ADMIN))
+    {
+        VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
+                  FL("permission check failed"));
+        return -EPERM;
+    }
 
     if ((WLAN_HDD_GET_CTX(pAdapter))->isLogpInProgress)
     {
@@ -5967,14 +5976,22 @@ void hdd_wmm_tx_snapshot(hdd_adapter_t *pAdapter)
      * whether the clients are registered or not.
      */
     int i = 0, j = 0;
+    v_SIZE_t tx_queue_count[NUM_TX_QUEUES];
+
     for ( i=0; i< NUM_TX_QUEUES; i++)
     {
         spin_lock_bh(&pAdapter->wmm_tx_queue[i].lock);
-        hddLog(LOGE, "HDD WMM TxQueue Info For AC: %d Count: %d PrevAdress:%p, NextAddress:%p",
-               i, pAdapter->wmm_tx_queue[i].count,
-               pAdapter->wmm_tx_queue[i].anchor.prev, pAdapter->wmm_tx_queue[i].anchor.next);
+        tx_queue_count[i] = pAdapter->wmm_tx_queue[i].count;
         spin_unlock_bh(&pAdapter->wmm_tx_queue[i].lock);
     }
+
+    for ( i=0; i< NUM_TX_QUEUES; i++) {
+        if (tx_queue_count[i]) {
+            hddLog(LOGE, "HDD WMM TxQueue Info For AC: %d Count: %d",
+                i, tx_queue_count[i]);
+        }
+    }
+
 
     for(i =0; i<WLAN_MAX_STA_COUNT; i++)
     {
@@ -5986,11 +6003,8 @@ void hdd_wmm_tx_snapshot(hdd_adapter_t *pAdapter)
                 if( pAdapter->aStaInfo[i].wmm_tx_queue[j].count )
                 {
                    spin_lock_bh(&pAdapter->aStaInfo[i].wmm_tx_queue[j].lock);
-                   hddLog(LOGE, "HDD TxQueue Info For AC: %d Count: %d"
-                         "PrevAdress:%p, NextAddress:%p",
-                         j, pAdapter->aStaInfo[i].wmm_tx_queue[j].count,
-                         pAdapter->aStaInfo[i].wmm_tx_queue[j].anchor.prev,
-                         pAdapter->aStaInfo[i].wmm_tx_queue[j].anchor.next);
+                   hddLog(LOGE, "HDD TxQueue Info For AC: %d Count: %d",
+                         j, pAdapter->aStaInfo[i].wmm_tx_queue[j].count);
                   spin_unlock_bh(&pAdapter->aStaInfo[i].wmm_tx_queue[j].lock);
                 }
              }
@@ -6174,6 +6188,13 @@ static int iw_hdd_set_var_ints_getnone(struct net_device *dev,
     union iwreq_data u_priv_wrqu;
     int apps_args[MAX_VAR_ARGS] = {0};
     int num_args;
+
+    if (!capable(CAP_NET_ADMIN))
+    {
+        VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
+                  FL("permission check failed"));
+        return -EPERM;
+    }
 
     /* helper function to get iwreq_data with compat handling. */
     if (hdd_priv_get_data(&u_priv_wrqu.data, wrqu))
@@ -6704,6 +6725,13 @@ static int __iw_clear_dynamic_mcbc_filter(struct net_device *dev,
     tpSirWlanSetRxpFilters wlanRxpFilterParam;
     hddLog(VOS_TRACE_LEVEL_INFO_HIGH, "%s: ", __func__);
 
+    if (!capable(CAP_NET_ADMIN))
+    {
+        VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
+                  FL("permission check failed"));
+        return -EPERM;
+    }
+
     //Reset the filter to INI value as we have to clear the dynamic filter
     pHddCtx->configuredMcastBcastFilter = pHddCtx->cfg_ini->mcastBcastFilterSetting;
 
@@ -6978,6 +7006,9 @@ int wlan_hdd_set_filter(hdd_context_t *pHddCtx, tpPacketFilterCfg pRequest,
 
                 hddLog(VOS_TRACE_LEVEL_INFO, "Data Offset %d Data Len %d",
                         pRequest->paramsData[i].dataOffset, pRequest->paramsData[i].dataLength);
+                if ((sizeof(packetFilterSetReq.paramsData[i].compareData)) <
+                    (pRequest->paramsData[i].dataLength))
+                    return -EINVAL;
 
                 memcpy(&packetFilterSetReq.paramsData[i].compareData,
                         pRequest->paramsData[i].compareData, pRequest->paramsData[i].dataLength);
@@ -7300,6 +7331,14 @@ static int __iw_set_packet_filter_params(struct net_device *dev,
     tpPacketFilterCfg pRequest = NULL;
     int ret;
     struct iw_point s_priv_data;
+
+
+    if (!capable(CAP_NET_ADMIN))
+    {
+        VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
+                  FL("permission check failed"));
+        return -EPERM;
+    }
 
     if (hdd_priv_get_data(&s_priv_data, wrqu))
     {
@@ -8185,6 +8224,13 @@ static int __iw_set_band_config(struct net_device *dev,
         return -EBUSY;
     }
 
+    if (!capable(CAP_NET_ADMIN))
+    {
+        VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
+                  FL("permission check failed"));
+        return -EPERM;
+    }
+
     return hdd_setBand(dev, value[0]);
 }
 
@@ -8207,8 +8253,17 @@ static int __iw_set_power_params_priv(struct net_device *dev,
 {
   int ret;
   char *ptr;
+
   VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_INFO,
                 "Set power params Private");
+
+  if (!capable(CAP_NET_ADMIN))
+  {
+      VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
+                FL("permission check failed"));
+      return -EPERM;
+  }
+
   /* ODD number is used for set, copy data using copy_from_user */
   ptr = mem_alloc_copy_from_user_helper(wrqu->data.pointer,
                                           wrqu->data.length);
@@ -8742,10 +8797,6 @@ static const struct iw_priv_args we_private_args[] = {
     {   WE_SET_MIRACAST_VENDOR_CONFIG,
         IW_PRIV_TYPE_INT | IW_PRIV_SIZE_FIXED | 1,
         0, "setMiracstConf" },
-
-    {   WE_SET_RTS_CTS_HTVHT,
-        IW_PRIV_TYPE_INT | IW_PRIV_SIZE_FIXED | 1,
-        0, "setRtsCtsHtVht" },
 
     /* handlers for main ioctl */
     {   WLAN_PRIV_SET_NONE_GET_INT,

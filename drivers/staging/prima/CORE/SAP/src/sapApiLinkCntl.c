@@ -413,12 +413,6 @@ WLANSAP_RoamCallback
             VOS_TRACE( VOS_MODULE_ID_SAP, VOS_TRACE_LEVEL_INFO_HIGH, "In %s, CSR roamStatus = %s (%d)\n",
                        __func__, "eCSR_ROAM_WPS_PBC_PROBE_REQ_IND", roamStatus);
             break;        
-
-        case eCSR_ROAM_INDICATE_MGMT_FRAME:
-            sapSignalHDDevent(sapContext, pCsrRoamInfo, 
-                              eSAP_INDICATE_MGMT_FRAME, 
-                              (v_PVOID_t) eSAP_STATUS_SUCCESS);
-            break;
         case eCSR_ROAM_REMAIN_CHAN_READY:
             sapSignalHDDevent(sapContext, pCsrRoamInfo, 
                               eSAP_REMAIN_CHAN_READY, 
