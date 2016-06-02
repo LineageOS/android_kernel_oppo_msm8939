@@ -118,6 +118,7 @@ static char                   *channelType[WDTS_CHANNEL_MAX] =
 #endif /* WLANDXE_TEST_CHANNEL_ENABLE */
    };
 static  wpt_packet               *rx_reaped_buf[WLANDXE_MAX_REAPED_RX_FRAMES];
+static WLANDXE_EnvInformation    dxeEnvBlk;
 
 /*-------------------------------------------------------------------------
   *  External Function Proto Type
@@ -2079,6 +2080,9 @@ static wpt_status dxeRXFrameRefillRing
          the descriptor. */
       if(channelEntry->extraConfig.cw_ctrl_read != currentDesc->descCtrl.ctrl)
       {
+         HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_ERROR,
+                  "dxeRXFrameRefillRing, Descriptor write failed");
+         ++channelEntry->desc_write_fail_count;
          //HDXE_ASSERT(0);
       }
 
@@ -2539,8 +2543,6 @@ void dxeRXEventHandler
    dxeRXFrameRefillRing(dxeCtxt, &dxeCtxt->dxeChannel[WDTS_CHANNEL_RX_LOW_PRI]);
    dxeRXFrameRefillRing(dxeCtxt, &dxeCtxt->dxeChannel[WDTS_CHANNEL_RX_HIGH_PRI]);
 
-   dxeCtxt = (WLANDXE_CtrlBlkType *)(msgContent->pContext);
-      
    if((!dxeCtxt->dxeChannel[WDTS_CHANNEL_RX_HIGH_PRI].extraConfig.chEnabled) ||
       (!dxeCtxt->dxeChannel[WDTS_CHANNEL_RX_LOW_PRI].extraConfig.chEnabled))
    {
@@ -2548,6 +2550,20 @@ void dxeRXEventHandler
          "DXE already stopped in RX event handler. Just return");
       return;
    }
+
+   /* Disable device interrupt */
+   /* Read whole interrupt mask register and exclusive only this channel int */
+   status = wpalReadRegister(WLANDXE_INT_SRC_RAW_ADDRESS,
+                              &intSrc);
+   if(eWLAN_PAL_STATUS_SUCCESS != status)
+   {
+      HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_ERROR,
+               "dxeRXEventHandler Read INT_SRC register fail");
+      return;
+   }
+   HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_INFO_MED,
+            "RX Event Handler INT Source 0x%x", intSrc);
+   dxeEnvBlk.rxIntChanlSrc = intSrc&0xFF;
 
    if((WLANDXE_POWER_STATE_IMPS == dxeCtxt->hostPowerState) ||
       (WLANDXE_POWER_STATE_DOWN == dxeCtxt->hostPowerState))
@@ -2590,22 +2606,10 @@ void dxeRXEventHandler
 
       /* Interrupt will not enabled at here, it will be enabled at PS mode change */
       tempDxeCtrlBlk->rxIntDisabledByIMPS = eWLAN_PAL_TRUE;
+      dxeEnvBlk.rxIntDisableReturn = VOS_RETURN_ADDRESS;
 
       return;
    }
-
-   /* Disable device interrupt */
-   /* Read whole interrupt mask register and exclusive only this channel int */
-   status = wpalReadRegister(WLANDXE_INT_SRC_RAW_ADDRESS,
-                             &intSrc);
-   if(eWLAN_PAL_STATUS_SUCCESS != status)
-   {
-      HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_ERROR,
-               "dxeRXEventHandler Read INT_SRC register fail");
-      return;         
-   }
-   HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_INFO_MED,
-            "RX Event Handler INT Source 0x%x", intSrc);
 
 #ifndef WLANDXE_TEST_CHANNEL_ENABLE
    /* Test High Priority Channel interrupt is enabled or not */
@@ -2811,6 +2815,8 @@ void dxeRXEventHandler
    regValue &= WLANDXE_RX_INTERRUPT_PRO_UNMASK;
    wpalWriteRegister(WLANDXE_INT_MASK_REG_ADDRESS, regValue);
 
+   dxeEnvBlk.rxIntChanlSrc = 0;
+
    /* Enable system level ISR */
    /* Enable RX ready Interrupt at here */
    status = wpalEnableInterrupt(DXE_INTERRUPT_RX_READY);
@@ -2905,6 +2911,7 @@ void dxeRXPacketAvailableEventHandler
    {
       /* Interrupt will not enabled at here, it will be enabled at PS mode change */
       tempDxeCtrlBlk->rxIntDisabledByIMPS = eWLAN_PAL_TRUE;
+      dxeEnvBlk.rxIntDisableReturn = VOS_RETURN_ADDRESS;
    }
 }
 
@@ -3028,7 +3035,7 @@ static wpt_status dxeTXPushFrame
 #else
    wpt_iterator                iterator;
 #endif /* FEATURE_R33D */
-   wpt_uint32                  isEmpty = 0;
+   wpt_uint32                  KickDxe = 0;
 
    HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_INFO_LOW,
             "%s Enter", __func__);
@@ -3037,8 +3044,12 @@ static wpt_status dxeTXPushFrame
    if((0 == tempDxeCtrlBlk->dxeChannel[WDTS_CHANNEL_TX_LOW_PRI].numRsvdDesc) &&
       (0 == tempDxeCtrlBlk->dxeChannel[WDTS_CHANNEL_TX_HIGH_PRI].numRsvdDesc))
    {
-      isEmpty = 1;
+       KickDxe = 1;
    }
+
+   /* Kick DXE when the ring is about to fill */
+   if (WLANDXE_TX_LOW_RES_THRESHOLD >= channelEntry->numFreeDesc)
+       KickDxe = 1;
 
    channelEntry->numFragmentCurrentChain = 0;
    currentCtrlBlk = channelEntry->headCtrlBlk;
@@ -3193,13 +3204,14 @@ static wpt_status dxeTXPushFrame
    {
       /* Update channel head as next avaliable linked slot */
       channelEntry->headCtrlBlk = currentCtrlBlk;
-      if(isEmpty)
+      if(KickDxe)
       {
          tempDxeCtrlBlk->ringNotEmpty = eWLAN_PAL_TRUE;
          HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_INFO_LOW,
                   "SMSM_ret LO=%d HI=%d",
                   tempDxeCtrlBlk->dxeChannel[WDTS_CHANNEL_TX_LOW_PRI].numRsvdDesc,
                   tempDxeCtrlBlk->dxeChannel[WDTS_CHANNEL_TX_HIGH_PRI].numRsvdDesc );
+         dxeNotifySmsm(eWLAN_PAL_FALSE, eWLAN_PAL_TRUE);
          dxeNotifySmsm(eWLAN_PAL_TRUE, eWLAN_PAL_FALSE);
          tempDxeCtrlBlk->smsmToggled = eWLAN_PAL_TRUE;
       }
@@ -3606,6 +3618,19 @@ void dxeTXEventHandler
       return;
    }
 
+   /* Read whole interrupt mask register and exclusive only this channel int */
+   status = wpalReadRegister(WLANDXE_INT_SRC_RAW_ADDRESS,
+                                  &intSrc);
+   if(eWLAN_PAL_STATUS_SUCCESS != status)
+   {
+      HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_ERROR,
+               "dxeTXCompleteEventHandler Read INT_DONE_SRC register fail");
+      return;
+   }
+   HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_INFO_MED,
+            "TX Event Handler INT Source 0x%x", intSrc);
+   dxeEnvBlk.txCmpIntChanlSrc = intSrc&0xFF;
+
    /* Return from here if the RIVA is in IMPS, to avoid register access */
    if(WLANDXE_POWER_STATE_IMPS == dxeCtxt->hostPowerState)
    {
@@ -3635,6 +3660,9 @@ void dxeTXEventHandler
          HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_WARN,
                      "TX COMP INT Enabled, remain TX frame count on ring %d",
                      dxeCtxt->txCompletedFrames);
+
+         dxeEnvBlk.txCmpIntChanlSrc = 0;
+
          /*Kicking the DXE after the TX Complete interrupt was enabled - to avoid 
            the posibility of a race*/
          dxePsComplete(dxeCtxt, eWLAN_PAL_TRUE);
@@ -3657,19 +3685,6 @@ void dxeTXEventHandler
          "DXE already stopped in TX event handler. Just return");
       return;
    }
-
-   /* Disable device interrupt */
-   /* Read whole interrupt mask register and exclusive only this channel int */
-   status = wpalReadRegister(WLANDXE_INT_SRC_RAW_ADDRESS,
-                                  &intSrc);
-   if(eWLAN_PAL_STATUS_SUCCESS != status)
-   {
-      HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_ERROR,
-               "dxeTXCompleteEventHandler Read INT_DONE_SRC register fail");
-      return;         
-   }
-   HDXE_MSG(eWLAN_MODULE_DAL_DATA, eWLAN_PAL_TRACE_LEVEL_INFO_MED,
-            "TX Event Handler INT Source 0x%x", intSrc);
 
    /* Test High Priority Channel is the INT source or not */
    channelCb = &dxeCtxt->dxeChannel[WDTS_CHANNEL_TX_HIGH_PRI];
@@ -3838,6 +3853,8 @@ void dxeTXEventHandler
       }
    }
 
+   dxeEnvBlk.txCmpIntChanlSrc = 0;
+
    /*Kicking the DXE after the TX Complete interrupt was enabled - to avoid 
      the posibility of a race*/
    dxePsComplete(dxeCtxt, eWLAN_PAL_TRUE);
@@ -3908,7 +3925,8 @@ void dxeTXCompleteProcessing
           * Then when push frame, no SMSM toggle happen
           * To avoid permanent TX stall, SMSM toggle is needed at here
           * With this toggle, host should gaurantee SMSM state should be changed */
-         dxeNotifySmsm(eWLAN_PAL_TRUE, dxeCtxt->txRingsEmpty);
+         dxeNotifySmsm(eWLAN_PAL_FALSE, eWLAN_PAL_TRUE);
+         dxeNotifySmsm(eWLAN_PAL_TRUE, eWLAN_PAL_FALSE);
       }
    }
    

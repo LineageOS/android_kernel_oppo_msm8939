@@ -98,7 +98,6 @@ extern void qosReleaseCommand( tpAniSirGlobal pMac, tSmeCmd *pCommand );
 extern void csrReleaseRocReqCommand( tpAniSirGlobal pMac);
 extern eHalStatus p2pProcessRemainOnChannelCmd(tpAniSirGlobal pMac, tSmeCmd *p2pRemainonChn);
 extern eHalStatus sme_remainOnChnRsp( tpAniSirGlobal pMac, tANI_U8 *pMsg);
-extern eHalStatus sme_mgmtFrmInd( tHalHandle hHal, tpSirSmeMgmtFrameInd pSmeMgmtFrm);
 extern eHalStatus sme_remainOnChnReady( tHalHandle hHal, tANI_U8* pMsg);
 extern eHalStatus sme_sendActionCnf( tHalHandle hHal, tANI_U8* pMsg);
 extern eHalStatus p2pProcessNoAReq(tpAniSirGlobal pMac, tSmeCmd *pNoACmd);
@@ -826,9 +825,6 @@ sme_process_cmd:
                     status = pmcPrepareCommand( pMac, pmcCommand, pv, size, &pPmcCmd );
                     if( HAL_STATUS_SUCCESS( status ) && pPmcCmd )
                     {
-                        /* Set the time out to 30 sec */
-                        pMac->sme.smeCmdActiveList.cmdTimeoutDuration =
-                                          CSR_ACTIVE_LIST_CMD_TIMEOUT_VALUE;
                         //Force this command to wake up the chip
                         csrLLInsertHead( &pMac->sme.smeCmdActiveList, &pPmcCmd->Link, LL_ACCESS_NOLOCK );
                         csrLLUnlock( &pMac->sme.smeCmdActiveList );
@@ -855,19 +851,6 @@ sme_process_cmd:
                 {
                     // we can reuse the pCommand
 
-                    /* For roam command set timeout to 30 * 2 sec.
-                     * There are cases where we try to connect to different
-                     * APs with same SSID one by one until sucessfully conneted
-                     * and thus roam command might take more time if connection
-                     * is rejected by too many APs.
-                     */
-                    if ((eSmeCommandRoam == pCommand->command) &&
-                        (eCsrHddIssued == pCommand->u.roamCmd.roamReason))
-                        pMac->sme.smeCmdActiveList.cmdTimeoutDuration =
-                                         CSR_ACTIVE_LIST_CMD_TIMEOUT_VALUE * 2;
-                    else
-                        pMac->sme.smeCmdActiveList.cmdTimeoutDuration =
-                                             CSR_ACTIVE_LIST_CMD_TIMEOUT_VALUE;
                     // Insert the command onto the ActiveList...
                     csrLLInsertHead( &pMac->sme.smeCmdActiveList, &pCommand->Link, LL_ACCESS_NOLOCK );
 
@@ -2147,17 +2130,6 @@ eHalStatus sme_ProcessMsg(tHalHandle hHal, vos_msg_t* pMsg)
                     smsLog( pMac, LOGE, "Empty rsp message for meas (eWNI_SME_REMAIN_ON_CHN_RDY_IND), nothing to process");
                 }
                 break;
-           case eWNI_SME_MGMT_FRM_IND:
-                if(pMsg->bodyptr)
-                {
-                    sme_mgmtFrmInd(pMac, pMsg->bodyptr);
-                    vos_mem_free(pMsg->bodyptr);
-                }
-                else
-                {
-                    smsLog( pMac, LOGE, "Empty rsp message for meas (eWNI_SME_MGMT_FRM_IND), nothing to process");
-                }
-                break;
            case eWNI_SME_ACTION_FRAME_SEND_CNF:
                 if(pMsg->bodyptr)
                 {
@@ -2819,29 +2791,6 @@ eHalStatus sme_FilterScanResults(tHalHandle hHal, tANI_U8 sessionId)
    return (status);
 }
 
- /*
- * ---------------------------------------------------------------------------
- *  \fn sme_FilterScanDFSResults
- *  \brief a wrapper function to request CSR to filter BSSIDs on DFS channels
- *         from the scan results.
- *  \return eHalStatus
- *---------------------------------------------------------------------------
- */
-eHalStatus sme_FilterScanDFSResults(tHalHandle hHal)
-{
-   eHalStatus status = eHAL_STATUS_SUCCESS;
-   tpAniSirGlobal pMac = PMAC_STRUCT( hHal );
-
-   status = sme_AcquireGlobalLock( &pMac->sme );
-   if ( HAL_STATUS_SUCCESS( status ) )
-   {
-       csrScanFilterDFSResults(pMac);
-       sme_ReleaseGlobalLock( &pMac->sme );
-   }
-
-   return (status);
-}
-
 eHalStatus sme_ScanFlushP2PResult(tHalHandle hHal, tANI_U8 sessionId)
 {
         eHalStatus status = eHAL_STATUS_FAILURE;
@@ -3272,29 +3221,6 @@ eHalStatus sme_RoamDisconnect(tHalHandle hHal, tANI_U8 sessionId, eCsrRoamDiscon
    }
 
    return (status);
-}
-
-/* ---------------------------------------------------------------------------
-    \fn.sme_abortConnection
-    \brief a wrapper function to request CSR to stop from connecting a network
-    \retun void.
----------------------------------------------------------------------------*/
-
-void sme_abortConnection(tHalHandle hHal, tANI_U8 sessionId)
-{
-   tpAniSirGlobal pMac = PMAC_STRUCT( hHal );
-   eHalStatus status = eHAL_STATUS_FAILURE;
-
-   status = sme_AcquireGlobalLock( &pMac->sme );
-   if ( HAL_STATUS_SUCCESS( status ) )
-   {
-      if( CSR_IS_SESSION_VALID( pMac, sessionId ) )
-      {
-          csr_abortConnection( pMac, sessionId);
-      }
-      sme_ReleaseGlobalLock( &pMac->sme );
-   }
-   return;
 }
 
 /* ---------------------------------------------------------------------------
@@ -4716,6 +4642,13 @@ eHalStatus sme_RoamSetKey(tHalHandle hHal, tANI_U8 sessionId, tCsrRoamSetKey *pS
    {
       smsLog(pMac, LOGE, FL("Invalid key length %d"), pSetKey->keyLength);
       return eHAL_STATUS_FAILURE;
+   }
+   /*Once Setkey is done, we can go in BMPS*/
+   if(pSetKey->keyLength)
+   {
+     pMac->pmc.remainInPowerActiveTillDHCP = FALSE;
+     smsLog(pMac, LOG1, FL("Reset remainInPowerActiveTillDHCP"
+                           " to allow BMPS"));
    }
 
    status = sme_AcquireGlobalLock( &pMac->sme );
@@ -6909,6 +6842,48 @@ eHalStatus sme_GetOperationChannel(tHalHandle hHal, tANI_U32 *pChannel, tANI_U8 
     return eHAL_STATUS_FAILURE;
 }// sme_GetOperationChannel ends here
 
+/**
+ * sme_register_mgmt_frame_ind_callback() - Register a callback for
+ * management frame indication to PE.
+ * @hHal: hal pointer
+ * @callback: callback pointer to be registered
+ *
+ * This function is used to register a callback for management
+ * frame indication to PE.
+ *
+ * Return: Success if msg is posted to PE else Failure.
+ */
+eHalStatus sme_register_mgmt_frame_ind_callback(tHalHandle hHal,
+   sir_mgmt_frame_ind_callback callback)
+{
+   tpAniSirGlobal pMac = PMAC_STRUCT( hHal );
+   struct sir_sme_mgmt_frame_cb_req *msg;
+   eHalStatus status = eHAL_STATUS_SUCCESS;
+
+   smsLog(pMac, LOG1, FL(": ENTER"));
+
+   if (eHAL_STATUS_SUCCESS == sme_AcquireGlobalLock(&pMac->sme))
+   {
+       msg = vos_mem_malloc(sizeof(*msg));
+       if (NULL == msg)
+       {
+          smsLog(pMac, LOGE,
+            FL("Not able to allocate memory for eWNI_SME_REGISTER_MGMT_FRAME_CB"));
+          sme_ReleaseGlobalLock( &pMac->sme );
+          return eHAL_STATUS_FAILURE;
+       }
+       vos_mem_set(msg, sizeof(*msg), 0);
+       msg->message_type = eWNI_SME_REGISTER_MGMT_FRAME_CB;
+       msg->length          = sizeof(*msg);
+
+       msg->callback = callback;
+       status = palSendMBMessage(pMac->hHdd, msg);
+       sme_ReleaseGlobalLock( &pMac->sme );
+       return status;
+   }
+   return eHAL_STATUS_FAILURE;
+}
+
 /* ---------------------------------------------------------------------------
 
     \fn sme_RegisterMgtFrame
@@ -7525,20 +7500,6 @@ eHalStatus sme_GetCfgValidChannels(tHalHandle hHal, tANI_U8 *aValidChannels, tAN
     return (status);
 }
 
-eHalStatus sme_SetCfgScanControlList(tHalHandle hHal, tANI_U8 *countryCode, tCsrChannel *pChannelList)
-{
-    eHalStatus status = eHAL_STATUS_SUCCESS;
-    tpAniSirGlobal pMac = PMAC_STRUCT( hHal );
-
-    status = sme_AcquireGlobalLock( &pMac->sme );
-    if ( HAL_STATUS_SUCCESS( status ) )
-    {
-        csrSetCfgScanControlList(pMac, countryCode, pChannelList);
-        sme_ReleaseGlobalLock( &pMac->sme );
-    }
-
-    return (status);
-}
 
 /* ---------------------------------------------------------------------------
 
@@ -7625,19 +7586,6 @@ eHalStatus sme_HandleChangeCountryCode(tpAniSirGlobal pMac,  void *pMsgBuf)
    VOS_STATUS vosStatus = VOS_STATUS_SUCCESS;
    static uNvTables nvTables;
    pMsg = (tAniChangeCountryCodeReq *)pMsgBuf;
-
-    if (pMac->scan.fcc_constraint)
-    {
-       pMac->scan.fcc_constraint = false;
-       if (VOS_TRUE== vos_mem_compare(pMac->scan.countryCodeCurrent,
-                                          pMsg->countryCode, 2))
-       {
-           csrInitGetChannels(pMac);
-           csrResetCountryInformation(pMac, eANI_BOOLEAN_TRUE, eANI_BOOLEAN_TRUE);
-           csrScanFilterResults(pMac);
-           return status ;
-       }
-   }
 
 
    /* if the reset Supplicant country code command is triggered, enable 11D, reset the NV country code and return */
@@ -10359,14 +10307,6 @@ eHalStatus sme_UpdateDfsSetting(tHalHandle hHal, tANI_U8 fUpdateEnableDFSChnlSca
     tpAniSirGlobal pMac = PMAC_STRUCT( hHal );
 
     smsLog(pMac, LOG2, FL("enter"));
-
-    if (pMac->fActiveScanOnDFSChannels)
-    {
-        smsLog(pMac, LOG1, FL("Skip updating fEnableDFSChnlScan"
-                              " as DFS feature is triggered"));
-        return (status);
-    }
-
     status = sme_AcquireGlobalLock( &pMac->sme );
     if ( HAL_STATUS_SUCCESS( status ) )
     {
@@ -10376,136 +10316,6 @@ eHalStatus sme_UpdateDfsSetting(tHalHandle hHal, tANI_U8 fUpdateEnableDFSChnlSca
     smsLog(pMac, LOG2, FL("exit status %d"), status);
 
     return (status);
-}
-
-/* ---------------------------------------------------------------------------
-    \fn sme_UpdateDFSRoamMode
-    \brief  Update DFS roam scan mode
-            This function is called to configure allowDFSChannelRoam
-            dynamically
-    \param  hHal - HAL handle for device
-    \param  allowDFSChannelRoam - DFS roaming scan mode
-            mode 0 disable roam scan on DFS channels
-            mode 1 enables roam scan (passive/active) on DFS channels
-    \return eHAL_STATUS_SUCCESS - SME update DFS roaming scan config
-            successfully.
-            Other status means SME failed to update DFS roaming scan config.
-    \sa
-    -------------------------------------------------------------------------*/
-eHalStatus sme_UpdateDFSRoamMode(tHalHandle hHal, tANI_U8 allowDFSChannelRoam)
-{
-    tpAniSirGlobal pMac = PMAC_STRUCT( hHal );
-    eHalStatus status    = eHAL_STATUS_SUCCESS;
-
-    status = sme_AcquireGlobalLock( &pMac->sme );
-    if ( HAL_STATUS_SUCCESS( status ) )
-    {
-        VOS_TRACE(VOS_MODULE_ID_SME, VOS_TRACE_LEVEL_DEBUG,
-                     "LFR runtime successfully set AllowDFSChannelRoam Mode to "
-                     "%d - old value is %d",
-                     allowDFSChannelRoam,
-                     pMac->roam.configParam.allowDFSChannelRoam);
-        pMac->roam.configParam.allowDFSChannelRoam = allowDFSChannelRoam;
-        sme_ReleaseGlobalLock( &pMac->sme );
-    }
-#ifdef WLAN_FEATURE_ROAM_SCAN_OFFLOAD
-    if (csrRoamIsRoamOffloadScanEnabled(pMac))
-    {
-       csrRoamOffloadScan(pMac, ROAM_SCAN_OFFLOAD_UPDATE_CFG,
-                          REASON_CHANNEL_LIST_CHANGED);
-    }
-#endif
-
-    return status ;
-}
-
-/* ---------------------------------------------------------------------------
-    \fn sme_UpdateDFSScanMode
-    \brief  Update DFS scan mode
-            This function is called to configure fEnableDFSChnlScan.
-    \param  hHal - HAL handle for device
-    \param  dfsScanMode - DFS scan mode
-            mode 0 disable scan on DFS channels
-            mode 1 enables passive scan on DFS channels
-            mode 2 enables active scan on DFS channels for static list
-    \return eHAL_STATUS_SUCCESS - SME update DFS roaming scan config
-            successfully.
-            Other status means SME failed to update DFS scan config.
-    \sa
-    -------------------------------------------------------------------------*/
-eHalStatus sme_UpdateDFSScanMode(tHalHandle hHal, tANI_U8 dfsScanMode)
-{
-    tpAniSirGlobal pMac = PMAC_STRUCT( hHal );
-    eHalStatus          status    = eHAL_STATUS_SUCCESS;
-
-    status = sme_AcquireGlobalLock( &pMac->sme );
-    if ( HAL_STATUS_SUCCESS( status ) )
-    {
-        VOS_TRACE(VOS_MODULE_ID_SME, VOS_TRACE_LEVEL_DEBUG,
-                     "DFS scan Mode changed to %d, old value is %d ",
-                     dfsScanMode,
-                     pMac->scan.fEnableDFSChnlScan);
-        pMac->scan.fEnableDFSChnlScan = dfsScanMode;
-        sme_ReleaseGlobalLock( &pMac->sme );
-    }
-
-    sme_FilterScanDFSResults(hHal);
-    sme_UpdateChannelList( hHal );
-
-    return status ;
-}
-
-/*--------------------------------------------------------------------------
-  \brief sme_GetDFSScanMode() - get DFS scan mode
-  \param hHal - The handle returned by macOpen.
-  \return DFS scan mode
-            mode 0 disable scan on DFS channels
-            mode 1 enables passive scan on DFS channels
-            mode 2 enables active scan on DFS channels for static list
-  \sa
-  --------------------------------------------------------------------------*/
-v_U8_t sme_GetDFSScanMode(tHalHandle hHal)
-{
-    tpAniSirGlobal pMac = PMAC_STRUCT( hHal );
-    return pMac->scan.fEnableDFSChnlScan;
-}
-
-/* ---------------------------------------------------------------------------
-    \fn sme_HandleDFSChanScan
-    \brief  Gets Valid channel list and updates scan control list according to
-             dfsScanMode
-    \param  hHal - HAL handle for device
-    \return eHAL_STATUS_FAILURE when failed to get valid channel list
-            Otherwise eHAL_STATUS_SUCCESS -
-    \sa
-    -------------------------------------------------------------------------*/
-eHalStatus sme_HandleDFSChanScan(tHalHandle hHal)
-{
-    tpAniSirGlobal pMac = PMAC_STRUCT( hHal );
-    eHalStatus status    = eHAL_STATUS_SUCCESS;
-    tCsrChannel ChannelList;
-
-    /* Flag to block driver scan type conversion from active to passive
-       and vice versa  */
-    pMac->fActiveScanOnDFSChannels = 1;
-
-    ChannelList.numChannels = sizeof(ChannelList.channelList);
-    status = sme_GetCfgValidChannels(hHal, (tANI_U8 *)ChannelList.channelList,
-                                     (tANI_U32*)&ChannelList.numChannels);
-    if (!HAL_STATUS_SUCCESS(status))
-    {
-         smsLog(pMac, LOGE,
-                FL("Failed to get valid channel list (err=%d)"), status);
-         return status;
-    }
-
-    smsLog(pMac, LOG1, FL("Valid Channel list:"));
-    VOS_TRACE_HEX_DUMP(VOS_MODULE_ID_SME, VOS_TRACE_LEVEL_INFO,
-                        ChannelList.channelList, ChannelList.numChannels);
-
-    sme_SetCfgScanControlList(hHal, pMac->scan.countryCodeCurrent,
-                                                            &ChannelList);
-    return status ;
 }
 
 /*
@@ -11036,23 +10846,6 @@ eHalStatus sme_StopBatchScanInd
 
 #endif
 
-void activeListCmdTimeoutHandle(void *userData)
-{
-    /* Return if no cmd pending in active list as
-     * in this case we should not be here.
-     */
-    if ((NULL == userData) ||
-        (0 == csrLLCount(&((tpAniSirGlobal) userData)->sme.smeCmdActiveList)))
-        return;
-    VOS_TRACE(VOS_MODULE_ID_SME, VOS_TRACE_LEVEL_ERROR,
-        "%s: Active List command timeout Cmd List Count %d", __func__,
-        csrLLCount(&((tpAniSirGlobal) userData)->sme.smeCmdActiveList) );
-    smeGetCommandQStatus((tHalHandle) userData);
-
-    if (!(vos_isLoadUnloadInProgress() ||
-        vos_is_logp_in_progress(VOS_MODULE_ID_SME, NULL)))
-       VOS_BUG(0);
-}
 
 #ifdef FEATURE_WLAN_CH_AVOID
 /* ---------------------------------------------------------------------------
@@ -11089,6 +10882,16 @@ eHalStatus sme_AddChAvoidCallback
     return(status);
 }
 #endif /* FEATURE_WLAN_CH_AVOID */
+
+void activeListCmdTimeoutHandle(void *userData)
+{
+    if (NULL == userData)
+        return;
+    VOS_TRACE(VOS_MODULE_ID_SME, VOS_TRACE_LEVEL_ERROR,
+        "%s: Active List command timeout Cmd List Count %d", __func__,
+    csrLLCount(&((tpAniSirGlobal) userData)->sme.smeCmdActiveList) );
+    smeGetCommandQStatus((tHalHandle) userData);
+}
 
 #ifdef WLAN_FEATURE_LINK_LAYER_STATS
 
@@ -11947,9 +11750,6 @@ void sme_disable_dfs_channel(tHalHandle hHal, bool disbale_dfs)
     pMac->scan.fEnableDFSChnlScan = !disbale_dfs;
     csrDisableDfsChannel(pMac);
 
-    VOS_TRACE(VOS_MODULE_ID_SME, VOS_TRACE_LEVEL_INFO,
-              "%s: Modified fEnableDFSChnlScan: %d", __func__,
-                               pMac->scan.fEnableDFSChnlScan);
 }
 
 /* ---------------------------------------------------------------------------
@@ -11986,19 +11786,19 @@ eHalStatus sme_RegisterBtCoexTDLSCallback
 }
 
 /* ---------------------------------------------------------------------------
-    \fn smeNeighborMiddleOfRoaming
 
-    \brief This function is a wrapper to call csrNeighborMiddleOfRoaming
+    \fn smeNeighborRoamIsHandoffInProgress
+
+    \brief  This function is a wrapper to call csrNeighborRoamIsHandoffInProgress
 
     \param hHal - The handle returned by macOpen.
 
-    \return eANI_BOOLEAN_TRUE if reassoc in progress,
-            eANI_BOOLEAN_FALSE otherwise
----------------------------------------------------------------------------*/
+    \return eANI_BOOLEAN_TRUE if reassoc in progress, eANI_BOOLEAN_FALSE otherwise
 
-tANI_BOOLEAN smeNeighborMiddleOfRoaming(tHalHandle hHal)
+---------------------------------------------------------------------------*/
+tANI_BOOLEAN smeNeighborRoamIsHandoffInProgress(tHalHandle hHal)
 {
-    return (csrNeighborMiddleOfRoaming(PMAC_STRUCT(hHal)));
+    return (csrNeighborRoamIsHandoffInProgress(PMAC_STRUCT(hHal)));
 }
 
 void sme_SetDefDot11Mode(tHalHandle hHal)
@@ -12082,72 +11882,3 @@ eHalStatus sme_SetMiracastVendorConfig(tHalHandle hHal,
     return eHAL_STATUS_SUCCESS;
 }
 
-/* ---------------------------------------------------------------------------
-    \fn sme_SetRtsCtsHtVht
-    \brief  API to to enable/disable RTS/CTS for different modes.
-
-    \param  set_value - Bit mask value to enable RTS/CTS for different modes.
-    \- return VOS_STATUS_SUCCES if INdication is posted to
-       WDA else return eHAL_STATUS_FAILURE
-    -------------------------------------------------------------------------*/
-eHalStatus sme_SetRtsCtsHtVht(tHalHandle hHal, tANI_U32 set_value)
-{
-    tpAniSirGlobal pMac = PMAC_STRUCT(hHal);
-    vos_msg_t msg;
-
-    smsLog(pMac, LOG1, FL(" set_value = %d"), set_value);
-
-    if (ccmCfgSetInt(hHal, WNI_CFG_ENABLE_RTSCTS_HTVHT, set_value,
-                  NULL, eANI_BOOLEAN_FALSE) == eHAL_STATUS_FAILURE)
-    {
-        smsLog(pMac, LOGE,
-            FL("Failure: Could not set WNI_CFG_ENABLE_RTSCTS_HTVHT"));
-          return eHAL_STATUS_FAILURE;
-    }
-    if ( eHAL_STATUS_SUCCESS ==  sme_AcquireGlobalLock( &pMac->sme ))
-    {
-        vos_mem_zero(&msg, sizeof(vos_msg_t));
-        msg.type = WDA_SET_RTS_CTS_HTVHT;
-        msg.reserved = 0;
-        msg.bodyval = set_value;
-        if (VOS_STATUS_SUCCESS != vos_mq_post_message(VOS_MQ_ID_WDA, &msg))
-        {
-            smsLog(pMac, LOGE,
-              FL("Not able to post WDA_SET_RTS_CTS_HTVHT message to HAL"));
-            sme_ReleaseGlobalLock( &pMac->sme );
-            return eHAL_STATUS_FAILURE;
-        }
-        sme_ReleaseGlobalLock( &pMac->sme );
-        return eHAL_STATUS_SUCCESS;
-    }
-    return eHAL_STATUS_FAILURE;
-
-}
-
-/**
- * sme_handleSetFccChannel() - handle fcc constraint request
- * @hal: HAL pointer
- * @fcc_constraint: whether to apply or remove fcc constraint
- *
- * Return: tANI_BOOLEAN.
- */
-tANI_BOOLEAN sme_handleSetFccChannel(tHalHandle hHal, tANI_U8 fcc_constraint)
-{
-    eHalStatus status = eHAL_STATUS_SUCCESS;
-    tpAniSirGlobal pMac = PMAC_STRUCT(hHal);
-
-    status = sme_AcquireGlobalLock(&pMac->sme);
-
-    if (eHAL_STATUS_SUCCESS == status &&
-                 (!sme_Is11dSupported(hHal)) )
-    {
-           pMac->scan.fcc_constraint = !fcc_constraint;
-           /* update the channel list to the firmware */
-           csrUpdateFCCChannelList(pMac);
-
-    }
-
-        sme_ReleaseGlobalLock(&pMac->sme);
-
-    return status;
-}

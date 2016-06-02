@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2015 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2013 The Linux Foundation. All rights reserved.
  *
  * Previously licensed under the ISC license by Qualcomm Atheros, Inc.
  *
@@ -44,7 +44,7 @@
 #include "wlan_qct_pal_packet.h"
 #include "wlan_qct_wda.h"
 
-#include "wniCfg.h"
+#include "wniCfgSta.h"
 #include "cfgApi.h"
 #include "sirCommon.h"
 #include "utilsApi.h"
@@ -80,7 +80,7 @@
 #include "vos_memory.h"
 
 /* This value corresponds to 500 ms */
-#define MAX_PROBEREQ_TIME 5000
+#define MAX_PROBEREQ_TIME 50
 
 #ifdef WLAN_FEATURE_EXTSCAN
 #define  SIZE_OF_FIXED_PARAM 12
@@ -1555,6 +1555,7 @@ limProcessMessages(tpAniSirGlobal pMac, tpSirMsgQ  limMsg)
         case eWNI_SME_GET_TSM_STATS_REQ:
 #endif /* FEATURE_WLAN_ESE && FEATURE_WLAN_ESE_UPLOAD */
         case eWNI_SME_MAC_SPOOF_ADDR_IND:
+        case eWNI_SME_REGISTER_MGMT_FRAME_CB:
             // These messages are from HDD
             limProcessNormalHddMsg(pMac, limMsg, false);   //no need to response to hdd
             break;
@@ -1821,6 +1822,7 @@ limProcessMessages(tpAniSirGlobal pMac, tpSirMsgQ  limMsg)
         case SIR_LIM_DISASSOC_ACK_TIMEOUT:
         case SIR_LIM_DEAUTH_ACK_TIMEOUT:
         case SIR_LIM_CONVERT_ACTIVE_CHANNEL_TO_PASSIVE:
+        case SIR_LIM_AUTH_RETRY_TIMEOUT:
             // These timeout messages are handled by MLM sub module
 
             limProcessMlmReqMessages(pMac,

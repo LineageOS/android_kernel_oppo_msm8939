@@ -104,7 +104,7 @@
 #define TDLS_INIT_DONE         (6)
 
 /** Maximum time(ms)to wait for disconnect to complete **/
-#define WLAN_WAIT_TIME_DISCONNECT  5000
+#define WLAN_WAIT_TIME_DISCONNECT  2000
 #define WLAN_WAIT_TIME_STATS       800
 #define WLAN_WAIT_TIME_POWER       800
 #define WLAN_WAIT_TIME_COUNTRY     1000
@@ -1404,6 +1404,9 @@ VOS_STATUS hdd_reconnect_all_adapters( hdd_context_t *pHddCtx );
 void hdd_dump_concurrency_info(hdd_context_t *pHddCtx);
 hdd_adapter_t * hdd_get_adapter_by_name( hdd_context_t *pHddCtx, tANI_U8 *name );
 hdd_adapter_t * hdd_get_adapter_by_macaddr( hdd_context_t *pHddCtx, tSirMacAddr macAddr );
+hdd_adapter_t *hdd_get_adapter_by_sme_session_id( hdd_context_t *pHddCtx,
+                                                 tANI_U32 sme_session_id );
+
 hdd_adapter_t * hdd_get_mon_adapter( hdd_context_t *pHddCtx );
 VOS_STATUS hdd_init_station_mode( hdd_adapter_t *pAdapter );
 hdd_adapter_t * hdd_get_adapter( hdd_context_t *pHddCtx, device_mode_t mode );
@@ -1521,8 +1524,5 @@ VOS_STATUS wlan_hdd_init_channels_for_cc(hdd_context_t *pHddCtx,  driver_load_ty
 #endif
 
 VOS_STATUS wlan_hdd_cancel_remain_on_channel(hdd_context_t *pHddCtx);
-
-VOS_STATUS wlan_hdd_handle_dfs_chan_scan(hdd_context_t *pHddCtx,
-                                   tANI_U8 dfsScanMode);
-
+void hdd_indicate_mgmt_frame(tSirSmeMgmtFrameInd *frame_ind);
 #endif    // end #if !defined( WLAN_HDD_MAIN_H )

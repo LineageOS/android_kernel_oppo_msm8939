@@ -186,11 +186,16 @@ int iw_set_oem_data_req(
     eHalStatus status = eHAL_STATUS_SUCCESS;
     struct iw_oem_data_req *pOemDataReq = NULL;
     tOemDataReqConfig oemDataReqConfig;
-
     tANI_U32 oemDataReqID = 0;
-
     hdd_adapter_t *pAdapter = (netdev_priv(dev));
     hdd_wext_state_t *pwextBuf = WLAN_HDD_GET_WEXT_STATE_PTR(pAdapter);
+
+    if (!capable(CAP_NET_ADMIN))
+    {
+        VOS_TRACE(VOS_MODULE_ID_HDD, VOS_TRACE_LEVEL_ERROR,
+                  FL("permission check failed"));
+        return -EPERM;
+    }
 
     if ((WLAN_HDD_GET_CTX(pAdapter))->isLogpInProgress)
     {
