@@ -692,8 +692,6 @@ typedef struct sSirMbMsgP2p
 #endif
 #define SIR_HAL_SPOOF_MAC_ADDR_REQ            (SIR_HAL_ITC_MSG_TYPES_BEGIN + 260)
 
-#define SIR_HAL_SET_RTS_CTS_HTVHT            (SIR_HAL_ITC_MSG_TYPES_BEGIN + 268)
-
 #define SIR_HAL_MSG_TYPES_END              (SIR_HAL_MSG_TYPES_BEGIN + 0x1FF)
 // CFG message types
 #define SIR_CFG_MSG_TYPES_BEGIN        (SIR_CFG_MODULE_ID << 8)
@@ -794,6 +792,8 @@ typedef struct sSirMbMsgP2p
 #define SIR_LIM_TDLS_LINK_SETUP_CNF_TIMEOUT (SIR_LIM_TIMEOUT_MSG_START + 0x2B)
 #endif
 #define SIR_LIM_CONVERT_ACTIVE_CHANNEL_TO_PASSIVE (SIR_LIM_TIMEOUT_MSG_START + 0x2C)
+#define SIR_LIM_AUTH_RETRY_TIMEOUT            (SIR_LIM_TIMEOUT_MSG_START + 0x2D)
+
 #define SIR_LIM_MSG_TYPES_END            (SIR_LIM_MSG_TYPES_BEGIN+0xFF)
 
 // SCH message types

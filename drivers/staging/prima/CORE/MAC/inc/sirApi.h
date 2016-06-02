@@ -3599,13 +3599,6 @@ typedef struct sSirSmeDelStaSelfRsp
     tSirMacAddr     selfMacAddr;
 }tSirSmeDelStaSelfRsp, *tpSirSmeDelStaSelfRsp;
 
-typedef enum DFSChanScanType
-{
-    DFS_CHNL_SCAN_DISABLED,
-    DFS_CHNL_SCAN_ENABLED_NORMAL,
-    DFS_CHNL_SCAN_ENABLED_ACTIVE
-}eDFSChanScanType;
-
 /* Coex Indication defines - 
    should match WLAN_COEX_IND_DATA_SIZE 
    should match WLAN_COEX_IND_TYPE_DISABLE_HB_MONITOR 
@@ -3633,8 +3626,7 @@ typedef struct sSirSmeCoexInd
 
 typedef struct sSirSmeMgmtFrameInd
 {
-    tANI_U16        mesgType;
-    tANI_U16        mesgLen;
+    tANI_U16        frameLen;
     tANI_U32        rxChan;
     tANI_U8        sessionId;
     tANI_U8         frameType;
@@ -4788,6 +4780,22 @@ typedef struct sSirChAvoidIndType
 
 typedef void (*pGetBcnMissRateCB)( tANI_S32 bcnMissRate,
                                    VOS_STATUS status, void *data);
+typedef void (*sir_mgmt_frame_ind_callback)(tSirSmeMgmtFrameInd *frame_ind);
+
+
+/**
+ * struct sir_sme_mgmt_frame_cb_req - Register a
+ * management frame callback req
+ * @message_type: message id
+ * @length: msg length
+ * @callback: callback for management frame indication
+ */
+struct sir_sme_mgmt_frame_cb_req
+{
+  tANI_U16 message_type;
+  tANI_U16 length;
+  sir_mgmt_frame_ind_callback callback;
+};
 
 typedef PACKED_PRE struct PACKED_POST
 {
