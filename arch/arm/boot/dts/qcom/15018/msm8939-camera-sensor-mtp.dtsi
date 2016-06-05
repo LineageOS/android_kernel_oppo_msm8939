@@ -11,9 +11,6 @@
  * GNU General Public License for more details.
  */
 
-&soc {
-};
-
 &cci {
 	actuator0: qcom,actuator@0 {
 		cell-index = <0>;
@@ -27,7 +24,7 @@
 		qcom,cam-vreg-op-mode = <80000>;
 	};
 
-	lm3643:flashlight {
+	lm3643: flashlight {
 		cell-index = <0>;
 		compatible = "ti,lm3643";
 		status = "okay";
@@ -55,6 +52,7 @@
 		linux,name = "flashlight";
 		linux,default-trigger = "flashlight-trigger";
 	};
+
 	led_flash0: qcom,camera-led-flash {
 		cell-index = <0>;
 		compatible = "qcom,camera-led-flash";
@@ -63,6 +61,7 @@
 		qcom,torch-source = <&lm3643>;
 		qcom,flash-cci-source = <&lm3643>;
 	};
+
 	eeprom0: qcom,eeprom@a0 {
 		cell-index = <0>;
 		reg = <0xa0 0x0>;
@@ -99,19 +98,22 @@
 			"CAM_RESET0",
 			"CAM_STANDBY0",
 			"CAM_DVIG0";
+		qcom,gpio-set-tbl-delay = <1000 30000 30000>;
 		status = "ok";
+		qcom,cam-power-seq-type = "sensor_gpio", "sensor_vreg",
+			"sensor_vreg", "sensor_clk";
+		qcom,cam-power-seq-val = "sensor_gpio_vdig", "cam_vana",
+			"cam_vio", "sensor_cam_mclk";
+		qcom,cam-power-seq-cfg-val = <1 0 0 24000000>;
+		qcom,cam-power-seq-delay = <1 1 1 5>;
 		clocks = <&clock_gcc clk_mclk0_clk_src>,
 				<&clock_gcc clk_gcc_camss_mclk0_clk>;
 		clock-names = "cam_src_clk", "cam_clk";
 
-		qcom,gpio-set-tbl-delay = <1000 30000 30000>;
 		qcom,csi-lane-assign = <0x4320>;
 		qcom,csi-lane-mask = <0x1F>;
-		qcom,cam-power-seq-type = "sensor_gpio", "sensor_vreg", "sensor_vreg", "sensor_clk";
-		qcom,cam-power-seq-val = "sensor_gpio_vdig", "cam_vana", "cam_vio", "sensor_cam_mclk";
-		qcom,cam-power-seq-cfg-val = <1 0 0 24000000>;
-		qcom,cam-power-seq-delay = <1 1 1 5>;
 	};
+
 	qcom,camera@0 {
 		cell-index = <0>;
 		compatible = "qcom,camera";
@@ -120,6 +122,7 @@
 		qcom,csid-sd-index = <0>;
 		qcom,mount-angle = <90>;
 		qcom,actuator-src = <&actuator0>;
+		qcom,led-flash-src = <&led_flash0>;
 		qcom,eeprom-src = <&eeprom0>;
 		cam_vana-supply = <&pm8916_l11>;
 		cam_vio-supply = <&pm8916_l16>;
@@ -170,7 +173,8 @@
 		qcom,cam-vreg-max-voltage = <0 1800000 2850000 0>;
 		qcom,cam-vreg-op-mode = <200000 0 80000 100000>;
 		pinctrl-names = "cam_default", "cam_suspend";
-		pinctrl-0 = <&cam_sensor_mclk1_default &cam_sensor_front_default>;
+		pinctrl-0 = <&cam_sensor_mclk1_default
+				&cam_sensor_front_default>;
 		pinctrl-1 = <&cam_sensor_mclk1_sleep &cam_sensor_front_sleep>;
 		gpios = <&msm_gpio 27 0>,
 			<&msm_gpio 28 0>,
