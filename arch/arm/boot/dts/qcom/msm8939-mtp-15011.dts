@@ -12,18 +12,11 @@
 
 /dts-v1/;
 
-#include "15011/msm8939.dtsi"
+#include "msm8939.dtsi"
 #include "15011/msm8939-mtp.dtsi"
-#include "15011/msm8939-audio-internal_codec.dtsi"
 
 / {
 	model = "Qualcomm Technologies, Inc. MSM 8939 MTP 15011";
 	compatible = "qcom,msm8939-mtp", "qcom,msm8939", "qcom,mtp";
 	qcom,board-id = <8 0 15011>;
-};
-
-&cci {
-	qcom,camera@0 {
-		qcom,led-flash-src = <&led_flash0>;
-	};
 };
