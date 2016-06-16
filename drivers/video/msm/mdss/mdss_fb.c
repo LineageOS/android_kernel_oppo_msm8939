@@ -1050,13 +1050,9 @@ static int mdss_fb_probe(struct platform_device *pdev)
 
 #ifdef VENDOR_EDIT
 /* YongPeng.Yi@SWDP.MultiMedia, 2015/03/12  Add for 15009 START */
-#ifndef OPPO_CMCC_TEST
-	#ifndef OPPO_CU_TEST
-		if(is_project(OPPO_15009)){
-			memset(phys_to_virt(0x83200000 + 1080*720*3), 0x00, 200*720*3);
-		}
-	#endif
-#endif
+	if(is_project(OPPO_15009)){
+		memset(phys_to_virt(0x83200000 + 1080*720*3), 0x00, 200*720*3);
+	}
 /* YongPeng.Yi@SWDP.MultiMedia END */
 #endif /*VENDOR_EDIT*/
 

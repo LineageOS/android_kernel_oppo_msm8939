@@ -587,9 +587,6 @@ void opchg_config_input_chg_current(struct opchg_charger *chip, int reason, int 
 
 void opchg_config_over_time(struct opchg_charger *chip, int mA)
 {
-    #ifdef OPPO_CMCC_TEST
-    chip->overtime_status = OVERTIME_DISABLED;
-	#else
 	if (mA > USB2_MAX_CURRENT_MA) {
         //chip->overtime_status = OVERTIME_AC;
         chip->overtime_status = OVERTIME_USB;		//modify for new standard
@@ -597,7 +594,6 @@ void opchg_config_over_time(struct opchg_charger *chip, int mA)
 	else {
         chip->overtime_status = OVERTIME_USB;
     }
-	#endif
 
 	chip->g_is_changed = true;
 }
@@ -1057,30 +1053,7 @@ void opchg_check_camera_onoff(struct opchg_charger *chip)
 		//do nothing
 	}
 }
-void opchg_check_cmcc_charging_current(struct opchg_charger *chip)
-{
-#ifdef OPPO_CMCC_TEST
 
-/*huqiao@EXP.BasicDrv.Basic add for clone 15085*/
-	if(is_project(OPPO_14005) || is_project(OPPO_14045)|| is_project(OPPO_14037)||
-		is_project(OPPO_15011)|| is_project(OPPO_15057)||
-		is_project(OPPO_15018)|| is_project(OPPO_15022)||
-		is_project(OPPO_15009)|| is_project(OPPO_15037)||is_project(OPPO_15035) || is_project(OPPO_15085) )
-	{
-		if(chip->charger_type != POWER_SUPPLY_TYPE_USB_DCP)
-		{
-			if(chip->bat_instant_vol >= CMCC_CHARGER_FULL_4250MV)
-			{
-				opchg_config_input_chg_current(chip, INPUT_CURRENT_CMCC, CMCC_FULL_CHARGING_INPUT_CURRENT);
-			}
-			else if(chip->bat_instant_vol < CMCC_CHARGER_FULL_4208MV)
-			{
-				opchg_config_input_chg_current(chip, INPUT_CURRENT_CMCC, CMCC_CHARGING_INPUT_CURRENT);
-			}
-		}
-	}
-#endif
-}
 #define RECHARGER_DISABLE		0
 #define RECHARGER_ENABLE		1
 #define RECHARGER_STATUS		2
@@ -1442,7 +1415,6 @@ void opchg_check_status(struct opchg_charger *chip)
 	opchg_check_charging_full_term_voltage(chip);
 	opchg_check_fast_to_standard_charging(chip);
 
-	opchg_check_cmcc_charging_current(chip);
 	opchg_check_recharging_voltage(chip);
 	opchg_check_power_off(chip);
 	opchg_get_adc_notification(chip);

@@ -217,6 +217,7 @@ static int input_handle_abs_event(struct input_dev *dev,
 	struct input_mt *mt = dev->mt;
 	bool is_mt_event;
 	int *pold;
+
 	if (code == ABS_MT_SLOT) {
 		/*
 		 * "Stage" the event; we'll flush it later, when we
@@ -684,13 +685,6 @@ static void input_dev_release_keys(struct input_dev *dev)
 
 	if (is_event_supported(EV_KEY, dev->evbit, EV_MAX)) {
 		for (code = 0; code <= KEY_MAX; code++) {
-			#ifdef VENDOR_EDIT
-			//Jason.Lee@PhoneSW.BSP.MotionTDT, 2014/12/05, Add for oppo_shake by ranfei
-			//do not report up when resume
-			if(code == KEY_VOLUMEDOWN || code == KEY_VOLUMEUP) {
-				continue;
-			}
-			#endif/* VENDOR_EDIT */
 			if (is_event_supported(code, dev->keybit, KEY_MAX) &&
 			    __test_and_clear_bit(code, dev->key)) {
 				input_pass_event(dev, EV_KEY, code, 0);

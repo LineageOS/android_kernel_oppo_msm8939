@@ -616,10 +616,6 @@ static void dpm_resume_early(pm_message_t state)
 	}
 	mutex_unlock(&dpm_list_mtx);
 	dpm_show_time(starttime, state, "early");
-#ifdef VENDOR_EDIT
-/* OPPO 2015-03-26 sjc Add begin for sleep debug */
-	print_active_wakeup_sources();
-#endif /* VENDOR_EDIT */
 }
 
 /**
@@ -1224,16 +1220,8 @@ static int __device_suspend(struct device *dev, pm_message_t state, bool async)
 
  Complete:
 	complete_all(&dev->power.completion);
-#ifdef VENDOR_EDIT
-/* OPPO 2015-03-26 sjc Add begin for sleep debug */
-	if (error) {
-		pr_info("Suspend: Device %s failed to suspend!\n", dev_name(dev));
-		async_error = error;
-	}
-#else
 	if (error)
 		async_error = error;
-#endif /* VENDOR_EDIT */
 
 	return error;
 }
