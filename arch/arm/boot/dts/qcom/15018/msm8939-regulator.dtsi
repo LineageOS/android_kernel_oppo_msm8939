@@ -15,9 +15,9 @@
 &soc {
 	regulator@b018000 {
 		vdd-apc-optional-prim-supply = <&fan53555>;
-		qcom,cpr-fan53555-apc-volt-step = <12500>;
-		qcom,cpr-fan53555-step-quotient = <26>;
-		qcom,cpr-fan53555-up-threshold = <2>;
-		qcom,cpr-fan53555-down-threshold = <3>;
+		qcom,cpr-step-quotient = <26>;
+		qcom,cpr-up-threshold = <2>;
+		qcom,cpr-down-threshold = <3>;
+		qcom,cpr-apc-volt-step = <12500>;
 	};
 };

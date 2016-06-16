@@ -416,6 +416,7 @@ static void wakeup_source_activate(struct wakeup_source *ws)
 	ws->last_time = ktime_get();
 	if (ws->autosleep_enabled)
 		ws->start_prevent_time = ws->last_time;
+
 	/* Increment the counter of events in progress. */
 	cec = atomic_inc_return(&combined_event_count);
 
@@ -681,34 +682,6 @@ void pm_wakeup_event(struct device *dev, unsigned int msec)
 }
 EXPORT_SYMBOL_GPL(pm_wakeup_event);
 
-#ifdef VENDOR_EDIT
-/* OPPO 2015-03-26 sjc Add begin for sleep debug */
-void print_active_wakeup_sources(void)
-{
-	struct wakeup_source *ws;
-	int active = 0;
-	struct wakeup_source *last_activity_ws = NULL;
-
-	rcu_read_lock();
-	list_for_each_entry_rcu(ws, &wakeup_sources, entry) {
-		if (ws->active) {
-			pr_info("active wakeup source: %s\n", ws->name);
-			active = 1;
-		} else if (!active &&
-			   (!last_activity_ws ||
-			    ktime_to_ns(ws->last_time) >
-			    ktime_to_ns(last_activity_ws->last_time))) {
-			last_activity_ws = ws;
-		}
-	}
-
-	if (!active && last_activity_ws)
-		pr_info("last active wakeup source: %s\n",
-			last_activity_ws->name);
-	rcu_read_unlock();
-}
-EXPORT_SYMBOL_GPL(print_active_wakeup_sources);
-#else /* VENDOR_EDIT */
 static void print_active_wakeup_sources(void)
 {
 	struct wakeup_source *ws;
@@ -716,7 +689,6 @@ static void print_active_wakeup_sources(void)
 	struct wakeup_source *last_activity_ws = NULL;
 
 	rcu_read_lock();
-	printk("%s: %d\n", __func__, __LINE__);
 	list_for_each_entry_rcu(ws, &wakeup_sources, entry) {
 		if (ws->active) {
 			pr_info("active wakeup source: %s\n", ws->name);
@@ -732,10 +704,8 @@ static void print_active_wakeup_sources(void)
 	if (!active && last_activity_ws)
 		pr_info("last active wakeup source: %s\n",
 			last_activity_ws->name);
-	printk("%s: %d\n", __func__, __LINE__);
 	rcu_read_unlock();
 }
-#endif /* VENDOR_EDIT */
 
 /**
  * pm_wakeup_pending - Check if power transition in progress should be aborted.
@@ -839,7 +809,6 @@ void pm_wakep_autosleep_enabled(bool set)
 	ktime_t now = ktime_get();
 
 	rcu_read_lock();
-	printk("%s: %d\n", __func__, __LINE__);
 	list_for_each_entry_rcu(ws, &wakeup_sources, entry) {
 		spin_lock_irq(&ws->lock);
 		if (ws->autosleep_enabled != set) {
@@ -853,7 +822,6 @@ void pm_wakep_autosleep_enabled(bool set)
 		}
 		spin_unlock_irq(&ws->lock);
 	}
-	printk("%s: %d\n", __func__, __LINE__);
 	rcu_read_unlock();
 }
 #endif /* CONFIG_PM_AUTOSLEEP */
@@ -923,10 +891,8 @@ static int wakeup_sources_stats_show(struct seq_file *m, void *unused)
 		"last_change\tprevent_suspend_time\n");
 
 	rcu_read_lock();
-	printk("%s: %d\n", __func__, __LINE__);
 	list_for_each_entry_rcu(ws, &wakeup_sources, entry)
 		print_wakeup_source_stats(m, ws);
-	printk("%s: %d\n", __func__, __LINE__);
 	rcu_read_unlock();
 
 	return 0;
