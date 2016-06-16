@@ -53,11 +53,6 @@
 #include <linux/flex_array.h>
 #include <linux/vmalloc.h>
 #include <net/netlabel.h>
-#ifdef VENDOR_EDIT
-//jiemin.zhu@Swap.Android.Kernel, add for reboot system when there is no memory
-//to alloc scontext, maybe some hardware error
-#include <linux/reboot.h>
-#endif /* VENDOR_EDIT */
 
 #include "flask.h"
 #include "avc.h"
@@ -1429,16 +1424,8 @@ static int security_context_to_sid_core(const char *scontext, u32 scontext_len,
 
 	/* Copy the string so that we can modify the copy as we parse it. */
 	scontext2 = kmalloc(scontext_len + 1, gfp_flags);
-	if (!scontext2) {
-#ifdef VENDOR_EDIT
-//jiemin.zhu@Swap.Android.Kernel, add for reboot system when there is no memory
-//to alloc scontext, maybe some hardware error
-		printk(KERN_ERR "SELinux: %s: can't alloc the scontext2, len %d\n",
-				__func__, scontext_len);
-		emergency_restart();
-#endif /* VENDOR_EDIT */
+	if (!scontext2)
 		return -ENOMEM;
-	}
 	memcpy(scontext2, scontext, scontext_len);
 	scontext2[scontext_len] = 0;
 
@@ -1446,16 +1433,8 @@ static int security_context_to_sid_core(const char *scontext, u32 scontext_len,
 		/* Save another copy for storing in uninterpreted form */
 		rc = -ENOMEM;
 		str = kstrdup(scontext2, gfp_flags);
-		if (!str) {
-#ifdef VENDOR_EDIT
-//jiemin.zhu@Swap.Android.Kernel, add for reboot system when there is no memory
-//to alloc scontext, maybe some hardware error
-			printk(KERN_ERR "SELinux: %s: can't kstrdup scontext2 %s\n",
-					__func__, scontext2);
-			emergency_restart();
-#endif /* VENDOR_EDIT */
+		if (!str)
 			goto out;
-		}
 	}
 
 	read_lock(&policy_rwlock);

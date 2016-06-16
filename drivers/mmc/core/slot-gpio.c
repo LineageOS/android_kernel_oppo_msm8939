@@ -46,6 +46,7 @@ static irqreturn_t mmc_gpio_cd_irqt(int irq, void *dev_id)
 	struct mmc_host *host = dev_id;
 	struct mmc_gpio *ctx = host->slot.handler_priv;
 	int status;
+
 	/*
 	 * In case host->ops are not yet initialized return immediately.
 	 * The card will get detected later when host driver calls
@@ -60,7 +61,6 @@ static irqreturn_t mmc_gpio_cd_irqt(int irq, void *dev_id)
 	status = mmc_gpio_get_status(host);
 	if (unlikely(status < 0))
 		goto out;
-
 
 	if (status ^ ctx->status) {
 		pr_info("%s: slot status change detected (%d -> %d), GPIO_ACTIVE_%s\n",
@@ -159,6 +159,7 @@ int mmc_gpio_request_ro(struct mmc_host *host, unsigned int gpio)
 		return ret;
 
 	ctx = host->slot.handler_priv;
+
 	ret = devm_gpio_request_one(&host->class_dev, gpio, GPIOF_DIR_IN,
 				    ctx->ro_label);
 	if (ret < 0)

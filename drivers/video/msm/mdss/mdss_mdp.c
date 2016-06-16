@@ -242,10 +242,7 @@ static irqreturn_t mdss_irq_handler(int irq, void *ptr)
 		return IRQ_NONE;
 
 	mdss_mdp_hw.irq_info->irq_buzy = true;
-#ifdef VENDOR_EDIT
-/* Xiaori.Yuan@Mobile Phone Software Dept.Driver, 2015/06/27  Add for splash screen */
-	MDSS_XLOG(intr);
-#endif /*VENDOR_EDIT*/
+
 	if (intr & MDSS_INTR_MDP) {
 		spin_lock(&mdp_lock);
 		mdata->mdss_util->irq_dispatch(MDSS_HW_MDP, irq, ptr);
