@@ -1,0 +1,21 @@
+{
+  "comments": [
+    {
+      "key": {
+        "uuid": "5faad753_780ca4a4",
+        "filename": "arch/arm/boot/dts/qcom/15018/msm8939-mtp.dtsi",
+        "patchSetId": 1
+      },
+      "lineNbr": 455,
+      "author": {
+        "id": 4550
+      },
+      "writtenOn": "2016-06-16T11:47:26Z",
+      "side": 0,
+      "message": "Might as well remove this too",
+      "revId": "e26f3621f81c8a5950143f6fd29ebb54f6217598",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71",
+      "unresolved": false
+    }
+  ]
+}
