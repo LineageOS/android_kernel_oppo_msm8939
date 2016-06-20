@@ -397,7 +397,7 @@ void set_acl_mode(int level)
 	struct dcs_cmd_req cmdreq;
 	/* wuyu@EXP.BaseDrv.LCM, 2015-05-18, add micro OPPO_15011, (OPPO15011=OPPO_15018) */
 /*huqiao@EXP.BasicDrv.Basic add for clone 15085*/
-	if(!is_project(OPPO_15011) && !is_project(OPPO_15018) && !is_project(OPPO_15022) && !is_project(OPPO_15085))
+	if(!is_project(OPPO_14005) && !is_project(OPPO_15011) && !is_project(OPPO_15018) && !is_project(OPPO_15022) && !is_project(OPPO_15085))
 		return;
 	pr_err("%s: level=%d\n", __func__, level);
 	if(level < 0 || level > 3){
@@ -434,7 +434,7 @@ void set_hbm_mode(int level)
 	struct dcs_cmd_req cmdreq;
 	/* wuyu@EXP.BaseDrv.LCM, 2015-05-18, add micro OPPO_15011, (OPPO15011=OPPO_15018) */
 /*huqiao@EXP.BasicDrv.Basic add for clone 15085*/
-	if(!is_project(OPPO_15011) && !is_project(OPPO_15018) && !is_project(OPPO_15022) && !is_project(OPPO_15085))
+	if(!is_project(OPPO_14005) && !is_project(OPPO_15011) && !is_project(OPPO_15018) && !is_project(OPPO_15022) && !is_project(OPPO_15085))
 		return;
 	pr_err("%s: level=%d\n", __func__, level);
 	if(level < 0 || level > 2){
@@ -448,21 +448,16 @@ void set_hbm_mode(int level)
         mutex_unlock(&lcd_mutex);
         return;
     }
-	/* wuyu@EXP.BaseDrv.LCM, 2015-05-18, add micro OPPO_15011, (OPPO15011=OPPO_15018) */
-/*huqiao@EXP.BasicDrv.Basic add for clone 15085*/
-	if(is_project(OPPO_15018) || is_project(OPPO_15011) || is_project(OPPO_15085)){
-		switch(level)
-		{
-			case 0:
-				set_hbm[1] = 0x20;
-				break;
-			case 1:
-				set_hbm[1] = 0x60;
-				break;
-			case 2:
-				set_hbm[1] = 0xe0;
-				break;
-		}
+	switch(level) {
+		case 0:
+			set_hbm[1] = 0x20;
+			break;
+		case 1:
+			set_hbm[1] = 0x60;
+			break;
+		case 2:
+			set_hbm[1] = 0xe0;
+			break;
 	}
 
 	memset(&cmdreq, 0, sizeof(cmdreq));
@@ -490,7 +485,7 @@ static int send_samsung_fit_cmd(struct dsi_cmd_desc * cmd , int count)
 }
 static int set_acl_resume_mode(int level){
 /*huqiao@EXP.BasicDrv.Basic add for clone 15085*/
-	if(!is_project(14005) && !is_project(OPPO_15011) && !is_project(OPPO_15018) && !is_project(OPPO_15022) && !is_project(OPPO_15085))
+	if(!is_project(OPPO_14005) && !is_project(OPPO_15011) && !is_project(OPPO_15018) && !is_project(OPPO_15022) && !is_project(OPPO_15085))
 		return 0;
 	pr_err("%s: level=%d\n", __func__, level);
 	set_acl[1] = (unsigned char)level;
@@ -1172,7 +1167,7 @@ static int mdss_dsi_panel_on(struct mdss_panel_data *pdata)
 /* Xiaori.Yuan@Mobile Phone Software Dept.Driver, 2014/08/02  Add for ESD */
 /* wuyu@EXP.BaseDrv.LCM, 2015-05-18, add micro OPPO_15011, (OPPO15011=OPPO_15018) */
 /*huqiao@EXP.BasicDrv.Basic add for clone 15085*/
-	if(is_project(OPPO_15011) || is_project(OPPO_15018) || is_project(OPPO_15022) || is_project(OPPO_15085)){
+	if(is_project(OPPO_14005) || is_project(OPPO_15011) || is_project(OPPO_15018) || is_project(OPPO_15022) || is_project(OPPO_15085)){
 		if(acl_mode != ACL_LEVEL_0){
 				set_acl_resume_mode(acl_mode);
 		}
@@ -1753,7 +1748,7 @@ static int mdss_dsi_parse_panel_features(struct device_node *np,
 /* Xiaori.Yuan@Mobile Phone Software Dept.Driver, 2015/04/10  Add for esd check */
 /* wuyu@EXP.BaseDrv.LCM, 2015-05-18, add micro OPPO_15011, (OPPO15011=OPPO_15018) */
 /*huqiao@EXP.BasicDrv.Basic add for clone 15085*/
-	if(MSM_BOOT_MODE__NORMAL!=get_boot_mode() && (is_project(OPPO_15011) || is_project(OPPO_15018) || is_project(OPPO_15022) || is_project(OPPO_15085))){
+	if(MSM_BOOT_MODE__NORMAL!=get_boot_mode() && (is_project(OPPO_14005) || is_project(OPPO_15011) || is_project(OPPO_15018) || is_project(OPPO_15022) || is_project(OPPO_15085))){
 		pinfo->esd_check_enabled = false;
 	}
 #endif /*VENDOR_EDIT*/
@@ -2419,6 +2414,11 @@ if(is_project(OPPO_15009)||is_project(OPPO_15037)||is_project(OPPO_15035)){
 			ESD_TE_TEST = 1;
 		}
 #endif /*VENDOR_EDIT*/
+/* Xiaori.Yuan@Mobile Phone Software Dept.Driver, 2014/08/01  Add for ESD */
+		if(is_project(OPPO_14005)){
+			te_check_gpio = 926;
+			ESD_TE_TEST = 1;
+		}
 		if((MSM_BOOT_MODE__FACTORY == get_boot_mode())&&(is_project(OPPO_15009)||is_project(OPPO_15037)||is_project(OPPO_15035))){
 			ESD_TE_TEST = 0;
 		}
