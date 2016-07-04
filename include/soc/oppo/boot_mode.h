@@ -10,9 +10,11 @@
 **	<author>	<data>			<desc>
 ** tong.han@BasicDrv.TP&LCD 11/01/2014 add this file
 ************************************************************************************/
+
 #ifndef _OPPO_BOOT_H
 #define _OPPO_BOOT_H
-enum{
+
+enum {
 	MSM_BOOT_MODE__NORMAL,
 	MSM_BOOT_MODE__FASTBOOT,
 	MSM_BOOT_MODE__RECOVERY,
@@ -22,8 +24,8 @@ enum{
 	MSM_BOOT_MODE__MOS,
 	MSM_BOOT_MODE__CHARGE,
 	MSM_BOOT_MODE__SILENCE,
-
 };
 
-extern int get_boot_mode(void);
+int get_boot_mode(void);
+
 #endif

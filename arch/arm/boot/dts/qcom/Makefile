@@ -40,11 +40,11 @@ dtb-$(CONFIG_ARCH_MSM8909) += msm8909-sim.dtb \
 	msm8909-1gb-cdp.dtb \
 	msm8909-1gb-mtp.dtb
 
-ifeq ($(CONFIG_OPPO_COMMON_SOFT),y)
-dtb-$(CONFIG_ARCH_MSM8916) += msm8939-mtp-14005.dtb
-dtb-$(CONFIG_ARCH_MSM8916) += msm8939-mtp-15011.dtb
-dtb-$(CONFIG_ARCH_MSM8916) += msm8939-v3.0-mtp-15018.dtb
-dtb-$(CONFIG_ARCH_MSM8916) += msm8939-v3.0-mtp-15022.dtb
+ifeq ($(CONFIG_MACH_OPPO_MSM8916),y)
+dtb-$(CONFIG_MACH_14005) += msm8939-mtp-14005.dtb
+dtb-$(CONFIG_MACH_15011) += msm8939-mtp-15011.dtb
+dtb-$(CONFIG_MACH_15018) += msm8939-v3.0-mtp-15018.dtb
+dtb-$(CONFIG_MACH_15022) += msm8939-v3.0-mtp-15022.dtb
 else
 dtb-$(CONFIG_ARCH_MSM8916) += msm8916-sim.dtb \
 	msm8916-rumi.dtb \
