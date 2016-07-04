@@ -45,9 +45,10 @@ static struct proc_dir_entry *parent = NULL;
 static void *device_seq_start(struct seq_file *s, loff_t *pos)
 {
 	static unsigned long counter = 0;
-	if ( *pos == 0 ) {
+
+	if (*pos == 0) {
 		return &counter;
-	}else{
+	} else {
 		*pos = 0;
 		return NULL;
 	}
@@ -67,9 +68,13 @@ static int device_seq_show(struct seq_file *s, void *v)
 {
 	struct proc_dir_entry *pde = s->private;
 	struct manufacture_info *info = pde->data;
-	if(info)
-	  seq_printf(s, "Device version:\t\t%s\nDevice manufacture:\t\t%s\n",
-		     info->version,	info->manufacture);
+
+	if (info)
+		seq_printf(s, "Device version:\t\t%s\n"
+			      "Device manufacture:\t\t%s\n",
+			      info->version,
+			      info->manufacture);
+
 	return 0;
 }
 
@@ -82,16 +87,16 @@ static struct seq_operations device_seq_ops = {
 
 static int device_proc_open(struct inode *inode,struct file *file)
 {
-	int ret = seq_open(file,&device_seq_ops);
-	pr_err("caven %s is called\n",__func__);
+	int ret = seq_open(file, &device_seq_ops);
 
-	if(!ret){
+	if (!ret) {
 		struct seq_file *sf = file->private_data;
 		sf->private = PDE(inode);
 	}
 
 	return ret;
 }
+
 static const struct file_operations device_node_fops = {
 	.read =  seq_read,
 	.llseek = seq_lseek,
@@ -105,9 +110,9 @@ int register_device_proc(char *name, char *version, char *manufacture)
 	struct proc_dir_entry *d_entry;
 	struct manufacture_info *info;
 
-	if(!parent) {
-		parent =  proc_mkdir ("devinfo", NULL);
-		if(!parent) {
+	if (!parent) {
+		parent = proc_mkdir ("devinfo", NULL);
+		if (!parent) {
 			pr_err("can't create devinfo proc\n");
 			return -ENOENT;
 		}
@@ -116,12 +121,15 @@ int register_device_proc(char *name, char *version, char *manufacture)
 	info = kzalloc(sizeof *info, GFP_KERNEL);
 	info->version = version;
 	info->manufacture = manufacture;
-	d_entry = proc_create_data (name, S_IRUGO, parent, &device_node_fops, info);
-	if(!d_entry) {
+	d_entry = proc_create_data(name, S_IRUGO, parent, &device_node_fops,
+			info);
+
+	if (!d_entry) {
 		pr_err("create %s proc failed.\n", name);
 		kfree(info);
 		return -ENOENT;
 	}
+
 	return 0;
 }
 
@@ -129,15 +137,11 @@ static void dram_type_add(void)
 {
 	struct manufacture_info dram_info;
 	int *p = NULL;
-	#if 0
-	p  = (int *)smem_alloc2(SMEM_DRAM_TYPE,4);
-	#else
-	p  = (int *)smem_alloc(SMEM_DRAM_TYPE,4,0,0);
-	#endif
 
-	if(p)
-	{
-		switch(*p){
+	p = (int *)smem_alloc(SMEM_DRAM_TYPE, 4, 0, 0);
+
+	if (p) {
+		switch (*p) {
 			case DRAM_TYPE0:
 				dram_info.version = "EDB8132B3PB-1D-F FBGA";
 				dram_info.manufacture = "ELPIDA";
@@ -158,18 +162,15 @@ static void dram_type_add(void)
 				dram_info.version = "unknown";
 				dram_info.manufacture = "unknown";
 		}
-
-	}else{
+	} else {
 		dram_info.version = "unknown";
 		dram_info.manufacture = "unknown";
-
 	}
 
 	register_device_proc("ddr", dram_info.version, dram_info.manufacture);
 }
 
-
-static int get_hw_opreator_version(struct devinfo_data *devinfo_data)
+static int get_hw_operator_version(struct devinfo_data *devinfo_data)
 {
 	int hw_operator_name = 0;
 	int ret;
@@ -177,69 +178,70 @@ static int get_hw_opreator_version(struct devinfo_data *devinfo_data)
 	int id2 = -1;
 	int id3 = -1;
 	struct device_node *np;
-	np = devinfo_data->devinfo->dev.of_node;
-	if(!devinfo_data){
+
+	if (!devinfo_data) {
 		pr_err("devinfo_data is NULL\n");
 		return 0;
 	}
-	devinfo_data->hw_id1_gpio = of_get_named_gpio(np, "Hw,operator-gpio1", 0);
-	if(devinfo_data->hw_id1_gpio < 0 ) {
+
+	np = devinfo_data->devinfo->dev.of_node;
+
+	devinfo_data->hw_id1_gpio = of_get_named_gpio(
+			np, "Hw,operator-gpio1", 0);
+	if (devinfo_data->hw_id1_gpio < 0)
 		pr_err("devinfo_data->hw_id1_gpio not specified\n");
-	}
-	devinfo_data->hw_id2_gpio = of_get_named_gpio(np, "Hw,operator-gpio2", 0);
-	if(devinfo_data->hw_id2_gpio < 0 ) {
+
+	devinfo_data->hw_id2_gpio = of_get_named_gpio(
+			np, "Hw,operator-gpio2", 0);
+	if (devinfo_data->hw_id2_gpio < 0)
 		pr_err("devinfo_data->hw_id2_gpio not specified\n");
-	}
-	devinfo_data->hw_id3_gpio = of_get_named_gpio(np, "Hw,operator-gpio3", 0);
-	if(devinfo_data->hw_id3_gpio < 0 ) {
+
+	devinfo_data->hw_id3_gpio = of_get_named_gpio(
+			np, "Hw,operator-gpio3", 0);
+	if (devinfo_data->hw_id3_gpio < 0)
 		pr_err("devinfo_data->hw_id3_gpio not specified\n");
+
+	if (devinfo_data->hw_id1_gpio >= 0) {
+		ret = gpio_request(devinfo_data->hw_id1_gpio, "HW_ID1");
+		if (ret)
+			pr_err("unable to request gpio [%d]\n",
+					devinfo_data->hw_id1_gpio);
+		else
+			id1 = gpio_get_value(devinfo_data->hw_id1_gpio);
 	}
-	/***Tong.han@Bsp.Group.Tp Added for Operator_Pcb detection***/
-	if(devinfo_data->hw_id1_gpio >= 0 ) {
-		ret = gpio_request(devinfo_data->hw_id1_gpio,"HW_ID1");
-		if(ret){
-			pr_err("unable to request gpio [%d]\n",devinfo_data->hw_id1_gpio);
-		}else{
-			id1=gpio_get_value(devinfo_data->hw_id1_gpio);
-		}
+
+	if(devinfo_data->hw_id2_gpio >= 0) {
+		ret = gpio_request(devinfo_data->hw_id2_gpio, "HW_ID2");
+		if (ret)
+			pr_err("unable to request gpio [%d]\n",
+					devinfo_data->hw_id2_gpio);
+		else
+			id2 = gpio_get_value(devinfo_data->hw_id2_gpio);
 	}
-	if(devinfo_data->hw_id2_gpio >= 0 ) {
-		ret = gpio_request(devinfo_data->hw_id2_gpio,"HW_ID2");
-		if(ret){
-			pr_err("unable to request gpio [%d]\n",devinfo_data->hw_id2_gpio);
-		}else{
-			id2=gpio_get_value(devinfo_data->hw_id2_gpio);
-		}
+
+	if (devinfo_data->hw_id3_gpio >= 0) {
+		ret = gpio_request(devinfo_data->hw_id3_gpio, "HW_ID2");
+		if (ret)
+			pr_err("unable to request gpio [%d]\n",
+					devinfo_data->hw_id3_gpio);
+		else
+			id3 = gpio_get_value(devinfo_data->hw_id3_gpio);
 	}
-	if(devinfo_data->hw_id3_gpio >= 0 ) {
-		ret = gpio_request(devinfo_data->hw_id3_gpio,"HW_ID2");
-		if(ret){
-			pr_err("unable to request gpio [%d]\n",devinfo_data->hw_id3_gpio);
-		}else{
-			id3=gpio_get_value(devinfo_data->hw_id3_gpio);
-		}
-	}
-	if(is_project(OPPO_15018)) {
-		if(( id1==0 )&&( id2==0 ))
+
+	if (is_project(OPPO_15018)) {
+		if ((id1 == 0) && (id2 == 0))
 			hw_operator_name = OPERATOR_CHINA_TELECOM;
-		else if(( id1==0 )&&( id2==1 ))
+		else if ((id1 == 0) && (id2 == 1))
 			hw_operator_name = OPERATOR_ALL_CHINA_CARRIER;
 		else
 			hw_operator_name = OPERATOR_UNKOWN;
 	}
-	if(is_project(OPPO_15009)){
-		if(( id1==0 )&&( id2==0 )&&( id3==0 ))
-			hw_operator_name = OPERATOR_CHINA_MOBILE;
-		else if(( id1==1 )&&( id2==0 )&&( id3==0 ))
-			hw_operator_name = OPERATOR_CHINA_UNICOM ;
-		else if(( id1==0 )&&( id2==1 )&&( id3==0 ))
-			hw_operator_name = OPERATOR_CHINA_TELECOM;
-		else if(( id1==0 )&&( id2==1 )&&( id3==0 ))
-			hw_operator_name = OPERATOR_UNKOWN;
-	}
-	pr_err("hw_operator_name [%d]\n",hw_operator_name);
+
+	pr_info("hw_operator_name [%d]\n", hw_operator_name);
+
 	return hw_operator_name;
 }
+
 static void sub_mainboard_verify(struct devinfo_data *devinfo_data)
 {
 	int ret;
@@ -248,157 +250,135 @@ static void sub_mainboard_verify(struct devinfo_data *devinfo_data)
 	static char temp_manufacture_sub[12];
 	struct device_node *np;
 	struct manufacture_info mainboard_info;
-	if(!devinfo_data){
+
+	if (!devinfo_data) {
 		pr_err("devinfo_data is NULL\n");
 		return;
 	}
+
 	np = devinfo_data->devinfo->dev.of_node;
+
 	devinfo_data->sub_hw_id1 = of_get_named_gpio(np, "Hw,sub_hwid_1", 0);
-	if(devinfo_data->sub_hw_id1 < 0 ) {
+	if (devinfo_data->sub_hw_id1 < 0)
 		pr_err("devinfo_data->sub_hw_id1 not specified\n");
-	}
+
 	devinfo_data->sub_hw_id2 = of_get_named_gpio(np, "Hw,sub_hwid_2", 0);
-	if(devinfo_data->sub_hw_id2 < 0 ) {
+	if (devinfo_data->sub_hw_id2 < 0)
 		pr_err("devinfo_data->sub_hw_id2 not specified\n");
+
+	if (devinfo_data->sub_hw_id1 >= 0) {
+		ret = gpio_request(devinfo_data->sub_hw_id1, "SUB_HW_ID1");
+		if(ret)
+			pr_err("unable to request gpio [%d]\n",
+					devinfo_data->sub_hw_id1);
+		else
+			id1 = gpio_get_value(devinfo_data->sub_hw_id1);
 	}
 
-	if(devinfo_data->sub_hw_id1 >= 0 ) {
-		ret = gpio_request(devinfo_data->sub_hw_id1,"SUB_HW_ID1");
-		if(ret){
-			pr_err("unable to request gpio [%d]\n",devinfo_data->sub_hw_id1);
-		}else{
-			id1=gpio_get_value(devinfo_data->sub_hw_id1);
-		}
+	if (devinfo_data->sub_hw_id2 >= 0) {
+		ret = gpio_request(devinfo_data->sub_hw_id2, "SUB_HW_ID2");
+		if(ret)
+			pr_err("unable to request gpio [%d]\n",
+					devinfo_data->sub_hw_id2);
+		else
+			id2 = gpio_get_value(devinfo_data->sub_hw_id2);
 	}
-	if(devinfo_data->sub_hw_id2 >= 0 ) {
-		ret = gpio_request(devinfo_data->sub_hw_id2,"SUB_HW_ID2");
-		if(ret){
-			pr_err("unable to request gpio [%d]\n",devinfo_data->sub_hw_id2);
-		}else{
-			id2=gpio_get_value(devinfo_data->sub_hw_id2);
-		}
-	}
+
 	mainboard_info.manufacture = temp_manufacture_sub;
 	mainboard_info.version ="Qcom";
-	switch(get_project()) {
-		case OPPO_15018:
-		{
-			if(( id1==0 )&&( id2==0 )) {
-				sprintf(mainboard_info.manufacture,"%d-%d",get_project(),get_Operator_Version());
-			}
-			#ifdef VENDOR_EDIT
-			//xiaohua.tian@EXP.Driver, add for GPIO setting for sub_mainboard, 2015-05-13
-			else if(( id1==1 )&&( id2==0 )) {
-				sprintf(mainboard_info.manufacture,"15089-%d",get_Operator_Version());
-			}
-			#endif
-			 else {
-				mainboard_info.manufacture = "UNSPECIFIED";
-			}
-			break;
-		}
-		case OPPO_15009:
-		{
-			if((id1 == 0)&&(id2 == 0))
-				sprintf(mainboard_info.manufacture,"15009-%d",OPERATOR_CHINA_MOBILE);
-			#ifdef VENDOR_EDIT
-			//lile@EXP.BasicDrv.Audio, 2015-06-05, add for EXP setting of the sub_mainboard
-			else if((id1 == 1)&&(id2 == 1) && 100 != get_Operator_Version())
-				sprintf(mainboard_info.manufacture,"15009-%d",OPERATOR_CHINA_TELECOM);
-			else if((id1 == 1)&&(id2 == 1) && 100 == get_Operator_Version())
-				sprintf(mainboard_info.manufacture,"15070-%d",get_Operator_Version());
-			else if((id1 == 0)&&(id2 == 1))
-				sprintf(mainboard_info.manufacture,"15069-%d",get_Operator_Version());
-			#else
-			else if((id1 == 1)&&(id2 == 1))
-				sprintf(mainboard_info.manufacture,"15009-%d",OPERATOR_CHINA_MOBILE);
-			else if((id1 == 1)&&(id2 == 1))
-				sprintf(mainboard_info.manufacture,"15009-%d",OPERATOR_FOREIGN);
-			#endif
+
+	switch (get_project()) {
+		case OPPO_15011: {
+			if (id1 == 0)
+				sprintf(mainboard_info.manufacture,
+					"15011-%d", get_Operator_Version());
 			else
 				mainboard_info.manufacture = "UNSPECIFIED";
 			break;
 		}
-		#ifdef VENDOR_EDIT
-		//xiaohua.tian@EXP.Driver, add for GPIO setting for sub_mainboard, 2015-05-13
-		case OPPO_15011:
-		{
-			if(( id1==0 )) {
-				sprintf(mainboard_info.manufacture,"15011-%d",get_Operator_Version());
-			}
-			 else {
+		case OPPO_15018: {
+			if ((id1 == 0) && (id2 == 0))
+				sprintf(mainboard_info.manufacture,
+					"%d-%d", get_project(),
+					get_Operator_Version());
+			else if ((id1 == 1) && (id2 == 0))
+				sprintf(mainboard_info.manufacture,
+					"15089-%d", get_Operator_Version());
+			else
 				mainboard_info.manufacture = "UNSPECIFIED";
-			}
 			break;
 		}
-		#endif
-		default:
-		{
-			sprintf(mainboard_info.manufacture,"%d-%d",get_project(),get_Operator_Version());
+		default: {
+			sprintf(mainboard_info.manufacture,
+				"%d-%d", get_project(), get_Operator_Version());
 			break;
 		}
 	}
-	register_device_proc("sub_mainboard", mainboard_info.version, mainboard_info.manufacture);
+
+	register_device_proc("sub_mainboard", mainboard_info.version,
+			mainboard_info.manufacture);
 }
 
 static void mainboard_verify(struct devinfo_data *devinfo_data)
 {
 	struct manufacture_info mainboard_info;
-	int hw_opreator_version = 0;
+	int hw_operator_version = 0;
 	static char temp_manufacture[12];
-	if(!devinfo_data){
+
+	if (!devinfo_data) {
 		pr_err("devinfo_data is NULL\n");
 		return;
 	}
-	/***Tong.han@Bsp.Group.Tp Added for Operator_Pcb detection***/
-	hw_opreator_version = get_hw_opreator_version(devinfo_data);
-	/*end of Add*/
+
+	hw_operator_version = get_hw_operator_version(devinfo_data);
 	mainboard_info.manufacture = temp_manufacture;
+
 	switch(get_PCB_Version()) {
 		case HW_VERSION__10:
 			mainboard_info.version ="10";
-			sprintf(mainboard_info.manufacture,"%d-SA",hw_opreator_version);
-	//		mainboard_info.manufacture = "SA(SB)";
+			sprintf(mainboard_info.manufacture, "%d-SA",
+				hw_operator_version);
 			break;
 		case HW_VERSION__11:
 			mainboard_info.version = "11";
-			sprintf(mainboard_info.manufacture,"%d-SB",hw_opreator_version);
-	//		mainboard_info.manufacture = "SC";
+			sprintf(mainboard_info.manufacture, "%d-SB",
+				hw_operator_version);
 			break;
 		case HW_VERSION__12:
 			mainboard_info.version = "12";
-			sprintf(mainboard_info.manufacture,"%d-SC",hw_opreator_version);
-	//		mainboard_info.manufacture = "SD";
+			sprintf(mainboard_info.manufacture, "%d-SC",
+				hw_operator_version);
 			break;
 		case HW_VERSION__13:
 			mainboard_info.version = "13";
-			sprintf(mainboard_info.manufacture,"%d-SD",hw_opreator_version);
-    //        mainboard_info.manufacture = "SE";
+			sprintf(mainboard_info.manufacture, "%d-SD",
+				hw_operator_version);
 			break;
 		case HW_VERSION__14:
 			mainboard_info.version = "14";
-			sprintf(mainboard_info.manufacture,"%d-SE",hw_opreator_version);
-	//		mainboard_info.manufacture = "SF";
+			sprintf(mainboard_info.manufacture, "%d-SE",
+				hw_operator_version);
 			break;
 		case HW_VERSION__15:
 			mainboard_info.version = "15";
-			sprintf(mainboard_info.manufacture,"%d-(T3-T4)",hw_opreator_version);
-	//		mainboard_info.manufacture = "T3-T4";
+			sprintf(mainboard_info.manufacture, "%d-(T3-T4)",
+				hw_operator_version);
 			break;
 		default:
 			mainboard_info.version = "UNKOWN";
-			sprintf(mainboard_info.manufacture,"%d-UNKOWN",hw_opreator_version);
-	//		mainboard_info.manufacture = "UNKOWN";
+			sprintf(mainboard_info.manufacture, "%d-UNKOWN",
+				hw_operator_version);
 	}
-	register_device_proc("mainboard", mainboard_info.version, mainboard_info.manufacture);
+
+	register_device_proc("mainboard", mainboard_info.version,
+			mainboard_info.manufacture);
 }
 
-#ifdef VENDOR_EDIT//Fanhong.Kong@ProDrv.CHG,modified 2014.4.13 for 14027
 static void pa_verify(void)
 {
 	struct manufacture_info pa_info;
 
-	switch(get_Modem_Version()) {
+	switch (get_Modem_Version()) {
 		case 0:
 			pa_info.version = "0";
 			pa_info.manufacture = "RFMD PA";
@@ -417,39 +397,35 @@ static void pa_verify(void)
 	}
 
 	register_device_proc("pa", pa_info.version, pa_info.manufacture);
-
 }
-#endif /*VENDOR_EDIT*/
 
 static int devinfo_probe(struct platform_device *pdev)
 {
 	int ret = 0;
 	struct devinfo_data *devinfo_data = NULL;
+
 	devinfo_data = kzalloc(sizeof(struct devinfo_data), GFP_KERNEL);
-	if( devinfo_data == NULL ) {
+	if (devinfo_data == NULL) {
 		pr_err("devinfo_data kzalloc failed\n");
 		ret = -ENOMEM;
 		return ret;
 	}
 
-	/*parse_dts*/
 	devinfo_data->devinfo = pdev;
-	/*end of parse_dts*/
 
-	if(!parent) {
-		parent =  proc_mkdir ("devinfo", NULL);
-		if(!parent) {
+	if (!parent) {
+		parent = proc_mkdir("devinfo", NULL);
+		if (!parent) {
 			pr_err("can't create devinfo proc\n");
 			ret = -ENOENT;
 		}
 	}
 
-	/*Add devinfo for some devices*/
 	pa_verify();
 	dram_type_add();
 	mainboard_verify(devinfo_data);
 	sub_mainboard_verify(devinfo_data);
-	/*end of Adding devinfo for some devices*/
+
 	return ret;
 }
 

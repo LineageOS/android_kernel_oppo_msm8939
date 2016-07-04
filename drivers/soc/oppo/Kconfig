@@ -1,28 +1,48 @@
-# ifdef VENDOR_EDIT
-# yixue.ge add for config oppo software common soft
-config OPPO_ARCH_FILE
-	bool "for build directory oppo"
-	---help---
-	say Y to buid in
+config MACH_OPPO
+	bool
+	depends on ARCH_MSM
 
-config OPPO_COMMON_SOFT
-      bool "config oppo common software"
-	  select OPPO_ARCH_FILE
-	  help
-		define this config to get project verion from sharemem.
-		Maybe this value is from CDT or dynamic identify by hardware
-		id.
+config MACH_OPPO_MSM8916
+	depends on ARCH_MSM8916
+	select MACH_OPPO
+	bool "OPPO MSM8916 Platform"
+	help
+	  Support for OPPO MSM8916 device variants.
 
-config OPPO_DEVICE_IFNO
-      bool "config oppo devinfo"
-	  select OPPO_ARCH_FILE
-	  help
-		define this config to compile devinfo.c for device register
-		.
-source "drivers/soc/oppo/oppo_project/Kconfig"
+menu "OPPO board selection"
 
-source "drivers/soc/oppo/oppo_devinfo/Kconfig"
+config MACH_14005
+	select MACH_OPPO_MSM8916
+	bool "R5/R5s"
+	help
+	  Support for the R5/R5s variants
 
-source "drivers/soc/oppo/oppo_trace/Kconfig"
-source "drivers/soc/oppo/oppo_mdmrst/Kconfig"
-#endif /* VENDOR_EDIT */
+config MACH_15011
+	select MACH_OPPO_MSM8916
+	bool "R7f"
+	help
+	  Support for the R7f variant
+
+config MACH_15018
+	select MACH_OPPO_MSM8916
+	bool "R7plusf"
+	help
+	  Support for the R7plusf variant
+
+config MACH_15022
+	select MACH_OPPO_MSM8916
+	bool "R7sf"
+	help
+	  Support for the R7sf variant
+
+endmenu
+
+menu "OPPO specific options"
+
+config OPPO_DEVICE_INFO
+	bool "OPPO device info driver"
+	default y if MACH_OPPO
+	help
+	  Say Y to enable OPPO device info driver
+
+endmenu
