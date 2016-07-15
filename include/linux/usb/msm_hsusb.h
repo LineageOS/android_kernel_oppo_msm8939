@@ -400,7 +400,6 @@ struct msm_otg_platform_data {
  * @bus_clks_enabled: indicates pcnoc/snoc/bimc clocks are on or not.
  * @chg_check_timer: The timer used to implement the workaround to detect
  *               very slow plug in of wall charger.
- * @ui_enabled: USB Intterupt is enabled or disabled.
  * @pm_done: It is used to increment the pm counter using pm_runtime_get_sync.
 	     This handles the race case when PM resume thread returns before
 	     the charger detection starts. When USB is disconnected and in lpm
@@ -544,7 +543,6 @@ struct msm_otg {
 	struct pinctrl_state *usb_id_pinctrl_default;
 	struct pinctrl_state *usb_id_pinctrl_active;
 	struct pinctrl_state *usb_id_pinctrl_sleep;
-	int ui_enabled;
 	bool pm_done;
 	struct qpnp_vadc_chip	*vadc_dev;
 	int ext_id_irq;

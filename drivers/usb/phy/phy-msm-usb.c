@@ -1251,7 +1251,6 @@ phcd_retry:
 		return -EBUSY;
 	}
 
-	motg->ui_enabled = 0;
 	disable_irq(motg->irq);
 	host_bus_suspend = !test_bit(MHL, &motg->inputs) && phy->otg->host &&
 		!test_bit(ID, &motg->inputs);
@@ -1289,7 +1288,6 @@ phcd_retry:
 		test_bit(A_BUS_REQ, &motg->inputs) || sm_work_busy) {
 		if (test_bit(A_BUS_REQ, &motg->inputs))
 			motg->pm_done = 1;
-		motg->ui_enabled = 1;
 		enable_irq(motg->irq);
 		return -EBUSY;
 	}
@@ -1325,7 +1323,6 @@ phcd_retry:
 		dev_err(phy->dev, "Unable to suspend PHY\n");
 		motg->reset_counter = 0;
 		msm_otg_reset(phy);
-		motg->ui_enabled = 1;
 		enable_irq(motg->irq);
 		if (phcd_retry_cnt++ < 3)
 			goto phcd_retry;
@@ -1468,10 +1465,8 @@ phcd_retry:
 	}
 
 	if (device_may_wakeup(phy->dev)) {
-		if (motg->async_irq)
-			enable_irq_wake(motg->async_irq);
-		else
-			enable_irq_wake(motg->irq);
+		enable_irq_wake(motg->async_irq);
+		enable_irq_wake(motg->irq);
 
 		if (motg->pdata->pmic_id_irq)
 			enable_irq_wake(motg->pdata->pmic_id_irq);
@@ -1496,15 +1491,10 @@ phcd_retry:
 	#ifdef VENDOR_EDIT /*dengnw@BSP.drv add QCOM patch for OTG 20150115*/
 	wake_up(&motg->host_suspend_wait);
 	#endif
-	/* Enable ASYNC IRQ (if present) during LPM */
-	if (motg->async_irq)
-		enable_irq(motg->async_irq);
+	/* Enable ASYNC IRQ during LPM */
+	enable_irq(motg->async_irq);
 
-	/* XO shutdown during idle , non wakeable irqs must be disabled */
-	if (device_bus_suspend || host_bus_suspend || !motg->async_irq) {
-		motg->ui_enabled = 1;
-		enable_irq(motg->irq);
-	}
+	enable_irq(motg->irq);
 	wake_unlock(&motg->wlock);
 
 	dev_dbg(phy->dev, "LPM caps = %lu flags = %lu\n",
@@ -1533,10 +1523,7 @@ static int msm_otg_resume(struct msm_otg *motg)
 
 	msm_bam_notify_lpm_resume(CI_CTRL);
 
-	if (motg->ui_enabled) {
-		motg->ui_enabled = 0;
-		disable_irq(motg->irq);
-	}
+	disable_irq(motg->irq);
 	wake_lock(&motg->wlock);
 
 	/*
@@ -1657,10 +1644,8 @@ skip_phy_resume:
 	}
 
 	if (device_may_wakeup(phy->dev)) {
-		if (motg->async_irq)
-			disable_irq_wake(motg->async_irq);
-		else
-			disable_irq_wake(motg->irq);
+		disable_irq_wake(motg->async_irq);
+		disable_irq_wake(motg->irq);
 
 		if (motg->pdata->pmic_id_irq)
 			disable_irq_wake(motg->pdata->pmic_id_irq);
@@ -1688,12 +1673,10 @@ skip_phy_resume:
 		if (phy->state >= OTG_STATE_A_IDLE)
 			set_bit(A_BUS_REQ, &motg->inputs);
 	}
-	motg->ui_enabled = 1;
 	enable_irq(motg->irq);
 
-	/* If ASYNC IRQ is present then keep it enabled only during LPM */
-	if (motg->async_irq)
-		disable_irq(motg->async_irq);
+	/* Enable ASYNC_IRQ only during LPM */
+	disable_irq(motg->async_irq);
 
 	if (motg->host_bus_suspend)
 		usb_hcd_resume_root_hub(hcd);
@@ -3771,6 +3754,10 @@ static irqreturn_t msm_otg_irq(int irq, void *data)
 
 	if (atomic_read(&motg->in_lpm)) {
 		pr_debug("OTG IRQ: %d in LPM\n", irq);
+		/*Ignore interrupt if one interrupt already seen in LPM*/
+		if (motg->async_int)
+			return IRQ_HANDLED;
+
 		disable_irq_nosync(irq);
 		motg->async_int = irq;
 		if (!atomic_read(&motg->pm_suspended)) {
@@ -5386,8 +5373,9 @@ static int msm_otg_probe(struct platform_device *pdev)
 
 	motg->async_irq = platform_get_irq_byname(pdev, "async_irq");
 	if (motg->async_irq < 0) {
-		dev_dbg(&pdev->dev, "platform_get_irq for async_int failed\n");
+		dev_err(&pdev->dev, "platform_get_irq for async_int failed\n");
 		motg->async_irq = 0;
+		goto free_regs;
 	}
 
 	if (motg->xo_clk) {
@@ -5514,15 +5502,13 @@ static int msm_otg_probe(struct platform_device *pdev)
 		goto destroy_wlock;
 	}
 
-	if (motg->async_irq) {
-		ret = request_irq(motg->async_irq, msm_otg_irq,
-					IRQF_TRIGGER_RISING, "msm_otg", motg);
-		if (ret) {
-			dev_err(&pdev->dev, "request irq failed (ASYNC INT)\n");
-			goto free_irq;
-		}
-		disable_irq(motg->async_irq);
+	ret = request_irq(motg->async_irq, msm_otg_irq,
+				IRQF_TRIGGER_RISING, "msm_otg", motg);
+	if (ret) {
+		dev_err(&pdev->dev, "request irq failed (ASYNC INT)\n");
+		goto free_irq;
 	}
+	disable_irq(motg->async_irq);
 
 	#if 0//def VENDOR_EDIT /*dengnw@BSP.drv add QCOM patch for OTG 20150115*/
 	motg->inputbits_mutex = kmalloc(sizeof(*motg->inputbits_mutex),GFP_KERNEL);
@@ -5714,8 +5700,7 @@ remove_cdev:
 remove_phy:
 	usb_remove_phy(&motg->phy);
 free_async_irq:
-	if (motg->async_irq)
-		free_irq(motg->async_irq, motg);
+	free_irq(motg->async_irq, motg);
 #if 0//def VENDOR_EDIT /*dengnw@BSP.drv add QCOM patch for OTG 20150115*/
 free_mutex:
 	kfree(motg->inputbits_mutex);
