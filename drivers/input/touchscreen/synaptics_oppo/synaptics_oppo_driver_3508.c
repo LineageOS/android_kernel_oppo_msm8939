@@ -397,6 +397,8 @@ struct synaptics_ts_data {
 	char test_limit_name[TP_FW_NAME_MAX_LEN];
 	char fw_id[12];
 	char manu_name[12];
+
+	ktime_t timestamp;
 };
 
 /*Virtual Keys Setting Start*/
@@ -1241,6 +1243,12 @@ static void int_touch(struct synaptics_ts_data *ts)
 			TPD_ERR("synaptics_int_touch: i2c_transfer failed\n");
 			return;
 		}
+
+		input_event(ts->input_dev, EV_SYN, SYN_TIME_SEC,
+				ktime_to_timespec(ts->timestamp).tv_sec);
+		input_event(ts->input_dev, EV_SYN, SYN_TIME_NSEC,
+				ktime_to_timespec(ts->timestamp).tv_nsec);
+
 		for( i = 0; i < ts->max_num; i++ ) {
 				points.x = ((buf[i*8+2]&0x0f)<<8) | (buf[i*8+1] & 0xff);
 				points.raw_x = buf[i*8+6] & 0x0f;
@@ -1386,6 +1394,7 @@ static irqreturn_t synaptics_irq_thread_fn(int irq, void *dev_id)
 {
 	struct synaptics_ts_data *ts = (struct synaptics_ts_data *)dev_id;
 	mutex_lock(&ts->mutex);
+	ts->timestamp = ktime_get();
 	synaptics_ts_work_func(ts);
 	mutex_unlock(&ts->mutex);
 	return IRQ_HANDLED;
