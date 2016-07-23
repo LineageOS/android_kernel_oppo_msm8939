@@ -1,0 +1,55 @@
+{
+  "comments": [
+    {
+      "key": {
+        "uuid": "3fa7e38b_3519c1d6",
+        "filename": "drivers/power/oppo/oppo_vooc_stm8s.c",
+        "patchSetId": 21
+      },
+      "lineNbr": 208,
+      "author": {
+        "id": 4550
+      },
+      "writtenOn": "2016-07-23T15:03:45Z",
+      "side": 1,
+      "message": "Why remove this? 15022 is supported now",
+      "revId": "313d829a6f429f071609e70263d03c9c8ce45a21",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71",
+      "unresolved": false
+    },
+    {
+      "key": {
+        "uuid": "3fa7e38b_b524d10e",
+        "filename": "drivers/power/oppo/oppo_vooc_stm8s.c",
+        "patchSetId": 21
+      },
+      "lineNbr": 242,
+      "author": {
+        "id": 4550
+      },
+      "writtenOn": "2016-07-23T15:03:45Z",
+      "side": 1,
+      "message": "Same",
+      "revId": "313d829a6f429f071609e70263d03c9c8ce45a21",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71",
+      "unresolved": false
+    },
+    {
+      "key": {
+        "uuid": "3fa7e38b_5521ddfa",
+        "filename": "drivers/power/oppo/oppo_vooc_stm8s.c",
+        "patchSetId": 21
+      },
+      "lineNbr": 364,
+      "author": {
+        "id": 4550
+      },
+      "writtenOn": "2016-07-23T15:03:45Z",
+      "side": 1,
+      "message": "Same",
+      "revId": "313d829a6f429f071609e70263d03c9c8ce45a21",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71",
+      "unresolved": false
+    }
+  ]
+}
