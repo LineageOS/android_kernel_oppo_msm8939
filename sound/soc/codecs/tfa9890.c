@@ -1263,8 +1263,10 @@ static int tfa9890_startup(struct snd_pcm_substream *substream,
 	 * is still pending the DSP will be put in reset and powered
 	 * up ater firmware load in the mute function where clock is up.
 	 */
-	if (tfa9890->dsp_init == TFA9890_DSP_INIT_DONE)
+	if (tfa9890->dsp_init == TFA9890_DSP_INIT_DONE) {
 		tfa9890_power(codec, 1);
+		usleep_range(2000, 3000);
+	}
 
 	return 0;
 }
