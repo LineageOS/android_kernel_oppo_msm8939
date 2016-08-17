@@ -1516,29 +1516,41 @@ err:
 
 	return ret;
 }
+
 static int msm_mi2s_snd_hw_params(struct snd_pcm_substream *substream,
-			     struct snd_pcm_hw_params *params)
+				struct snd_pcm_hw_params *params)
+{
+	pr_debug("%s(): substream = %s  stream = %d\n", __func__,
+		 substream->name, substream->stream);
+	param_set_mask(params, SNDRV_PCM_HW_PARAM_FORMAT, mi2s_rx_bit_format);
+
+	return 0;
+}
+
+static int msm_tfa9890_snd_hw_params(struct snd_pcm_substream *substream,
+				struct snd_pcm_hw_params *params)
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	struct snd_soc_dai *codec_dai = rtd->codec_dai;
 	int ret;
 
-	pr_debug("%s(): substream = %s  stream = %d\n", __func__,
-		 substream->name, substream->stream);
-	param_set_mask(params, SNDRV_PCM_HW_PARAM_FORMAT, mi2s_rx_bit_format);
-
+	msm_mi2s_snd_hw_params(substream, params);
 	ret = snd_soc_dai_set_sysclk(codec_dai, 0,
 		Q6AFE_LPASS_IBIT_CLK_1_P536_MHZ,
 		SND_SOC_CLOCK_IN);
 
-	if (ret < 0) {
+	if (ret < 0)
 	    pr_err("can't set rx codec clk configuration\n");
-	    return ret;
-	}
 
-	return 0;
+	return ret;
 }
 
+
+static struct snd_soc_ops msm8x16_tfa9890_be_ops = {
+	.startup = msm_quat_mi2s_snd_startup,
+	.hw_params = msm_tfa9890_snd_hw_params,
+	.shutdown = msm_quat_mi2s_snd_shutdown,
+};
 
 static struct snd_soc_ops msm8x16_quat_mi2s_be_ops = {
 	.startup = msm_quat_mi2s_snd_startup,
@@ -2325,7 +2337,7 @@ static struct snd_soc_dai_link msm8x16_dai[] = {
 		.no_pcm = 1,
 		.be_id = MSM_BACKEND_DAI_QUATERNARY_MI2S_RX,
 		.be_hw_params_fixup = msm_be_tfa9890_hw_params_fixup,
-		.ops = &msm8x16_quat_mi2s_be_ops,
+		.ops = &msm8x16_tfa9890_be_ops,
 		.ignore_pmdown_time = 1, /* dai link has playback support */
 		.ignore_suspend = 1,
 	},
