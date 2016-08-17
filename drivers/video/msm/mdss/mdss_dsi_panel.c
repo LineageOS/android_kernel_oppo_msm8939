@@ -1000,77 +1000,25 @@ static void mdss_dsi_panel_bl_ctrl(struct mdss_panel_data *pdata,
 {
 	struct mdss_dsi_ctrl_pdata *ctrl_pdata = NULL;
 	struct mdss_dsi_ctrl_pdata *sctrl = NULL;
-#ifndef VENDOR_EDIT
+#ifdef VENDOR_EDIT
 /* Xinqin.Yang@PhoneSW.Multimedia, 2014/09/03  Modify for backlight */
-	if (pdata == NULL) {
-		pr_err("%s: Invalid input data\n", __func__);
-		return;
-	}
-
-	ctrl_pdata = container_of(pdata, struct mdss_dsi_ctrl_pdata,
-				panel_data);
-
-	/*
-	 * Some backlight controllers specify a minimum duty cycle
-	 * for the backlight brightness. If the brightness is less
-	 * than it, the controller can malfunction.
-	 */
-
-	if ((bl_level < pdata->panel_info.bl_min) && (bl_level != 0))
-		bl_level = pdata->panel_info.bl_min;
-
-	switch (ctrl_pdata->bklt_ctrl) {
-	case BL_WLED:
-		led_trigger_event(bl_led_trigger, bl_level);
-		break;
-	case BL_PWM:
-		mdss_dsi_panel_bklt_pwm(ctrl_pdata, bl_level);
-		break;
-	case BL_DCS_CMD:
-		if (!mdss_dsi_sync_wait_enable(ctrl_pdata)) {
-			mdss_dsi_panel_bklt_dcs(ctrl_pdata, bl_level);
-			break;
-		}
-		/*
-		 * DCS commands to update backlight are usually sent at
-		 * the same time to both the controllers. However, if
-		 * sync_wait is enabled, we need to ensure that the
-		 * dcs commands are first sent to the non-trigger
-		 * controller so that when the commands are triggered,
-		 * both controllers receive it at the same time.
-		 */
-		sctrl = mdss_dsi_get_other_ctrl(ctrl_pdata);
-		if (mdss_dsi_sync_wait_trigger(ctrl_pdata)) {
-			if (sctrl)
-				mdss_dsi_panel_bklt_dcs(sctrl, bl_level);
-			mdss_dsi_panel_bklt_dcs(ctrl_pdata, bl_level);
-		} else {
-			mdss_dsi_panel_bklt_dcs(ctrl_pdata, bl_level);
-			if (sctrl)
-				mdss_dsi_panel_bklt_dcs(sctrl, bl_level);
-		}
-		break;
-	default:
-		pr_err("%s: Unknown bl_ctrl configuration\n",
-			__func__);
-		break;
-	}
-#else /*VENDOR_EDIT*/
-	if(lcd_closebl_flag){ /* Xiaori.Yuan@Mobile Phone Software Dept.Driver, 2015/05/28  Add for silence mode */
+	if (lcd_closebl_flag){ /* Xiaori.Yuan@Mobile Phone Software Dept.Driver, 2015/05/28  Add for silence mode */
 		pr_err("%s -- MSM_BOOT_MODE__SILENCE\n",__func__);
 		bl_level = 0;
 	}
 
-	if(is_project(OPPO_15009)||is_project(OPPO_15037)){
-		if(flag_first_set_bl){
+	if (is_project(OPPO_15009)||is_project(OPPO_15037)) {
+		if (flag_first_set_bl) {
 			set_backlight_pwm(1);
 			flag_first_set_bl = false;
 		}
 	}
 
-	if(is_project(OPPO_15009)||is_project(OPPO_15037)||is_project(OPPO_15035)){
-        lm3630_bank_a_update_status(bl_level);
-	} else {
+	if (is_project(OPPO_15009)||is_project(OPPO_15037)||is_project(OPPO_15035)) {
+		lm3630_bank_a_update_status(bl_level);
+	}
+#endif /* VENDOR_EDIT */
+
 	if (pdata == NULL) {
 		pr_err("%s: Invalid input data\n", __func__);
 		return;
@@ -1124,8 +1072,6 @@ static void mdss_dsi_panel_bl_ctrl(struct mdss_panel_data *pdata,
 			__func__);
 		break;
 	}
-	}
-#endif /*VENDOR_EDIT*/
 }
 
 static int mdss_dsi_panel_on(struct mdss_panel_data *pdata)
