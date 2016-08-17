@@ -60,12 +60,9 @@
 #include <soc/oppo/oppo_project.h>
 #include "mdss_dsi.h"
 #include "mdss_mdp.h"
-#ifdef VENDOR_EDIT
 /* YongPeng.Yi@SWDP.MultiMedia, 2015/04/01  Add for 15009 lcd-backlight ctrl in factory mode START */
 #include <soc/oppo/boot_mode.h>
-static int boot_mode = 0;
 /* YongPeng.Yi@SWDP.MultiMedia END */
-#endif /*VENDOR_EDIT*/
 #endif /*VENDOR_EDIT*/
 
 
@@ -1331,10 +1328,6 @@ static void mdss_fb_scale_bl(struct msm_fb_data_type *mfd, u32 *bl_lvl)
 	(*bl_lvl) = temp;
 }
 
-#ifdef VENDOR_EDIT
-/* Xiaori.Yuan@Mobile Phone Software Dept.Driver, 2015/04/10  Add for esd */
-static int save_bl = 0;
-#endif /*VENDOR_EDIT*/
 /* must call this function from within mfd->bl_lock */
 void mdss_fb_set_backlight(struct msm_fb_data_type *mfd, u32 bkl_lvl)
 {
@@ -1349,7 +1342,6 @@ void mdss_fb_set_backlight(struct msm_fb_data_type *mfd, u32 bkl_lvl)
 		return;
 	}
 
-#ifndef VENDOR_EDIT
 	if ((((mdss_fb_is_power_off(mfd) && mfd->dcm_state != DCM_ENTER)
 		|| !mfd->bl_updated) && !IS_CALIB_MODE_BL(mfd)) ||
 		mfd->panel_info->cont_splash_enabled) {
@@ -1358,26 +1350,6 @@ void mdss_fb_set_backlight(struct msm_fb_data_type *mfd, u32 bkl_lvl)
 	} else {
 		mfd->unset_bl_level = 0;
 	}
-#else /*VENDOR_EDIT*/
-/* YongPeng.Yi@SWDP.MultiMedia, 2015/04/01  Add for 15009 lcd-backlight ctrl in factory mode START */
-	boot_mode =get_boot_mode();
-	if(boot_mode == MSM_BOOT_MODE__FACTORY){
-			mfd->unset_bl_level = 0;
-	}else{
-		if ((((mdss_fb_is_power_off(mfd) && mfd->dcm_state != DCM_ENTER)
-			|| !mfd->bl_updated) && !IS_CALIB_MODE_BL(mfd)) ||
-			mfd->panel_info->cont_splash_enabled) {
-			mfd->unset_bl_level = bkl_lvl;
-			return;
-		} else {
-			mfd->unset_bl_level = 0;
-		}
-	}
-	if(bkl_lvl!=0){
-		save_bl = bkl_lvl;
-	}
-/* YongPeng.Yi@SWDP.MultiMedia END */
-#endif /*VEDNOR_EDIT*/
 	pdata = dev_get_platdata(&mfd->pdev->dev);
 
 	if ((pdata) && (pdata->set_backlight)) {
@@ -1456,10 +1428,6 @@ static int mdss_fb_start_disp_thread(struct msm_fb_data_type *mfd)
 
 	return ret;
 }
-#ifdef VENDOR_EDIT
-/* Xiaori.Yuan@Mobile Phone Software Dept.Driver, 2015/01/09  Add for 14045 esd */
-static bool panel_dead = 0;
-#endif /*VENDOR_EDIT*/
 static void mdss_fb_stop_disp_thread(struct msm_fb_data_type *mfd)
 {
 	pr_debug("%pS: stop display thread fb%d\n",
@@ -1489,10 +1457,6 @@ static int mdss_fb_unblank_sub(struct msm_fb_data_type *mfd)
 		mfd->mdp.on_fnc) {
 		ret = mfd->mdp.on_fnc(mfd);
 		if (ret == 0) {
-#ifdef VENDOR_EDIT
-/* Xiaori.Yuan@Mobile Phone Software Dept.Driver, 2015/01/09  Add for 14045 esd */
-				panel_dead = mfd->panel_info->panel_dead;
-#endif /*VENDOR_EDIT*/
 			mfd->panel_power_state = MDSS_PANEL_POWER_ON;
 			mfd->panel_info->panel_dead = false;
 		} else if (mfd->disp_thread) {
@@ -1522,21 +1486,7 @@ static int mdss_fb_unblank_sub(struct msm_fb_data_type *mfd)
 			 * Hence resetting back to calibration mode value
 			 */
 			if (!IS_CALIB_MODE_BL(mfd))
-#ifndef VENDOR_EDIT
-/* Xiaori.Yuan@Mobile Phone Software Dept.Driver, 2014/11/21  Modify for 14045 backligth bring up before LCD */
-			mdss_fb_set_backlight(mfd, mfd->unset_bl_level);
-#else /*VENDOR_EDIT*/
-/* Yongpeng.yi@PhoneSW.MultiMedia 2014/12/16 Modify for 14037 disable backlight bring up before LCD power on*/
-/* wuyu@EXP.BaseDrv.LCM, 2015-05-18, add micro OPPO_15011, (OPPO15011=OPPO_15018) */
-/*huqiao@EXP.BasicDrv.Basic add for clone 15085*/
-			{
-				if(!(is_project(OPPO_14045) || is_project(OPPO_15011) ||is_project(OPPO_15009) || is_project(OPPO_15037) || is_project(OPPO_15018) || is_project(OPPO_15035) || is_project(OPPO_15085) || is_project(OPPO_15022) || is_project(OPPO_15109)) || panel_dead){
-					panel_dead = false;
-					//mdss_fb_set_backlight(mfd, mfd->unset_bl_level);
-					mdss_fb_set_backlight(mfd, save_bl);
-				}
-			}
-#endif /*VENDOR_EDIT*/
+				mdss_fb_set_backlight(mfd, mfd->unset_bl_level);
 			else
 				mdss_fb_set_backlight(mfd, mfd->calib_mode_bl);
 
@@ -1623,11 +1573,16 @@ static int mdss_fb_blank_sub(int blank_mode, struct fb_info *info,
 
 			mfd->op_enable = false;
 			if (mdss_panel_is_power_off(req_power_state)) {
+				/* save bl level to restore on unblank */
+				u32 bl_level = mfd->unset_bl_level
+					? mfd->unset_bl_level : mfd->bl_level;
+
 				/* Stop Display thread */
 				if (mfd->disp_thread)
 					mdss_fb_stop_disp_thread(mfd);
 				mutex_lock(&mfd->bl_lock);
 				mdss_fb_set_backlight(mfd, 0);
+				mfd->unset_bl_level = bl_level;
 				mfd->bl_updated = 0;
 				mutex_unlock(&mfd->bl_lock);
 			}
