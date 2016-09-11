@@ -59,6 +59,10 @@ struct wakeup_source {
 	unsigned long		relax_count;
 	unsigned long		expire_count;
 	unsigned long		wakeup_count;
+#ifdef CONFIG_MACH_OPPO
+//Modify by Tong.han@Bsp.Group.Tp for checklist ,2015-4-18
+	int			inserted;
+#endif/*CONFIG_MACH_OPPO*/
 	bool			active:1;
 	bool			autosleep_enabled:1;
 };
