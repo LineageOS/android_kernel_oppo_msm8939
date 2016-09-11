@@ -60,6 +60,7 @@ struct wakeup_source {
 	unsigned long		relax_count;
 	unsigned long		expire_count;
 	unsigned long		wakeup_count;
+	bool			inserted;
 	bool			active:1;
 	bool			autosleep_enabled:1;
 };
