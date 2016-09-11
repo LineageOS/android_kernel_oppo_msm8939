@@ -82,6 +82,11 @@ struct wakeup_source *wakeup_source_create(const char *name)
 	if (!ws)
 		return NULL;
 
+#ifdef CONFIG_MACH_OPPO
+//Modify by Tong.han@Bsp.Group.Tp for checklist ,2015-4-18
+	ws->inserted = 0;
+#endif/*CONFIG_MACH_OPPO*/
+
 	wakeup_source_prepare(ws, name ? kstrdup(name, GFP_KERNEL) : NULL);
 	return ws;
 }
@@ -138,7 +143,15 @@ void wakeup_source_add(struct wakeup_source *ws)
 	ws->last_time = ktime_get();
 
 	spin_lock_irqsave(&events_lock, flags);
-	list_add_rcu(&ws->entry, &wakeup_sources);
+
+#ifdef CONFIG_MACH_OPPO
+//Modify by Tong.han@Bsp.Group.Tp for checklist ,2015-4-18
+	if (!ws->inserted) {
+		list_add_rcu(&ws->entry, &wakeup_sources);
+		ws->inserted = 1;
+	}
+#endif/*CONFIG_MACH_OPPO*/
+
 	spin_unlock_irqrestore(&events_lock, flags);
 }
 EXPORT_SYMBOL_GPL(wakeup_source_add);
@@ -155,7 +168,13 @@ void wakeup_source_remove(struct wakeup_source *ws)
 		return;
 
 	spin_lock_irqsave(&events_lock, flags);
-	list_del_rcu(&ws->entry);
+#ifdef CONFIG_MACH_OPPO
+//Modify by Tong.han@Bsp.Group.Tp for checklist ,2015-4-18
+	if (ws->inserted) {
+		list_del_rcu(&ws->entry);
+		ws->inserted = 0;
+	}
+#endif/*CONFIG_MACH_OPPO*/
 	spin_unlock_irqrestore(&events_lock, flags);
 	synchronize_rcu();
 }
