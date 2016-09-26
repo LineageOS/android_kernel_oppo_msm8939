@@ -65,14 +65,14 @@ extern bool is_laser_supported;
  * Global data
  */
 //******************************** IOCTL definitions
-#define VL6180_IOCTL_INIT 		_IO('p', 0x01)
+#define VL6180_IOCTL_INIT		_IO('p', 0x01)
 #define VL6180_IOCTL_XTALKCALB		_IO('p', 0x02)
 #define VL6180_IOCTL_OFFCALB		_IO('p', 0x03)
 #define VL6180_IOCTL_STOP		_IO('p', 0x05)
 #define VL6180_IOCTL_SETXTALK		_IOW('p', 0x06, unsigned int)
 #define VL6180_IOCTL_SETOFFSET		_IOW('p', 0x07, int8_t)
-#define VL6180_IOCTL_GETDATA 		_IOR('p', 0x0a, unsigned long)
-#define VL6180_IOCTL_GETDATAS 		_IOR('p', 0x0b, VL6180x_RangeData_t)
+#define VL6180_IOCTL_GETDATA		_IOR('p', 0x0a, unsigned long)
+#define VL6180_IOCTL_GETDATAS		_IOR('p', 0x0b, VL6180x_RangeData_t)
 struct mutex	  vl6180_mutex;
 #define MULTI_READ	     1
 #define CALIBRATION_FILE 1
@@ -363,15 +363,15 @@ static void stmvl6180_ps_parse_result(struct i2c_client *client)
 //	data->rangeData.m_refRate = data->rangeResult.Result_range_reference_rate;
 //	data->rangeData.m_refRate = data->rangeResult.Result_range_reference_rate;
 	vl6180_data->rangeData.m_rtnSignalCount = vl6180_data->rangeResult.Result_range_return_signal_count;
-	vl6180_data->rangeData.m_refSignalCount = 	vl6180_data->rangeResult.Result_range_reference_signal_count;
+	vl6180_data->rangeData.m_refSignalCount =	vl6180_data->rangeResult.Result_range_reference_signal_count;
 	vl6180_data->rangeData.m_rtnAmbientCount = vl6180_data->rangeResult.Result_range_return_amb_count;
 	vl6180_data->rangeData.m_refAmbientCount = vl6180_data->rangeResult.Result_range_reference_amb_count;
 	vl6180_data->rangeData.m_rawRange_mm = vl6180_data->rangeResult.Result_range_raw;
 
 	if(vl6180_data->rangeResult.Result_range_return_conv_time < vl6180_data->rangeResult.Result_range_reference_conv_time)
-		vl6180_data->rangeData.m_convTime = 	vl6180_data->rangeResult.Result_range_reference_conv_time;
+		vl6180_data->rangeData.m_convTime =	vl6180_data->rangeResult.Result_range_reference_conv_time;
 	else
-		vl6180_data->rangeData.m_convTime = 	vl6180_data->rangeResult.Result_range_return_conv_time;
+		vl6180_data->rangeData.m_convTime =	vl6180_data->rangeResult.Result_range_return_conv_time;
 
 	return;
 }
@@ -861,7 +861,7 @@ static int stmvl6180_ioctl_handler(struct file *file,
 
 		return 0;
 	}
-	case VL6180_IOCTL_XTALKCALB: 	/*crosstalk calibration*/
+	case VL6180_IOCTL_XTALKCALB:	/*crosstalk calibration*/
 	{
 		struct stmvl6180_data *vl6180_data = vl6180_data_g;
 		client = i2c_getclient();
@@ -923,7 +923,7 @@ static int stmvl6180_ioctl_handler(struct file *file,
 
 		return 0;
 	}
-	case VL6180_IOCTL_OFFCALB: 	/*offset calibration*/
+	case VL6180_IOCTL_OFFCALB:	/*offset calibration*/
 	{
 		struct stmvl6180_data *vl6180_data = vl6180_data_g;
 		client = i2c_getclient();
@@ -1116,8 +1116,8 @@ static const struct file_operations stmvl6180_ranging_fops = {
 		.owner =			THIS_MODULE,
 		.unlocked_ioctl =	stmvl6180_ioctl,
 		.open =			stmvl6180_open,
-		.flush = 			stmvl6180_flush,
-		.release = 		stmvl6180_release,
+		.flush =			stmvl6180_flush,
+		.release =		stmvl6180_release,
 };
 
 static struct miscdevice stmvl6180_ranging_dev = {
