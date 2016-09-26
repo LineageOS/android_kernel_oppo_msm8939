@@ -27,7 +27,7 @@
 #include <linux/iommu.h>
 #include <linux/platform_device.h>
 #include <media/v4l2-fh.h>
-
+#include <linux/mutex.h>
 #include "camera.h"
 #include "msm.h"
 #include "msm_vb2.h"
@@ -208,9 +208,9 @@ static int camera_v4l2_reqbufs(struct file *filep, void *fh,
 	session = msm_session_find(session_id);
 	if (WARN_ON(!session))
 		return -EIO;
-	mutex_lock(&session->lock_q);
+	mutex_lock(&session->lock);
 	ret = vb2_reqbufs(&sp->vb2_q, req);
-	mutex_unlock(&session->lock_q);
+	mutex_unlock(&session->lock);
 	return ret;
 }
 
@@ -231,9 +231,9 @@ static int camera_v4l2_qbuf(struct file *filep, void *fh,
 	session = msm_session_find(session_id);
 	if (WARN_ON(!session))
 		return -EIO;
-	mutex_lock(&session->lock_q);
+	mutex_lock(&session->lock);
 	ret = vb2_qbuf(&sp->vb2_q, pb);
-	mutex_unlock(&session->lock_q);
+	mutex_unlock(&session->lock);
 	return ret;
 }
 
@@ -248,9 +248,9 @@ static int camera_v4l2_dqbuf(struct file *filep, void *fh,
 	session = msm_session_find(session_id);
 	if (WARN_ON(!session))
 		return -EIO;
-	mutex_lock(&session->lock_q);
+	mutex_lock(&session->lock);
 	ret = vb2_dqbuf(&sp->vb2_q, pb, filep->f_flags & O_NONBLOCK);
-	mutex_unlock(&session->lock_q);
+	mutex_unlock(&session->lock);
 	return ret;
 }
 
@@ -539,6 +539,8 @@ static int camera_v4l2_open(struct file *filep)
 	unsigned int opn_idx, idx;
 	BUG_ON(!pvdev);
 
+	mutex_lock(&pvdev->open_mutex);
+
 	rc = camera_v4l2_fh_open(filep);
 	if (rc < 0) {
 		pr_err("%s : camera_v4l2_fh_open failed Line %d rc %d\n",
@@ -558,9 +560,6 @@ static int camera_v4l2_open(struct file *filep)
 
 	if (!atomic_read(&pvdev->opened)) {
 		pm_stay_awake(&pvdev->vdev->dev);
-
-		/* Disable power collapse latency */
-		msm_pm_qos_update_request(CAMERA_DISABLE_PC_LATENCY);
 
 		/* create a new session when first opened */
 		rc = msm_create_session(pvdev->vdev->num, pvdev->vdev);
@@ -595,8 +594,6 @@ static int camera_v4l2_open(struct file *filep)
 					__func__, __LINE__, rc);
 			goto post_fail;
 		}
-		/* Enable power collapse latency */
-		msm_pm_qos_update_request(CAMERA_ENABLE_PC_LATENCY);
 	} else {
 		rc = msm_create_command_ack_q(pvdev->vdev->num,
 			find_first_zero_bit((const unsigned long *)&opn_idx,
@@ -610,6 +607,7 @@ static int camera_v4l2_open(struct file *filep)
 	idx |= (1 << find_first_zero_bit((const unsigned long *)&opn_idx,
 				MSM_CAMERA_STREAM_CNT_BITS));
 	atomic_cmpxchg(&pvdev->opened, opn_idx, idx);
+	mutex_unlock(&pvdev->open_mutex);
 
 	return rc;
 
@@ -623,6 +621,7 @@ session_fail:
 vb2_q_fail:
 	camera_v4l2_fh_release(filep);
 fh_open_fail:
+	mutex_unlock(&pvdev->open_mutex);
 	return rc;
 }
 
@@ -650,6 +649,7 @@ static int camera_v4l2_close(struct file *filep)
 	unsigned int opn_idx, mask;
 	BUG_ON(!pvdev);
 
+	mutex_lock(&pvdev->open_mutex);
 	opn_idx = atomic_read(&pvdev->opened);
 	pr_debug("%s: close stream_id=%d\n", __func__, sp->stream_id);
 	mask = (1 << sp->stream_id);
@@ -673,7 +673,6 @@ static int camera_v4l2_close(struct file *filep)
 		/* This should take care of both normal close
 		 * and application crashes */
 		msm_destroy_session(pvdev->vdev->num);
-
 		pm_relax(&pvdev->vdev->dev);
 	} else {
 		camera_pack_event(filep, MSM_CAMERA_SET_PARM,
@@ -689,6 +688,8 @@ static int camera_v4l2_close(struct file *filep)
 
 	camera_v4l2_vb2_q_release(filep);
 	camera_v4l2_fh_release(filep);
+
+	mutex_unlock(&pvdev->open_mutex);
 
 	return rc;
 }
@@ -782,6 +783,7 @@ int camera_init_v4l2(struct device *dev, unsigned int *session)
 #endif
 
 	*session = pvdev->vdev->num;
+	mutex_init(&pvdev->open_mutex);
 	atomic_set(&pvdev->opened, 0);
 	video_set_drvdata(pvdev->vdev, pvdev);
 	device_init_wakeup(&pvdev->vdev->dev, 1);

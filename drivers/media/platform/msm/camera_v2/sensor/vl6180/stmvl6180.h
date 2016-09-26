@@ -64,7 +64,7 @@
  * VL6180 register addresses
  */
 //Device Registers
-#define VL6180_MODEL_ID_REG			    	0x0000
+#define VL6180_MODEL_ID_REG				0x0000
 #define VL6180_MODEL_REV_MAJOR_REG		    0x0001
 #define VL6180_MODEL_REV_MINOR_REG		    0x0002
 #define VL6180_MODULE_REV_MAJOR_REG		    0x0003
@@ -72,15 +72,15 @@
 
 #define VL6180_REVISION_ID_REG			    0x0005
 #define VL6180_REVISION_ID_REG_BYTES		1
-#define VL6180_DATE_HI_REG			    	0x0006
+#define VL6180_DATE_HI_REG				0x0006
 #define VL6180_DATE_HI_REG_BYTES		    1
-#define VL6180_DATE_LO_REG			    	0x0007
-#define VL6180_DATE_LO_REG_BYTES	   	    1
-#define VL6180_TIME_REG			    	    0x0008
+#define VL6180_DATE_LO_REG				0x0007
+#define VL6180_DATE_LO_REG_BYTES		    1
+#define VL6180_TIME_REG				    0x0008
 #define VL6180_TIME_REG_BYTES			    2
-#define VL6180_CODE_REG			    	    0x000a
+#define VL6180_CODE_REG				    0x000a
 #define VL6180_CODE_REG_BYTES			    1
-#define VL6180_FIRMWARE_REVISION_ID_REG	    	    0x000b
+#define VL6180_FIRMWARE_REVISION_ID_REG		    0x000b
 #define VL6180_FIRMWARE_REVISION_ID_REG_BYTES	    1
 
 // Result Registers
@@ -119,7 +119,7 @@ struct stmvl6180_data {
 	struct delayed_work	dwork;		/* for PS  work handler */
 	struct input_dev *input_dev_ps;
 
-	int 	irq;
+	int	irq;
 	unsigned int enable;
 
 	/* control flag from HAL */

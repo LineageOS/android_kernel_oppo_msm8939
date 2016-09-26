@@ -1,4 +1,4 @@
-/* Copyright (c) 2014-2015, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2014, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -14,13 +14,23 @@
 #include <linux/export.h>
 #include "msm_camera_io_util.h"
 #include "msm_led_flash.h"
+#ifdef CONFIG_MACH_OPPO
+/*OPPO 2014-08-01 hufeng add for flash engineer mode test*/
 #include <linux/proc_fs.h>
+#endif
 
-
+#ifdef CONFIG_MACH_OPPO
+/* xianglie.liu 2014-09-05 add for add project name */
+//#include <mach/oppo_project.h>
+/*hufeng 2014-11-03 add foraviod led off twice*/
 static struct mutex flash_mode_lock;
+/*OPPO 2014-08-01 hufeng add for flash engineer mode test*/
 struct delayed_work led_blink_work;
+volatile static bool blink_work = false;
 bool blink_test_status;
+/*zhengrong.zhang 2014-11-08 Add for open flash problem in status bar problem when camera opening*/
 extern bool camera_power_status;
+#endif
 
 #define FLASH_NAME "ti,lm3642"
 
@@ -35,6 +45,42 @@ extern bool camera_power_status;
 static struct msm_led_flash_ctrl_t fctrl;
 static struct i2c_driver lm3642_i2c_driver;
 
+/*
+CURRENT CONTROL REGISTER (0x09)
+
+Bit7
+    RFU
+
+Bit6 Bit5 Bit4
+    Torch Current (LM3642LT)
+    000 = 48.4 mA(default) (24mA)
+    001 =93.74 mA (46.87mA)
+    010 =140.63 mA (70.315mA)
+    011 = 187.5 mA (93.25mA)
+    100 =234.38 mA(117.19mA)
+    101 = 281.25 mA(140.625mA)
+    110 = 328.13 mA(164.075mA)
+    111 = 375 mA(187.5mA)
+
+Bit3 Bit2 Bit1 Bit0
+    Flash Current
+    0000 = 93.75 mA
+    0001 = 187.5 mA
+    0010 = 281.25 mA
+    0011 = 375 mA
+    0100 = 468.75 mA
+    0101 = 562.5 mA
+    0110 = 656.25 mA
+    0111 = 750 mA
+    1000 = 843.75 mA
+    1001 = 937.5 mA
+    1010 = 1031.25 mA
+    1011 = 1125 mA
+    1100 = 1218.75 mA
+    1101 = 1312.5 mA
+    1110 = 1406.25 mA
+    1111 = 1500 mA (default)
+*/
 static struct msm_camera_i2c_reg_array lm3642_init_array[] = {
 	{0x0A, 0x00},
 	{0x08, 0x04},
@@ -53,14 +99,31 @@ static struct msm_camera_i2c_reg_array lm3642_low_array[] = {
 	{0x0A, 0x12},
 	{0x08, 0x04},
 	{0x09, 0x1A},
+	{0x06, 0x00}, /*add for torch ramp time too long*/
 };
+
+#if 0
+static struct msm_camera_i2c_reg_array lm3642_torch_array[] = {
+	{0x0A, 0x12},
+	{0x08, 0x04},
+	{0x09, 0x0A},
+	{0x06, 0x00}, /*add for torch ramp time too long*/
+};
+
+static struct msm_camera_i2c_reg_setting lm3642_torch_setting = {
+	.reg_setting = lm3642_torch_array,
+	.size = ARRAY_SIZE(lm3642_torch_array),
+	.addr_type = MSM_CAMERA_I2C_BYTE_ADDR,
+	.data_type = MSM_CAMERA_I2C_BYTE_DATA,
+	.delay = 0,
+};
+#endif
 
 static struct msm_camera_i2c_reg_array lm3642_high_array[] = {
 	{0x0A, 0x23},
 	{0x08, 0x04},
 	{0x09, 0x1A},
 };
-
 
 static const struct of_device_id lm3642_i2c_trigger_dt_match[] = {
 	{.compatible = "ti,lm3642"},
@@ -127,7 +190,7 @@ int msm_flash_lm3642_led_init(struct msm_led_flash_ctrl_t *fctrl)
 		if (rc < 0)
 			pr_err("%s:%d failed\n", __func__, __LINE__);
 	}
-	return 0;
+	return rc;
 }
 
 int msm_flash_lm3642_led_release(struct msm_led_flash_ctrl_t *fctrl)
@@ -136,13 +199,13 @@ int msm_flash_lm3642_led_release(struct msm_led_flash_ctrl_t *fctrl)
 	struct msm_camera_sensor_board_info *flashdata = NULL;
 	struct msm_camera_power_ctrl_t *power_info = NULL;
 
+	flashdata = fctrl->flashdata;
+	power_info = &flashdata->power_info;
 	LM3642_DBG("%s:%d called\n", __func__, __LINE__);
-	if (!fctrl || !fctrl->flashdata) {
+	if (!fctrl) {
 		pr_err("%s:%d fctrl NULL\n", __func__, __LINE__);
 		return -EINVAL;
 	}
-	flashdata = fctrl->flashdata;
-	power_info = &flashdata->power_info;
 
 	gpio_set_value_cansleep(
 		power_info->gpio_conf->gpio_num_info->
@@ -164,14 +227,14 @@ int msm_flash_lm3642_led_off(struct msm_led_flash_ctrl_t *fctrl)
 	struct msm_camera_sensor_board_info *flashdata = NULL;
 	struct msm_camera_power_ctrl_t *power_info = NULL;
 
+	flashdata = fctrl->flashdata;
+	power_info = &flashdata->power_info;
 	LM3642_DBG("%s:%d called\n", __func__, __LINE__);
 
-	if (!fctrl || !fctrl->flashdata) {
+	if (!fctrl) {
 		pr_err("%s:%d fctrl NULL\n", __func__, __LINE__);
 		return -EINVAL;
 	}
-	flashdata = fctrl->flashdata;
-	power_info = &flashdata->power_info;
 
 	if (fctrl->flash_i2c_client && fctrl->reg_setting) {
 		rc = fctrl->flash_i2c_client->i2c_func_tbl->i2c_write_table(
@@ -245,7 +308,7 @@ int msm_flash_lm3642_led_high(struct msm_led_flash_ctrl_t *fctrl)
 #ifdef CONFIG_MACH_OPPO
 /*OPPO 2014-08-01 hufeng add for flash engineer mode test*/
 struct regulator *vreg;
-int led_test_mode;
+volatile static int led_test_mode;/*use volatile to insure the value can be updated realtime*/
 static int msm_led_cci_test_init(void)
 {
 	int rc = 0;
@@ -279,6 +342,8 @@ static int msm_led_cci_test_init(void)
 			GPIO_OUT_HIGH);
 	}
 #endif
+	/*Added by Jinshui.Liu@Camera 20150908 start to delay for hardware to be prepared*/
+	msleep(5);
 	LM3642_DBG("%s exit\n", __func__);
 	return rc;
 }
@@ -290,28 +355,62 @@ static int msm_led_cci_test_off(void)
 	flashdata = fctrl.flashdata;
 	power_info = &flashdata->power_info;
 	LM3642_DBG("%s:%d called\n", __func__, __LINE__);
-	if (led_test_mode == 2)
-		cancel_delayed_work_sync(&led_blink_work);
+	//if (led_test_mode == 2)
+	//	cancel_delayed_work_sync(&led_blink_work);
 	if (fctrl.flash_i2c_client && fctrl.reg_setting)
 	{
-		rc = fctrl.flash_i2c_client->i2c_func_tbl->i2c_write_table(
-			fctrl.flash_i2c_client,
-			fctrl.reg_setting->off_setting);
+		int i = 0;
+		uint16_t reg_value = 0;
+
+		//read flag register
+		rc = fctrl.flash_i2c_client->i2c_func_tbl->i2c_read(
+			fctrl.flash_i2c_client, 0x0B,
+			&reg_value, MSM_CAMERA_I2C_BYTE_DATA);
 		if (rc < 0)
 			pr_err("%s:%d failed\n", __func__, __LINE__);
+
+		if (reg_value != 0)
+		{
+			int j = 0;
+			for (j = 0; j <= 3; j++)
+			{
+				fctrl.flash_i2c_client->i2c_func_tbl->i2c_read(
+					fctrl.flash_i2c_client, 0x0B,
+					&reg_value, MSM_CAMERA_I2C_BYTE_DATA);
+				if (reg_value == 0)
+					break;
+				pr_err(" flag 0x%x j=%d\n",reg_value,j);
+			}
+		}
+
+		//pr_err("lm3642 led_off set 375.74ma\n");
+		//torch current 375.74mA
+		rc = fctrl.flash_i2c_client->i2c_func_tbl->i2c_write(
+				fctrl.flash_i2c_client, 0x09,
+				0x70, MSM_CAMERA_I2C_BYTE_DATA);
+		if (rc < 0)
+			pr_err("%s:%d write failed\n", __func__, __LINE__);
+
+		rc = fctrl.flash_i2c_client->i2c_func_tbl->i2c_write(
+				fctrl.flash_i2c_client, 0x0A,
+				0x00, MSM_CAMERA_I2C_BYTE_DATA);
+		if (rc < 0)
+			pr_err("%s:%d write failed\n", __func__, __LINE__);
+
+		gpio_set_value_cansleep(
+			power_info->gpio_conf->gpio_num_info->
+			gpio_num[SENSOR_GPIO_FL_EN],
+			GPIO_OUT_LOW);
+
+		gpio_set_value_cansleep(
+			power_info->gpio_conf->gpio_num_info->
+			gpio_num[SENSOR_GPIO_FL_NOW],
+			GPIO_OUT_LOW);
+
+		for (i = 0; i <= 3; i++)
+			usleep(750);
 	}
-#ifdef CONFIG_MACH_OPPO
-/* xianglie.liu 2014-09-19 Add for fix ftm mode cannot sleep */
-	gpio_set_value_cansleep(
-		power_info->gpio_conf->gpio_num_info->
-		gpio_num[SENSOR_GPIO_FL_EN],
-		GPIO_OUT_LOW);
-#endif
-	gpio_set_value_cansleep(
-		power_info->gpio_conf->gpio_num_info->
-		gpio_num[SENSOR_GPIO_FL_NOW],
-		GPIO_OUT_LOW);
-	/*disable power*/
+
 #ifdef CONFIG_MACH_OPPO
 /* xianglie.liu 2014-09-18 Add for lm3642 14043 and 14045 use gpio-vio */
 /* zhengrong.zhang 2014-11-08 Add for gpio contrl lm3642 */
@@ -367,6 +466,93 @@ static void msm_led_cci_test_blink_work(struct work_struct *work)
 	schedule_delayed_work(dwork, msecs_to_jiffies(1100));
 }
 
+static int msm_led_cci_test_torch(struct msm_led_flash_ctrl_t *fctrl)
+{
+	int rc = 0;
+	struct msm_camera_sensor_board_info *flashdata = NULL;
+	struct msm_camera_power_ctrl_t *power_info = NULL;
+
+	LM3642_DBG("%s:%d called\n", __func__, __LINE__);
+	flashdata = fctrl->flashdata;
+	power_info = &flashdata->power_info;
+
+	//read flag register
+	{
+		uint16_t reg_value = 0;
+		rc = fctrl->flash_i2c_client->i2c_func_tbl->i2c_read(
+			fctrl->flash_i2c_client, 0x0B,
+			&reg_value, MSM_CAMERA_I2C_BYTE_DATA);
+		if (rc < 0)
+			pr_err("%s:%d failed\n", __func__, __LINE__);
+
+		if (reg_value != 0)
+		{
+			int j = 0;
+			for (j = 0; j <= 3; j++)
+			{
+				fctrl->flash_i2c_client->i2c_func_tbl->i2c_read(
+					fctrl->flash_i2c_client, 0x0B,
+					&reg_value, MSM_CAMERA_I2C_BYTE_DATA);
+				if (reg_value == 0)
+					break;
+				pr_err(" flag 0x%x j=%d\n",reg_value,j);
+			}
+		}
+	}
+
+	if (power_info->gpio_conf->gpio_num_info->
+			valid[SENSOR_GPIO_FL_EN] == 1)
+		gpio_set_value_cansleep(
+			power_info->gpio_conf->gpio_num_info->
+			gpio_num[SENSOR_GPIO_FL_EN],
+			GPIO_OUT_HIGH);
+
+	gpio_set_value_cansleep(
+		power_info->gpio_conf->gpio_num_info->
+		gpio_num[SENSOR_GPIO_FL_NOW],
+		GPIO_OUT_LOW);
+
+#if 1
+	{
+		int i = 0;
+		//pr_err("lm3642 led_low set 375.74ma\n");
+		//torch current 375.74mA
+		rc = fctrl->flash_i2c_client->i2c_func_tbl->i2c_write(
+				fctrl->flash_i2c_client, 0x09,
+				0x70, MSM_CAMERA_I2C_BYTE_DATA);
+		if (rc < 0)
+			pr_err("%s:%d write failed\n", __func__, __LINE__);
+
+		//torch mode enable, disable hardware pin
+		rc = fctrl->flash_i2c_client->i2c_func_tbl->i2c_write(
+				fctrl->flash_i2c_client, 0x0A,
+				0x12, MSM_CAMERA_I2C_BYTE_DATA);
+		if (rc < 0)
+			pr_err("%s:%d write failed\n", __func__, __LINE__);
+
+		for (i = 0; i <= 3; i++)
+			usleep(750);
+
+		//torch current 48.4 mA
+		rc = fctrl->flash_i2c_client->i2c_func_tbl->i2c_write(
+				fctrl->flash_i2c_client, 0x09,
+				0x00, MSM_CAMERA_I2C_BYTE_DATA);
+		if (rc < 0)
+			pr_err("%s:%d write failed\n", __func__, __LINE__);
+	}
+#else
+	if (fctrl->flash_i2c_client && fctrl->reg_setting) {
+		rc = fctrl->flash_i2c_client->i2c_func_tbl->i2c_write_table(
+			fctrl->flash_i2c_client,
+			&lm3642_torch_setting);
+		if (rc < 0)
+			pr_err("%s:%d failed\n", __func__, __LINE__);
+	}
+#endif
+
+	return rc;
+}
+
 /* zhengrong.zhang 2014-11-08 Add for flash proc read */
 static ssize_t flash_proc_read(struct file *filp, char __user *buff,
 				size_t len, loff_t *data)
@@ -382,6 +568,7 @@ static ssize_t flash_proc_write(struct file *filp, const char __user *buff,
 {
 	char buf[8] = {0};
 	int new_mode = 0;
+	int i = 0;
 	if (len > 8)
 		len = 8;
 	if (copy_from_user(buf, buff, len))
@@ -395,12 +582,36 @@ static ssize_t flash_proc_write(struct file *filp, const char __user *buff,
 		pr_err("the same mode as old\n");
 		return len;
 	}
+	/*forbid any operation when camera is running*/
+	if (led_test_mode == 5) {
+		if (new_mode == 0) {
+			LM3642_DBG("%s camera is running, will return, new_mode %d\n", __func__, new_mode);
+			return len;
+		} else if (new_mode > 0 && new_mode <= 4){
+			//LM3642_DBG("%s wait for camera release......\n", __func__);
+			while (led_test_mode != 6 && i < 51) {
+				i++;
+				msleep(30);
+			}
+			LM3642_DBG("%s wait for camera release done, new_mode %d, i = %d\n", __func__, new_mode, i);
+			if (i > 50) {
+				led_test_mode = new_mode;
+				return len;
+			}
+		}
+	}
 	switch (new_mode) {
 	case 0:
 		mutex_lock(&flash_mode_lock);
-		if (led_test_mode > 0 && led_test_mode <= 3)
+		if (led_test_mode > 0 && led_test_mode <= 3) {
 			msm_led_cci_test_off();
-		led_test_mode = 0;
+			led_test_mode = 0;
+		}
+
+		if (blink_work) {
+			cancel_delayed_work_sync(&led_blink_work);
+			blink_work = false;
+		}
 		mutex_unlock(&flash_mode_lock);
 		break;
 	case 1:
@@ -408,16 +619,17 @@ static ssize_t flash_proc_write(struct file *filp, const char __user *buff,
 		msm_led_cci_test_init();
 		led_test_mode = 1;
 		mutex_unlock(&flash_mode_lock);
-		msm_flash_led_low(&fctrl);
-
+		msm_led_cci_test_torch(&fctrl);
 		break;
 	case 2:
 		mutex_lock(&flash_mode_lock);
-		msm_led_cci_test_init();
-		led_test_mode = 2;
+		if (!blink_work) {
+			msm_led_cci_test_init();
+			schedule_delayed_work(&led_blink_work, msecs_to_jiffies(50));
+			blink_work = true;
+			led_test_mode = 2;
+		}
 		mutex_unlock(&flash_mode_lock);
-
-		schedule_delayed_work(&led_blink_work, msecs_to_jiffies(50));
 		break;
 	case 3:
 		mutex_lock(&flash_mode_lock);
