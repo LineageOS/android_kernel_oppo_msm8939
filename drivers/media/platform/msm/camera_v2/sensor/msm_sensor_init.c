@@ -119,14 +119,13 @@ static long msm_sensor_init_subdev_ioctl(struct v4l2_subdev *sd,
 		pr_err_ratelimited("default\n");
 		break;
 	}
-
-
- #ifdef CONFIG_MACH_OPPO
- /*zhengjiang.zhu@ camera , 2016/01/28, add for load the lib of sensor correctly*/
-    return rc;
- #else
+/*modify by zhengjiang.zhu@EXP.BaseDrv.Camera,ov8856 Compatible with OV8858 £¬Cannot load accurate camera.so if always return 0 , 2015-10-30*/
+#ifndef CONFIG_MACH_OPPO
+/* zhengrong.zhang,2015/11/06, Modify for supporting multi sensors */
 	return 0;
- #endif
+#else
+	return rc;
+#endif
 }
 
 #ifdef CONFIG_COMPAT

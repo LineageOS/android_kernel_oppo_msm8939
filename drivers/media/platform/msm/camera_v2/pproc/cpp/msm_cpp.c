@@ -1308,17 +1308,16 @@ static int msm_cpp_notify_frame_done(struct cpp_device *cpp_dev,
 	if (frame_qcmd) {
 		processed_frame = frame_qcmd->command;
 		do_gettimeofday(&(processed_frame->out_time));
+		kfree(frame_qcmd);
 		event_qcmd = kzalloc(sizeof(struct msm_queue_cmd), GFP_ATOMIC);
 		if (!event_qcmd) {
 			pr_err("Insufficient memory\n");
-			kfree(frame_qcmd);
 			return -ENOMEM;
 		}
 		atomic_set(&event_qcmd->on_heap, 1);
 		event_qcmd->command = processed_frame;
 		CPP_DBG("fid %d\n", processed_frame->frame_id);
 		msm_enqueue(&cpp_dev->eventData_q, &event_qcmd->list_eventdata);
-		kfree(frame_qcmd);
 
 		if (!processed_frame->output_buffer_info[0].processed_divert &&
 			!processed_frame->output_buffer_info[0].native_buff) {
@@ -1432,6 +1431,10 @@ static void msm_cpp_do_timeout_work(struct work_struct *work)
 		pr_err("Delayed trigger, IRQ serviced\n");
 		return;
 	}
+#ifdef CONFIG_MACH_OPPO
+/*Added by Jinshui.Liu@Camera 20150623 start for avoid multi init the timer*/
+	msm_cpp_clear_timer(cpp_timer.data.cpp_dev);
+#endif
 	atomic_set(&cpp_timer.used, 0);
 	cpp_load_fw(cpp_timer.data.cpp_dev,
 		cpp_timer.data.cpp_dev->fw_name_bin);
@@ -1847,6 +1850,7 @@ static int msm_cpp_copy_from_ioctl_ptr(void *dst_ptr,
 	struct msm_camera_v4l2_ioctl_t *ioctl_ptr)
 {
 	int ret;
+
 	if ((ioctl_ptr->ioctl_ptr == NULL) || (ioctl_ptr->len == 0)) {
 		pr_err("%s: Wrong ioctl_ptr %p / len %zu\n", __func__,
 			ioctl_ptr, ioctl_ptr->len);
@@ -1924,7 +1928,7 @@ long msm_cpp_subdev_ioctl(struct v4l2_subdev *sd,
 				cpp_dev->fw_name_bin = NULL;
 			}
 			if ((ioctl_ptr->len == 0) ||
-				(ioctl_ptr->len >= MSM_CPP_MAX_FW_NAME_LEN)) {
+				(ioctl_ptr->len > MSM_CPP_MAX_FW_NAME_LEN)) {
 				pr_err("ioctl_ptr->len is 0\n");
 				mutex_unlock(&cpp_dev->mutex);
 				return -EINVAL;
@@ -2135,9 +2139,6 @@ long msm_cpp_subdev_ioctl(struct v4l2_subdev *sd,
 				process_frame,
 				sizeof(struct msm_cpp_frame_info_t))) {
 					mutex_unlock(&cpp_dev->mutex);
-					kfree(process_frame->cpp_cmd_msg);
-					kfree(process_frame);
-					kfree(event_qcmd);
 					return -EINVAL;
 		}
 
@@ -2267,13 +2268,13 @@ long msm_cpp_subdev_ioctl(struct v4l2_subdev *sd,
 			rc = -EINVAL;
 			break;
 		}
-
-		rc = msm_cpp_copy_from_ioctl_ptr(&frame_info, ioctl_ptr);
+		rc = (copy_from_user(&frame_info,
+			(void __user *)ioctl_ptr->ioctl_ptr,
+			sizeof(struct msm_cpp_frame_info_t)) ? -EFAULT : 0);
 		if (rc) {
 			ERR_COPY_FROM_USER();
 			break;
 		}
-
 		memset(&buff_mgr_info, 0, sizeof(struct msm_buf_mngr_info));
 		buff_mgr_info.session_id =
 			((frame_info.identity >> 16) & 0xFFFF);
@@ -2498,14 +2499,14 @@ static struct msm_cpp_frame_info_t *get_64bit_cpp_frame_from_compat(
 		(new_frame->msg_len > MSM_CPP_MAX_FRAME_LENGTH)) {
 		pr_err("%s:%d: Invalid frame len:%d\n", __func__,
 			__LINE__, new_frame->msg_len);
-		goto frame_err;
+		goto strip_err;
 	}
 
 	cpp_frame_msg = kzalloc(sizeof(uint32_t)*new_frame->msg_len,
 		GFP_KERNEL);
 	if (!cpp_frame_msg) {
 		pr_err("Insufficient memory\n");
-		goto frame_err;
+		goto strip_err;
 	}
 
 	rc = (copy_from_user(cpp_frame_msg,
@@ -2522,6 +2523,8 @@ static struct msm_cpp_frame_info_t *get_64bit_cpp_frame_from_compat(
 
 frame_msg_err:
 	kfree(cpp_frame_msg);
+strip_err:
+	kfree(new_frame->strip_info);
 frame_err:
 	kfree(new_frame);
 no_mem:
@@ -2575,8 +2578,6 @@ static long msm_cpp_subdev_fops_compat_ioctl(struct file *file,
 	struct msm_cpp_clock_settings_t clock_settings;
 	struct msm_pproc_queue_buf_info k_queue_buf;
 	struct msm_cpp_stream_buff_info_t k_cpp_buff_info;
-	struct msm_cpp_frame_info32_t k32_frame_info;
-	struct msm_cpp_frame_info_t k64_frame_info;
 	void __user *up = (void __user *)arg;
 
 	if (sd == NULL) {
@@ -2603,10 +2604,6 @@ static long msm_cpp_subdev_fops_compat_ioctl(struct file *file,
 	kp_ioctl.trans_code = up32_ioctl.trans_code;
 	/* Convert the 32 bit pointer to 64 bit pointer */
 	kp_ioctl.ioctl_ptr = compat_ptr(up32_ioctl.ioctl_ptr);
-	if (!kp_ioctl.ioctl_ptr) {
-		pr_err("%s: Invalid ioctl pointer\n", __func__);
-		return -EINVAL;
-	}
 
 	/*
 	 * Convert 32 bit IOCTL ID's to 64 bit IOCTL ID's
@@ -2743,7 +2740,6 @@ static long msm_cpp_subdev_fops_compat_ioctl(struct file *file,
 		}
 		process_frame = event_qcmd->command;
 
-		memset(&k32_process_frame, 0, sizeof(k32_process_frame));
 		get_compat_frame_from_64bit(process_frame, &k32_process_frame);
 
 		CPP_DBG("fid %d\n", process_frame->frame_id);
@@ -2808,25 +2804,8 @@ static long msm_cpp_subdev_fops_compat_ioctl(struct file *file,
 		break;
 	}
 	case VIDIOC_MSM_CPP_POP_STREAM_BUFFER32:
-	{
-		if (kp_ioctl.len != sizeof(struct msm_cpp_frame_info32_t))
-			return -EINVAL;
-		else
-			kp_ioctl.len = sizeof(struct msm_cpp_frame_info_t);
-
-		if (copy_from_user(&k32_frame_info,
-			(void __user *)kp_ioctl.ioctl_ptr,
-			sizeof(k32_frame_info)))
-			return -EFAULT;
-
-		memset(&k64_frame_info, 0, sizeof(k64_frame_info));
-		k64_frame_info.identity = k32_frame_info.identity;
-		k64_frame_info.frame_id = k32_frame_info.frame_id;
-
-		kp_ioctl.ioctl_ptr = (void *)&k64_frame_info;
 		cmd = VIDIOC_MSM_CPP_POP_STREAM_BUFFER;
 		break;
-	}
 	case VIDIOC_MSM_CPP_IOMMU_ATTACH32:
 		cmd = VIDIOC_MSM_CPP_IOMMU_ATTACH;
 		break;

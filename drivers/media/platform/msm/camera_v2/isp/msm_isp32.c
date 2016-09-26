@@ -22,7 +22,7 @@
 #include "msm.h"
 #include "msm_camera_io_util.h"
 
-#define VFE32_BURST_LEN 3
+#define VFE32_BURST_LEN 2
 #define VFE32_UB_SIZE 1024
 #define VFE32_UB_SIZE_32KB 2048
 #define VFE32_EQUAL_SLICE_UB 194
@@ -664,16 +664,10 @@ static void msm_vfe32_reg_update(
 static long msm_vfe32_reset_hardware(struct vfe_device *vfe_dev,
 	uint32_t first_start, uint32_t blocking)
 {
-	long rc = 0;
-	if (blocking) {
-		init_completion(&vfe_dev->reset_complete);
-		msm_camera_io_w_mb(0x3FF, vfe_dev->vfe_base + 0x4);
-		rc = wait_for_completion_timeout(
-			&vfe_dev->reset_complete, msecs_to_jiffies(50));
-	} else {
-		msm_camera_io_w_mb(0x3FF, vfe_dev->vfe_base + 0x4);
-	}
-	return rc;
+	init_completion(&vfe_dev->reset_complete);
+	msm_camera_io_w_mb(0x3FF, vfe_dev->vfe_base + 0x4);
+	return wait_for_completion_timeout(
+	   &vfe_dev->reset_complete, msecs_to_jiffies(50));
 }
 
 static void msm_vfe32_axi_reload_wm(
@@ -1287,21 +1281,6 @@ static int msm_vfe32_stats_check_streams(
 static void msm_vfe32_stats_cfg_comp_mask(struct vfe_device *vfe_dev,
 	uint32_t stats_mask, uint8_t enable)
 {
-	uint32_t i = 0;
-	atomic_t *stats_comp;
-	struct msm_vfe_stats_shared_data *stats_data = &vfe_dev->stats_data;
-	stats_mask = stats_mask & 0x7F;
-
-	for (i = 0;
-		i < vfe_dev->hw_info->stats_hw_info->num_stats_comp_mask; i++) {
-		stats_comp = &stats_data->stats_comp_mask[i];
-		if (enable)
-			atomic_add(stats_mask, stats_comp);
-		else
-			atomic_sub(stats_mask, stats_comp);
-		ISP_DBG("%s: comp_mask: %x\n",
-			__func__, atomic_read(&stats_data->stats_comp_mask[i]));
-	}
 	return;
 }
 
@@ -1514,7 +1493,7 @@ static void msm_vfe32_get_halt_restart_mask(uint32_t *irq0_mask,
 }
 
 struct msm_vfe_axi_hardware_info msm_vfe32_axi_hw_info = {
-	.num_wm = 6,
+	.num_wm = 5,
 	.num_comp_mask = 3,
 	.num_rdi = 3,
 	.num_rdi_master = 3,

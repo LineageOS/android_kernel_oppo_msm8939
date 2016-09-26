@@ -31,13 +31,10 @@
 #define VFE40_STATS_BURST_LEN_8916_VERSION 2
 #define VFE40_UB_SIZE 1536 /* 1536 * 128 bits = 24KB */
 #define VFE40_UB_SIZE_8916 2048 /* 2048 * 128 bits = 32KB */
-#define VFE40_UB_SIZE_8939 3072 /* 3072 * 128 bits = 48KB */
 #define VFE40_EQUAL_SLICE_UB 190 /* (UB_SIZE - STATS SIZE)/6 */
 #define VFE40_EQUAL_SLICE_UB_8916 276
-#define VFE40_EQUAL_SLICE_UB_8939 446
 #define VFE40_TOTAL_WM_UB 1144 /* UB_SIZE - STATS SIZE */
 #define VFE40_TOTAL_WM_UB_8916 1656
-#define VFE40_TOTAL_WM_UB_8939 2680
 #define VFE40_WM_BASE(idx) (0x6C + 0x24 * idx)
 #define VFE40_RDI_BASE(idx) (0x2E8 + 0x4 * idx)
 #define VFE40_XBAR_BASE(idx) (0x58 + 0x4 * (idx / 2))
@@ -396,7 +393,7 @@ static void msm_vfe40_init_hardware_reg(struct vfe_device *vfe_dev)
 	msm_vfe40_init_qos_parms(vfe_dev, &qos_parms, &ds_parms);
 	msm_vfe40_init_vbif_parms(vfe_dev, &vbif_parms);
 	/* BUS_CFG */
-	msm_camera_io_w(0x10000009, vfe_dev->vfe_base + 0x50);
+	msm_camera_io_w(0x10000001, vfe_dev->vfe_base + 0x50);
 	msm_camera_io_w(0xE00000F1, vfe_dev->vfe_base + 0x28);
 	msm_camera_io_w_mb(0xFEFFFFFF, vfe_dev->vfe_base + 0x2C);
 	msm_camera_io_w(0xFFFFFFFF, vfe_dev->vfe_base + 0x30);
@@ -450,7 +447,7 @@ static void msm_vfe40_process_camif_irq(struct vfe_device *vfe_dev,
 	uint32_t irq_status0, uint32_t irq_status1,
 	struct msm_isp_timestamp *ts)
 {
-	int cnt = 0;
+	int cnt;
 
 	if (!(irq_status0 & 0xF))
 		return;
@@ -725,6 +722,11 @@ static long msm_vfe40_reset_hardware(struct vfe_device *vfe_dev,
 	uint32_t first_start, uint32_t blocking_call)
 {
 	long rc = 0;
+#ifdef CONFIG_MACH_OPPO
+/*modified by Jinshui.Liu@Camera 20150616 start for debug vfe reset timeout*/
+	uint32_t irq_status0;
+	long time;
+#endif
 	init_completion(&vfe_dev->reset_complete);
 
 	if (blocking_call)
@@ -743,6 +745,8 @@ static long msm_vfe40_reset_hardware(struct vfe_device *vfe_dev,
 
 
 	if (blocking_call) {
+#ifndef CONFIG_MACH_OPPO
+/*modified by Jinshui.Liu@Camera 20150616 start for debug vfe reset timeout*/
 		rc = wait_for_completion_timeout(
 			&vfe_dev->reset_complete, msecs_to_jiffies(50));
 		if (rc <= 0) {
@@ -750,6 +754,20 @@ static long msm_vfe40_reset_hardware(struct vfe_device *vfe_dev,
 				__LINE__);
 			vfe_dev->reset_pending = 0;
 		}
+#else
+		time = wait_for_completion_interruptible_timeout(
+			&vfe_dev->reset_complete, msecs_to_jiffies(500));
+		if (time <= 0) {
+			irq_status0 = msm_camera_io_r(vfe_dev->vfe_base + 0x38);
+			pr_err("%s: IRQ Status 0x%x\n", __func__, irq_status0);
+			if (irq_status0 & (1 << 31))
+				rc = 1;
+			else
+				rc = time;
+		} else {
+			rc = 1;
+		}
+#endif
 	}
 	return rc;
 }
@@ -1316,9 +1334,6 @@ static void msm_vfe40_cfg_axi_ub_equal_default(
 	if (vfe_dev->vfe_hw_version == VFE40_8916_VERSION) {
 		vfe_dev->ub_info->wm_ub = VFE40_TOTAL_WM_UB_8916;
 		total_wm_ub = VFE40_TOTAL_WM_UB_8916;
-	} else if (vfe_dev->vfe_hw_version == VFE40_8939_VERSION){
-		vfe_dev->ub_info->wm_ub = VFE40_TOTAL_WM_UB_8939;
-		total_wm_ub = VFE40_TOTAL_WM_UB_8939;
 	} else {
 		vfe_dev->ub_info->wm_ub = VFE40_TOTAL_WM_UB;
 		total_wm_ub = VFE40_TOTAL_WM_UB;
@@ -1361,9 +1376,6 @@ static void msm_vfe40_cfg_axi_ub_equal_slicing(
 	if (vfe_dev->vfe_hw_version == VFE40_8916_VERSION) {
 		vfe_dev->ub_info->wm_ub = VFE40_EQUAL_SLICE_UB_8916;
 		equal_slice_ub = VFE40_EQUAL_SLICE_UB_8916;
-	} else if (vfe_dev->vfe_hw_version == VFE40_8939_VERSION){
-		vfe_dev->ub_info->wm_ub = VFE40_EQUAL_SLICE_UB_8939;
-		equal_slice_ub = VFE40_EQUAL_SLICE_UB_8939;
 	} else {
 		vfe_dev->ub_info->wm_ub = VFE40_EQUAL_SLICE_UB;
 		equal_slice_ub = VFE40_EQUAL_SLICE_UB;
@@ -1634,12 +1646,10 @@ static void msm_vfe40_stats_cfg_ub(struct vfe_device *vfe_dev)
 		16, /*MSM_ISP_STATS_BHIST*/
 	};
 
-	if (vfe_dev->vfe_hw_version == VFE40_8916_VERSION ) {
+	if (vfe_dev->vfe_hw_version == VFE40_8916_VERSION ||
+	    vfe_dev->vfe_hw_version == VFE40_8939_VERSION) {
 		stats_burst_len = VFE40_STATS_BURST_LEN_8916_VERSION;
 		ub_offset = VFE40_UB_SIZE_8916;
-	} else if (vfe_dev->vfe_hw_version == VFE40_8939_VERSION) {
-		stats_burst_len = VFE40_STATS_BURST_LEN_8916_VERSION;
-		ub_offset = VFE40_UB_SIZE_8939;
 	} else {
 		stats_burst_len = VFE40_STATS_BURST_LEN;
 		ub_offset = VFE40_UB_SIZE;
