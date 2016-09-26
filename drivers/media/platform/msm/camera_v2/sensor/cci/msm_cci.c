@@ -97,13 +97,6 @@ static void msm_cci_flush_queue(struct cci_device *cci_dev,
 	enum cci_i2c_master_t master)
 {
 	int32_t rc = 0;
-#ifdef VENDOR_EDIT
-/*Added by Jinshui.Liu@Camera 20150604 start for debug cci init*/
-	uint32_t i = 0;
-	uint32_t irq_status = 0;
-	long cci_clock_rates[CCI_NUM_CLK_MAX] = {0};
-	bool cci_clock_enabled[CCI_NUM_CLK_MAX] = {0};
-#endif
 
 	msm_camera_io_w_mb(1 << master, cci_dev->base + CCI_HALT_REQ_ADDR);
 	rc = wait_for_completion_timeout(
@@ -112,18 +105,6 @@ static void msm_cci_flush_queue(struct cci_device *cci_dev,
 		pr_err("%s:%d wait failed\n", __func__, __LINE__);
 	} else if (rc == 0) {
 		pr_err("%s:%d wait timeout\n", __func__, __LINE__);
-#ifdef VENDOR_EDIT
-/*Added by Jinshui.Liu@Camera 20150609 start for debug cci*/
-		irq_status = msm_camera_io_r_mb(cci_dev->base + CCI_IRQ_STATUS_0_ADDR);
-		pr_err("%s %d: wait_for_completion_timeout,irq_status = 0x%X\n",
-			__func__, __LINE__, irq_status);
-		msm_cam_clk_getinfo(cci_dev->cci_clk, cci_dev->num_clk,
-			cci_clock_enabled, cci_clock_rates);
-		for (i = 0; i < cci_dev->num_clk; i++) {
-			pr_err("%s %d: the rate of %s is %ld, enable %d\n", __func__, __LINE__,
-				cci_clk_info[i].clk_name, cci_clock_rates[i], cci_clock_enabled[i]);
-		}
-#endif
 
 		/* Set reset pending flag to TRUE */
 		cci_dev->cci_master_info[master].reset_pending = TRUE;
@@ -155,13 +136,6 @@ static int32_t msm_cci_validate_queue(struct cci_device *cci_dev,
 	int32_t rc = 0;
 	uint32_t read_val = 0;
 	uint32_t reg_offset = master * 0x200 + queue * 0x100;
-#ifdef VENDOR_EDIT
-/*Added by Jinshui.Liu@Camera 20150604 start for debug cci init*/
-	uint32_t i = 0;
-	uint32_t irq_status = 0;
-	long cci_clock_rates[CCI_NUM_CLK_MAX] = {0};
-	bool cci_clock_enabled[CCI_NUM_CLK_MAX] = {0};
-#endif
 	read_val = msm_camera_io_r_mb(cci_dev->base +
 		CCI_I2C_M0_Q0_CUR_WORD_CNT_ADDR + reg_offset);
 	CDBG("%s line %d CCI_I2C_M0_Q0_CUR_WORD_CNT_ADDR %d len %d max %d\n",
@@ -191,18 +165,6 @@ static int32_t msm_cci_validate_queue(struct cci_device *cci_dev,
 		if (rc <= 0) {
 			pr_err("%s: wait_for_completion_timeout %d\n",
 				 __func__, __LINE__);
-#ifdef VENDOR_EDIT
-/*Added by Jinshui.Liu@Camera 20150609 start for debug cci*/
-		irq_status = msm_camera_io_r_mb(cci_dev->base + CCI_IRQ_STATUS_0_ADDR);
-		pr_err("%s %d: wait_for_completion_timeout,irq_status = 0x%X\n",
-			__func__, __LINE__, irq_status);
-		msm_cam_clk_getinfo(cci_dev->cci_clk, cci_dev->num_clk,
-			cci_clock_enabled, cci_clock_rates);
-		for (i = 0; i < cci_dev->num_clk; i++) {
-			pr_err("%s %d: the rate of %s is %ld, enable %d\n", __func__, __LINE__,
-				cci_clk_info[i].clk_name, cci_clock_rates[i], cci_clock_enabled[i]);
-		}
-#endif
 			if (rc == 0)
 				rc = -ETIMEDOUT;
 			msm_cci_flush_queue(cci_dev, master);
@@ -345,12 +307,6 @@ static int32_t msm_cci_i2c_read(struct v4l2_subdev *sd,
 	int32_t read_words = 0, exp_words = 0;
 	int32_t index = 0, first_byte = 0;
 	uint32_t i = 0;
-#ifdef VENDOR_EDIT
-/*Added by Jinshui.Liu@Camera 20150604 start for debug cci init*/
-	uint32_t irq_status = 0;
-	long cci_clock_rates[CCI_NUM_CLK_MAX] = {0};
-	bool cci_clock_enabled[CCI_NUM_CLK_MAX] = {0};
-#endif
 	enum cci_i2c_master_t master;
 	enum cci_i2c_queue_t queue = QUEUE_1;
 	struct cci_device *cci_dev = NULL;
@@ -454,25 +410,6 @@ static int32_t msm_cci_i2c_read(struct v4l2_subdev *sd,
 	if (rc <= 0) {
 		pr_err("%s: wait_for_completion_timeout %d\n",
 			 __func__, __LINE__);
-#ifdef VENDOR_EDIT
-/*Added by Jinshui.Liu@Camera 20150609 start for debug cci*/
-		irq_status = msm_camera_io_r_mb(cci_dev->base + CCI_IRQ_STATUS_0_ADDR);
-		if ((irq_status & CCI_IRQ_STATUS_0_I2C_M0_RD_DONE_BMSK)
-			|| (irq_status & CCI_IRQ_STATUS_0_I2C_M1_RD_DONE_BMSK)) {
-			pr_err("%s %d:irq_status = 0x%X, consider as right\n",
-				__func__, __LINE__, irq_status);
-			rc = 1;
-		} else {
-			pr_err("%s %d: wait_for_completion_timeout,irq_status = 0x%X\n",
-				__func__, __LINE__, irq_status);
-			msm_cam_clk_getinfo(cci_dev->cci_clk, cci_dev->num_clk,
-				cci_clock_enabled, cci_clock_rates);
-			for (i = 0; i < cci_dev->num_clk; i++) {
-				pr_err("%s %d: the rate of %s is %ld, enable %d\n", __func__, __LINE__,
-					cci_clk_info[i].clk_name, cci_clock_rates[i], cci_clock_enabled[i]);
-			}
-		}
-#endif
 		if (rc == 0)
 			rc = -ETIMEDOUT;
 		msm_cci_flush_queue(cci_dev, master);
@@ -587,13 +524,6 @@ static int32_t msm_cci_i2c_write(struct v4l2_subdev *sd,
 	int32_t rc = 0;
 	struct cci_device *cci_dev;
 	uint32_t val;
-#ifdef VENDOR_EDIT
-/*Added by Jinshui.Liu@Camera 20150604 start for debug cci init*/
-	uint32_t i = 0;
-	uint32_t irq_status = 0;
-	long cci_clock_rates[CCI_NUM_CLK_MAX] = {0};
-	bool cci_clock_enabled[CCI_NUM_CLK_MAX] = {0};
-#endif
 	enum cci_i2c_master_t master;
 	enum cci_i2c_queue_t queue = QUEUE_0;
 	cci_dev = v4l2_get_subdevdata(sd);
@@ -685,18 +615,6 @@ static int32_t msm_cci_i2c_write(struct v4l2_subdev *sd,
 	if (rc <= 0) {
 		pr_err("%s: wait_for_completion_timeout %d\n",
 			 __func__, __LINE__);
-#ifdef VENDOR_EDIT
-/*Added by Jinshui.Liu@Camera 20150609 start for debug cci*/
-		irq_status = msm_camera_io_r_mb(cci_dev->base + CCI_IRQ_STATUS_0_ADDR);
-		pr_err("%s %d: wait_for_completion_timeout,irq_status = 0x%X\n",
-			__func__, __LINE__, irq_status);
-		msm_cam_clk_getinfo(cci_dev->cci_clk, cci_dev->num_clk,
-			cci_clock_enabled, cci_clock_rates);
-		for (i = 0; i < cci_dev->num_clk; i++) {
-			pr_err("%s %d: the rate of %s is %ld, enable %d\n", __func__, __LINE__,
-				cci_clk_info[i].clk_name, cci_clock_rates[i], cci_clock_enabled[i]);
-		}
-#endif
 		if (rc == 0)
 			rc = -ETIMEDOUT;
 		msm_cci_flush_queue(cci_dev, master);
@@ -758,12 +676,6 @@ static int32_t msm_cci_pinctrl_init(struct cci_device *cci_dev)
 static int32_t msm_cci_init(struct v4l2_subdev *sd,
 	struct msm_camera_cci_ctrl *c_ctrl)
 {
-#ifdef VENDOR_EDIT
-/*Added by Jinshui.Liu@Camera 20150604 start for debug cci init*/
-	uint32_t irq_status = 0;
-	long cci_clock_rates[CCI_NUM_CLK_MAX] = {0};
-	bool cci_clock_enabled[CCI_NUM_CLK_MAX] = {0};
-#endif
 	uint8_t i = 0;
 	int32_t rc = 0, ret = 0;
 	struct cci_device *cci_dev;
@@ -777,7 +689,7 @@ static int32_t msm_cci_init(struct v4l2_subdev *sd,
 		return rc;
 	}
 	if (cci_dev->ref_count++) {
-		pr_err("%s ref_count %d\n", __func__, cci_dev->ref_count);
+		CDBG("%s ref_count %d\n", __func__, cci_dev->ref_count);
 		master = c_ctrl->cci_info->cci_i2c_master;
 		CDBG("%s:%d master %d\n", __func__, __LINE__, master);
 		msm_cci_set_clk_param(cci_dev, c_ctrl);
@@ -797,30 +709,9 @@ static int32_t msm_cci_init(struct v4l2_subdev *sd,
 				&cci_dev->cci_master_info[master].
 				reset_complete,
 				CCI_TIMEOUT);
-#ifndef VENDOR_EDIT
-/*Added by Jinshui.Liu@Camera 20150604 start for debug cci init*/
 			if (rc <= 0)
 				pr_err("%s:%d wait failed %d\n", __func__,
 					__LINE__, rc);
-#else
-			if (rc <= 0) {
-				irq_status = msm_camera_io_r_mb(cci_dev->base + CCI_IRQ_STATUS_0_ADDR);
-				if (irq_status & CCI_IRQ_STATUS_0_RST_DONE_ACK_BMSK) {
-					pr_err("%s %d:irq_status = 0x%X, consider as right\n",
-						__func__, __LINE__, irq_status);
-					rc = 1;
-				} else {
-					pr_err("%s %d: wait_for_completion_timeout,irq_status = 0x%X\n",
-						__func__, __LINE__, irq_status);
-					msm_cam_clk_getinfo(cci_dev->cci_clk, cci_dev->num_clk,
-						cci_clock_enabled, cci_clock_rates);
-					for (i = 0; i < cci_dev->num_clk; i++) {
-						pr_err("%s %d: the rate of %s is %ld, enable %d\n", __func__, __LINE__,
-							cci_clk_info[i].clk_name, cci_clock_rates[i], cci_clock_enabled[i]);
-					}
-				}
-			}
-#endif
 			mutex_unlock(&cci_dev->cci_master_info[master].mutex);
 		}
 		return 0;
@@ -843,13 +734,13 @@ static int32_t msm_cci_init(struct v4l2_subdev *sd,
 				__func__, __LINE__);
 	}
 	if (rc < 0) {
-		pr_err("%s: request gpio failed\n", __func__);
+		CDBG("%s: request gpio failed\n", __func__);
 		goto request_gpio_failed;
 	}
 	cci_dev->reg_ptr = regulator_get(&(cci_dev->pdev->dev),
 					 "qcom,gdscr-vdd");
 	if (IS_ERR_OR_NULL(cci_dev->reg_ptr)) {
-		pr_err(" %s: Failed in getting TOP gdscr regulator handle\n",
+		pr_err(" %s: Failed in getting TOP gdscr regulator handle",
 			__func__);
 	} else {
 		rc = regulator_enable(cci_dev->reg_ptr);
@@ -862,7 +753,7 @@ static int32_t msm_cci_init(struct v4l2_subdev *sd,
 	rc = msm_cam_clk_enable(&cci_dev->pdev->dev, cci_clk_info,
 		cci_dev->cci_clk, cci_dev->num_clk, 1);
 	if (rc < 0) {
-		pr_err("%s: clk enable failed\n", __func__);
+		CDBG("%s: clk enable failed\n", __func__);
 		goto clk_enable_failed;
 	}
 	enable_irq(cci_dev->irq->start);
@@ -878,34 +769,11 @@ static int32_t msm_cci_init(struct v4l2_subdev *sd,
 		&cci_dev->cci_master_info[MASTER_0].reset_complete,
 		CCI_TIMEOUT);
 	if (rc <= 0) {
-#ifndef VENDOR_EDIT
-/*Added by Jinshui.Liu@Camera 20150604 start for debug cci init*/
 		pr_err("%s: wait_for_completion_timeout %d\n",
 			 __func__, __LINE__);
 		if (rc == 0)
 			rc = -ETIMEDOUT;
 		goto reset_complete_failed;
-#else
-		irq_status = msm_camera_io_r_mb(cci_dev->base + CCI_IRQ_STATUS_0_ADDR);
-		if (irq_status & CCI_IRQ_STATUS_0_RST_DONE_ACK_BMSK) {
-			pr_err("%s %d:irq_status = 0x%X, consider as right\n",
-				__func__, __LINE__, irq_status);
-			rc = 1;
-		} else {
-			pr_err("%s %d: wait_for_completion_timeout,irq_status = 0x%X\n",
-				__func__, __LINE__, irq_status);
-			msm_cam_clk_getinfo(cci_dev->cci_clk, cci_dev->num_clk,
-				cci_clock_enabled, cci_clock_rates);
-			for (i = 0; i < cci_dev->num_clk; i++) {
-				pr_err("%s %d: the rate of %s is %ld, enable %d\n", __func__, __LINE__,
-					cci_clk_info[i].clk_name, cci_clock_rates[i], cci_clock_enabled[i]);
-			}
-		}
-		if (rc == 0) {
-			rc = -ETIMEDOUT;
-			goto reset_complete_failed;
-		}
-#endif
 	}
 	for (i = 0; i < MASTER_MAX; i++)
 		cci_dev->master_clk_init[i] = 0;
@@ -956,7 +824,7 @@ static int32_t msm_cci_release(struct v4l2_subdev *sd)
 		return -EINVAL;
 	}
 	if (--cci_dev->ref_count) {
-		pr_err("%s ref_count Exit %d\n", __func__, cci_dev->ref_count);
+		CDBG("%s ref_count Exit %d\n", __func__, cci_dev->ref_count);
 		return 0;
 	}
 	disable_irq(cci_dev->irq->start);

@@ -481,10 +481,6 @@ static int32_t msm_actuator_init_step_table(struct msm_actuator_ctrl_t *a_ctrl,
 	uint16_t step_boundary = 0;
 	uint32_t max_code_size = 1;
 	uint16_t data_size = set_info->actuator_params.data_size;
-#ifdef VENDOR_EDIT
-/*OPPO 2014-08-08 hufeng modify for AF OTP*/
-	uint32_t cur_code_1000x = 0;
-#endif
 	CDBG("Enter\n");
 
 	for (; data_size > 0; data_size--)
@@ -509,10 +505,6 @@ static int32_t msm_actuator_init_step_table(struct msm_actuator_ctrl_t *a_ctrl,
 		return -ENOMEM;
 
 	cur_code = set_info->af_tuning_params.initial_code;
-#ifdef VENDOR_EDIT
-/*OPPO 2014-08-08 hufeng modify for AF OTP*/
-	cur_code_1000x = cur_code*1000;
-#endif
 	a_ctrl->step_position_table[step_index++] = cur_code;
 	for (region_index = 0;
 		region_index < a_ctrl->region_size;
