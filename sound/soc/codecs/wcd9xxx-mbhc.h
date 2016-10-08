@@ -276,6 +276,7 @@ struct wcd9xxx_mbhc_config {
 	bool enable_anc_mic_detect;
 	enum hw_jack_type hw_jack_type;
 	int key_code[8];
+	int ap_audio_enable_gpio;
 };
 
 struct wcd9xxx_cfilt_mode {
