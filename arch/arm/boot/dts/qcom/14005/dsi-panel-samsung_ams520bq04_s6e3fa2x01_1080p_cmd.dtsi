@@ -58,7 +58,6 @@
 			29 01 00 00 00 00 07 F2 01 48 A0 09 07 00
 			29 01 00 00 00 00 03 F0 A5 A5
 			29 01 00 00 00 00 03 FC A5 A5
-			15 01 00 00 00 00 02 53 20
 			05 01 00 00 28 00 02 29 00];
 		qcom,mdss-dsi-off-command = [
 			05 01 00 00 28 00 02 28 00
@@ -94,5 +93,17 @@
 		qcom,mdss-dsi-panel-orientation = "180";
 		qcom,mdss-pan-physical-width-dimension = <65>;
 		qcom,mdss-pan-physical-height-dimension = <115>;
+
+		cm,mdss-livedisplay-cabc-cmd = [
+			15 01 00 00 00 00 02 55 00];
+		cm,mdss-livedisplay-cabc-ui-value = <0x03>;
+		cm,mdss-livedisplay-hbm-on-cmd = [
+			15 01 00 00 00 00 02 53 E0];
+		cm,mdss-livedisplay-hbm-off-cmd = [
+			15 01 00 00 00 00 02 53 20];
+		cm,mdss-livedisplay-srgb-on-cmd = [
+			39 01 00 00 00 00 02 57 4C];
+		cm,mdss-livedisplay-srgb-off-cmd = [
+			39 01 00 00 00 00 02 57 40];
 	};
 };
