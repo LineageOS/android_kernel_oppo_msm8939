@@ -1,0 +1,23 @@
+/* Copyright (c) 2014-2015, The Linux Foundation. All rights reserved.
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 and
+ * only version 2 as published by the Free Software Foundation.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ */
+
+/* Memory accelerator and CPR controlled regulators */
+
+&soc {
+	regulator@b018000 {
+		vdd-apc-optional-prim-supply = <&fan53555>;
+		qcom,cpr-step-quotient = <26>;
+		qcom,cpr-up-threshold = <2>;
+		qcom,cpr-down-threshold = <3>;
+		qcom,cpr-apc-volt-step = <12500>;
+	};
+};

@@ -1,0 +1,207 @@
+/* Copyright (c) 2014, The Linux Foundation. All rights reserved.
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 and
+ * only version 2 as published by the Free Software Foundation.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ */
+
+#include "../msm8939-pinctrl.dtsi"
+
+&soc {
+	tlmm_pinmux: pinctrl@1000000 {
+		cdc-dmic-lines {
+			qcom,pins = <&gp 0>, <&gp 1>;
+			qcom,num-grp-pins = <2>;
+			qcom,pin-func = <4>;
+			label = "cdc-dmic-lines";
+
+			cdc_dmic_lines_act: dmic_lines_on {
+				drive-strength = <7>;
+				bias-pull-none;
+			};
+
+			cdc_dmic_lines_sus: dmic_lines_off {
+				drive-strength = <7>;
+				bias-disable;
+			};
+		};
+
+		charging_switch1 {
+			qcom,pins = <&gp 23>;
+			qcom,num-grp-pins = <1>;
+			qcom,pin-func = <0>;
+			label = "charging-switch1";
+
+			charging_switch1_active: active {
+				drive-strength = <2>;
+				bias-pull-up;
+			};
+
+			charging_switch1_sleep: sleep {
+				drive-strength = <2>;
+				bias-pull-down;
+			};
+		};
+
+		charging_switch2 {
+			qcom,pins = <&gp 113>;
+			qcom,num-grp-pins = <1>;
+			qcom,pin-func = <0>;
+			label = "charging-switch2";
+
+			charging_switch2_active: active {
+				drive-strength = <2>;
+				bias-pull-up;
+			};
+
+			charging_switch2_sleep: sleep {
+				drive-strength = <2>;
+				bias-pull-down;
+			};
+		};
+
+		charging_switch3 {
+			qcom,pins = <&gp 38>;
+			qcom,num-grp-pins = <1>;
+			qcom,pin-func = <0>;
+			label = "charging-switch2";
+
+			charging_switch3_active: active {
+				drive-strength = <2>;
+				bias-pull-up;
+			};
+
+			charging_switch3_sleep: sleep {
+				drive-strength = <2>;
+				bias-pull-down;
+			};
+		};
+
+		charging_reset {
+			qcom,pins = <&gp 22>;
+			qcom,num-grp-pins = <1>;
+			qcom,pin-func = <0>;
+			label = "charging-reset";
+
+			charging_reset_active: active {
+				drive-strength = <2>;
+				bias-pull-up;
+			};
+
+			charging_reset_sleep: sleep {
+				drive-strength = <2>;
+				bias-pull-down;
+			};
+		};
+
+		charging_clock {
+			qcom,pins = <&gp 115>;
+			qcom,num-grp-pins = <1>;
+			qcom,pin-func = <0>;
+			label = "charging-clock";
+
+			charging_clock_active: active {
+				drive-strength = <2>;
+				bias-pull-up;
+			};
+
+			charging_clock_sleep: sleep {
+				drive-strength = <2>;
+				bias-pull-down;
+			};
+		};
+
+		charging_data {
+			qcom,pins = <&gp 109>;
+			qcom,num-grp-pins = <1>;
+			qcom,pin-func = <0>;
+			label = "charging-data";
+
+			charging_data_active: active {
+				drive-strength = <2>;
+				bias-disable;
+			};
+
+			charging_data_sleep: sleep {
+				drive-strength = <2>;
+				bias-disable;
+			};
+		};
+
+		pmx_i2c_1 {
+			qcom,pins = <&gp 2>, <&gp 3>;
+			qcom,num-grp-pins = <2>;
+			qcom,pin-func = <3>;
+			label = "pmx_i2c_1";
+
+			i2c_1_active: i2c_1_active {
+				drive-strength = <2>;
+				bias-disable;
+			};
+
+			i2c_1_sleep: i2c_1_sleep {
+				drive-strength = <2>;
+				bias-disable;
+			};
+		};
+
+		pmx_i2c_3 {
+			qcom,pins = <&gp 11>, <&gp 10>;
+			qcom,num-grp-pins = <2>;
+			qcom,pin-func = <2>;
+			label = "pmx_i2c_3";
+
+			i2c_3_active: i2c_3_active {
+				drive-strength = <2>;
+				bias-disable;
+			};
+
+			i2c_3_sleep: i2c_3_sleep {
+				drive-strength = <2>;
+				bias-disable;
+			};
+		};
+
+		tlmm_gpio_key {
+			qcom,pins = <&gp 107>, <&gp 108>;
+			qcom,num-grp-pins = <2>;
+		};
+
+		apds99xx_int_pin {
+			qcom,pins = <&gp 9>;
+		};
+
+		lis3dh_int1_pin {
+			qcom,pins = <&gp 34>;
+			qcom,num-grp-pins = <1>;
+			label = "lis3dh_int_pin";
+
+			lis3dh_int1_default: int1_default {
+				drive-strength = <6>;
+				bias-pull-down;
+			};
+
+			lis3dh_int1_sleep: int1_sleep {
+				drive-strength = <2>;
+				bias-pull-down;
+			};
+		};
+
+		ext-cdc-tlmm-lines {
+			ext_cdc_tlmm_lines_act: tlmm_lines_on {
+				bias-pull-none;
+			};
+		};
+
+		cam_sensor_mclk0 {
+			cam_sensor_mclk0_default: default {
+				drive-strength = <8>; /* 8 MA */
+			};
+		};
+	};
+};
