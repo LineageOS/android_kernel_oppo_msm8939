@@ -567,6 +567,9 @@ struct msm_otg {
 	unsigned int dbg_idx;
 	rwlock_t dbg_lock;
 	char (buf[DEBUG_MAX_MSG])[DEBUG_MSG_LEN];   /* buffer */
+#ifdef CONFIG_MACH_OPPO
+	struct mutex otg_mutex_lock;
+#endif
 };
 
 struct ci13xxx_platform_data {
@@ -769,4 +772,12 @@ static inline int msm_dwc3_reset_dbm_ep(struct usb_ep *ep)
 }
 
 #endif
+
+#ifdef CONFIG_MACH_OPPO
+extern void oppo_otg_id_status(int id_state);
+extern void oppo_headset_detect_plug(int status);
+extern atomic_t otg_id_state;
+extern atomic_t headset_status;
+#endif
+
 #endif
