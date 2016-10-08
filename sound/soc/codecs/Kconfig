@@ -222,6 +222,9 @@ config SND_SOC_ADS117X
 config SND_SOC_AK4104
 	tristate
 
+config SND_SOC_AK4375
+	tristate
+
 config SND_SOC_AK4535
 	tristate
 
