@@ -25,6 +25,9 @@
 #include <linux/bitops.h>
 #include <linux/leds.h>
 #include <linux/debugfs.h>
+#ifdef CONFIG_MACH_OPPO
+#include <soc/oppo/oppo_project.h>
+#endif
 
 #define CREATE_MASK(NUM_BITS, POS) \
 	((unsigned char) (((1 << (NUM_BITS)) - 1) << (POS)))
@@ -128,6 +131,10 @@
 #define VDD_TRIM_SUPPORTED			BIT(0)
 
 #define QPNP_CHARGER_DEV_NAME	"qcom,qpnp-linear-charger"
+
+#ifdef CONFIG_MACH_OPPO
+struct qpnp_lbc_chip *the_chip = NULL;
+#endif
 
 /* usb_interrupts */
 
@@ -2456,15 +2463,26 @@ static irqreturn_t qpnp_lbc_chg_gone_irq_handler(int irq, void *_chip)
 	return IRQ_HANDLED;
 }
 
+#ifdef CONFIG_MACH_OPPO
+extern void opchg_usbin_valid_irq_handler(bool usb_present);
+#endif
 static irqreturn_t qpnp_lbc_usbin_valid_irq_handler(int irq, void *_chip)
 {
 	struct qpnp_lbc_chip *chip = _chip;
 	int usb_present;
+#ifndef CONFIG_MACH_OPPO
 	unsigned long flags;
+#endif
+
+#ifdef CONFIG_MACH_OPPO
+	if (is_project(OPPO_15109))
+		return IRQ_HANDLED;
+#endif
 
 	usb_present = qpnp_lbc_is_usb_chg_plugged_in(chip);
 	pr_debug("usbin-valid triggered: %d\n", usb_present);
 
+#ifndef CONFIG_MACH_OPPO
 	if (chip->usb_present ^ usb_present) {
 		chip->usb_present = usb_present;
 		if (!usb_present) {
@@ -2508,6 +2526,9 @@ static irqreturn_t qpnp_lbc_usbin_valid_irq_handler(int irq, void *_chip)
 		pr_debug("Updating usb_psy PRESENT property\n");
 		power_supply_set_present(chip->usb_psy, chip->usb_present);
 	}
+#else
+	opchg_usbin_valid_irq_handler(usb_present);
+#endif
 
 	return IRQ_HANDLED;
 }
@@ -2811,6 +2832,17 @@ static int qpnp_lbc_request_irqs(struct qpnp_lbc_chip *chip)
 	return 0;
 }
 
+#ifdef CONFIG_MACH_OPPO
+static int qpnp_lbc_request_usbin_valid_irq(struct qpnp_lbc_chip *chip)
+{
+	int rc = 0;
+
+	SPMI_REQUEST_IRQ(chip, USBIN_VALID, rc, usbin_valid, 0,
+			IRQF_TRIGGER_RISING | IRQF_TRIGGER_FALLING, 1);
+	return 0;
+}
+#endif
+
 static int qpnp_lbc_get_irqs(struct qpnp_lbc_chip *chip, u8 subtype,
 					struct spmi_resource *spmi_resource)
 {
@@ -2851,7 +2883,15 @@ static int qpnp_lbc_get_irqs(struct qpnp_lbc_chip *chip, u8 subtype,
 /* Get/Set initial state of charger */
 static void determine_initial_status(struct qpnp_lbc_chip *chip)
 {
+#ifdef CONFIG_MACH_OPPO
+	if (is_project(OPPO_15109))
+		return;
+#endif
+
 	chip->usb_present = qpnp_lbc_is_usb_chg_plugged_in(chip);
+	pr_debug("%s usb_present: %d\n", __func__, chip->usb_present);
+
+#ifndef CONFIG_MACH_OPPO
 	power_supply_set_present(chip->usb_psy, chip->usb_present);
 	/*
 	 * Set USB psy online to avoid userspace from shutting down if battery
@@ -2866,6 +2906,9 @@ static void determine_initial_status(struct qpnp_lbc_chip *chip)
 		}
 		power_supply_set_online(chip->usb_psy, 1);
 	}
+#else
+	opchg_usbin_valid_irq_handler(chip->usb_present);
+#endif
 }
 
 static void qpnp_lbc_collapsible_detection_work(struct work_struct *work)
@@ -2946,6 +2989,48 @@ static enum alarmtimer_restart vddtrim_callback(struct alarm *alarm,
 
 	return ALARMTIMER_NORESTART;
 }
+
+#ifdef CONFIG_MACH_OPPO
+#define BMS_VM_BMS_DATA_REG_0			0x40B0
+void opchg_set_pmic_soc_memory(int soc)
+{
+	int rc = 0;
+	u8 soc_temp = 0;
+
+	if (the_chip == NULL) {
+		pr_debug("%s the_chip is NULL\n", __func__);
+		return;
+	}
+	soc_temp = soc;
+	rc = qpnp_lbc_write(the_chip, BMS_VM_BMS_DATA_REG_0, &soc_temp, 1);
+	if (rc)
+		pr_err("%s fail,rc:%d\n",__func__,rc);
+}
+
+int opchg_get_pmic_soc_memory(void)
+{
+	int rc = 0;
+	u8 reg = 0;
+
+	if (the_chip == NULL) {
+		pr_debug("%s the_chip is NULL\n", __func__);
+		return reg;
+	}
+	rc = qpnp_lbc_read(the_chip, BMS_VM_BMS_DATA_REG_0, &reg, 1);
+	if (rc)
+		pr_err("%s fail,rc:%d\n",__func__,rc);
+
+	return reg;
+}
+
+int opchg_get_charger_inout(void)
+{
+	int charger_in = 0;
+
+	charger_in = qpnp_lbc_is_usb_chg_plugged_in(the_chip);
+	return charger_in;
+}
+#endif
 
 static int qpnp_lbc_parallel_charger_init(struct qpnp_lbc_chip *chip)
 {
@@ -3160,6 +3245,9 @@ static int qpnp_lbc_main_probe(struct spmi_device *spmi)
 	ktime_t kt;
 	struct qpnp_lbc_chip *chip;
 	struct power_supply *usb_psy;
+#ifdef CONFIG_MACH_OPPO
+	struct power_supply *batt_psy;
+#endif
 	int rc = 0;
 
 	usb_psy = power_supply_get_by_name("usb");
@@ -3167,6 +3255,14 @@ static int qpnp_lbc_main_probe(struct spmi_device *spmi)
 		pr_err("usb supply not found deferring probe\n");
 		return -EPROBE_DEFER;
 	}
+
+#ifdef CONFIG_MACH_OPPO
+	batt_psy = power_supply_get_by_name("battery");
+	if (!batt_psy) {
+		pr_err("battery supply not found deferring probe\n");
+		return -EPROBE_DEFER;
+	}
+#endif
 
 	chip = devm_kzalloc(&spmi->dev, sizeof(struct qpnp_lbc_chip),
 				GFP_KERNEL);
@@ -3190,6 +3286,9 @@ static int qpnp_lbc_main_probe(struct spmi_device *spmi)
 	alarm_init(&chip->vddtrim_alarm, ALARM_REALTIME, vddtrim_callback);
 	INIT_DELAYED_WORK(&chip->collapsible_detection_work,
 			qpnp_lbc_collapsible_detection_work);
+#ifdef CONFIG_MACH_OPPO
+	the_chip = chip;
+#endif
 
 	/* Get all device-tree properties */
 	rc = qpnp_charger_read_dt_props(chip);
@@ -3220,6 +3319,22 @@ static int qpnp_lbc_main_probe(struct spmi_device *spmi)
 					rc);
 		goto fail_chg_enable;
 	}
+
+#ifdef CONFIG_MACH_OPPO
+	rc = qpnp_lbc_request_usbin_valid_irq(chip);
+	if (rc) {
+		pr_err("unable to initialize LBC MISC rc=%d\n", rc);
+		goto fail_chg_enable;
+	}
+	determine_initial_status(chip);
+	rc = qpnp_disable_lbc_charger(chip);
+	if (rc)
+		pr_err("Unable to disable charger rc=%d\n", rc);
+
+	pr_info("%s success\n",__func__);
+
+	return 0;
+#endif
 
 	/* Initialize h/w */
 	rc = qpnp_lbc_misc_init(chip);
@@ -3253,7 +3368,11 @@ static int qpnp_lbc_main_probe(struct spmi_device *spmi)
 
 	if (chip->bat_if_base) {
 		chip->batt_present = qpnp_lbc_is_batt_present(chip);
+#ifndef CONFIG_MACH_OPPO
 		chip->batt_psy.name = "battery";
+#else
+		chip->batt_psy.name = "battery-invalid";
+#endif
 		chip->batt_psy.type = POWER_SUPPLY_TYPE_BATTERY;
 		chip->batt_psy.properties = msm_batt_power_props;
 		chip->batt_psy.num_properties =
