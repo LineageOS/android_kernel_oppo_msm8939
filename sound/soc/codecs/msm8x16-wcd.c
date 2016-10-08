@@ -44,6 +44,8 @@
 #include "wcd-mbhc-v2.h"
 #include "msm8916-wcd-irq.h"
 #include "msm8x16_wcd_registers.h"
+#include <soc/oppo/oppo_project.h>
+#define CONFIG_MACH_OPPO 1
 
 #define MSM8X16_WCD_RATES (SNDRV_PCM_RATE_8000 | SNDRV_PCM_RATE_16000 |\
 			SNDRV_PCM_RATE_32000 | SNDRV_PCM_RATE_48000)
@@ -2953,6 +2955,16 @@ static const struct snd_kcontrol_new spkr_switch[] = {
 	SOC_DAPM_SINGLE("Switch",
 		MSM8X16_WCD_A_ANALOG_SPKR_DAC_CTL, 7, 1, 0)
 };
+/*xiang.fei@Multimedia, 2014/11/26, Add for pop noise*/
+#ifdef CONFIG_MACH_OPPO
+static const struct snd_kcontrol_new ext_hphl_mux =
+	SOC_DAPM_ENUM_VIRT("Ext Hphl Switch Mux", ext_spk_enum);
+static const struct snd_kcontrol_new ext_hphr_mux =
+	SOC_DAPM_ENUM_VIRT("Ext Hphr Switch Mux", ext_spk_enum);
+#endif
+/*xiang.fei@Multimedia, 2014/11/26, Add for pop noise end*/
+
+
 
 static void msm8x16_wcd_codec_enable_adc_block(struct snd_soc_codec *codec,
 					 int enable)
@@ -4008,9 +4020,23 @@ static int msm8x16_wcd_hph_pa_event(struct snd_soc_dapm_widget *w,
 
 	switch (event) {
 	case SND_SOC_DAPM_PRE_PMU:
-		if (w->shift == 5)
+		if (w->shift == 5){
 			msm8x16_notifier_call(codec,
 					WCD_EVENT_PRE_HPHL_PA_ON);
+		/*OPPO	2015-05-08, zhangping add for  pop noise*/
+		#ifdef CONFIG_MACH_OPPO
+			msm8x16_notifier_call(codec,WCD_EVENT_PRE_HPHL_PA_ON);
+		#endif
+		/*OPPO	2015-05-08, zhangping add for  end*/
+		} else if (w->shift == 4) {
+			snd_soc_update_bits(codec,
+				MSM8X16_WCD_A_ANALOG_RX_HPH_R_TEST, 0x04, 0x04);
+		/*OPPO	2015-05-08, zhangping add for  pop noise*/
+		#ifdef CONFIG_MACH_OPPO
+			msm8x16_notifier_call(codec,WCD_EVENT_PRE_HPHR_PA_ON);
+		#endif
+		/*OPPO	2015-05-08, zhangping add for  end*/
+		}
 		else if (w->shift == 4)
 			msm8x16_notifier_call(codec,
 					WCD_EVENT_PRE_HPHR_PA_ON);
@@ -4065,11 +4091,21 @@ static int msm8x16_wcd_hph_pa_event(struct snd_soc_dapm_widget *w,
 				&msm8x16_wcd->mbhc.hph_pa_dac_state);
 			msm8x16_notifier_call(codec,
 					WCD_EVENT_POST_HPHL_PA_OFF);
+		/*OPPO	2015-05-08, zhangping add for  pop noise*/
+		#ifdef CONFIG_MACH_OPPO
+			msm8x16_notifier_call(codec,WCD_EVENT_POST_HPHL_PA_OFF);
+		#endif
+		/*OPPO	2015-05-08, zhangping add for  end*/
 		} else if (w->shift == 4) {
 			clear_bit(WCD_MBHC_HPHR_PA_OFF_ACK,
 				&msm8x16_wcd->mbhc.hph_pa_dac_state);
 			msm8x16_notifier_call(codec,
 					WCD_EVENT_POST_HPHR_PA_OFF);
+	/*OPPO	2015-05-08, zhangping add for  pop noise*/
+	#ifdef CONFIG_MACH_OPPO
+			msm8x16_notifier_call(codec,WCD_EVENT_POST_HPHR_PA_OFF);
+	#endif
+	/*OPPO	2015-05-08, zhangping add for  end*/
 		}
 		usleep_range(4000, 4100);
 
@@ -4134,6 +4170,21 @@ static const struct snd_soc_dapm_route audio_map[] = {
 	{"HPHR PA", NULL, "CP"},
 	{"HPHR PA", NULL, "RX_BIAS"},
 	{"HPHL DAC", NULL, "RX1 CHAIN"},
+	/*xiang.fei@Multimedia, 2014/11/26, Add for pop noise*/
+    #ifdef CONFIG_MACH_OPPO
+	//John.Xu@PhoneSw.AudioDriver, 2014/12/19, Add for Qcom pmic patch
+	{"Ext Spk", NULL, "Ext Spk Switch"},
+	{"Ext Spk Switch", "On", "HPHL PA"},
+	#endif
+	//Add for Qcom pmic patch end
+    /*xiang.fei@Multimedia, 2014/11/26, Add for pop noise*/
+    #ifdef CONFIG_MACH_OPPO
+	{"Ext Hphl", NULL, "Ext Hphl Switch"},
+	{"Ext Hphl Switch", "On", "HPHL PA"},
+	{"Ext Hphr", NULL, "Ext Hphr Switch"},
+	{"Ext Hphr Switch", "On", "HPHR PA"},
+	#endif
+    /*xiang.fei@Multimedia, 2014/11/26, Add for pop noise*/
 
 	{"SPK_OUT", NULL, "SPK PA"},
 	{"SPK PA", NULL, "SPK_RX_BIAS"},
@@ -4147,6 +4198,19 @@ static const struct snd_soc_dapm_route audio_map[] = {
 	{"RX1 CHAIN", NULL, "RX1 MIX2"},
 	{"RX2 CHAIN", NULL, "RX2 MIX2"},
 	{"RX3 CHAIN", NULL, "RX3 MIX1"},
+	#ifdef CONFIG_MACH_OPPO
+	//John.Xu@PhoneSw.AudioDriver, 2015/02/11, Add for Qcom patch
+	/*Powering down the sidetones path tears down theinterpolator
+	  clock along with it before the rx path isteared down.*/
+	{"RX1 MIX2", NULL, "RX1 MIX1"},
+	#endif /* CONFIG_MACH_OPPO */
+	{"RX1 MIX2", NULL, "RX1 MIX2 INP1"},
+	#ifdef CONFIG_MACH_OPPO
+	//John.Xu@PhoneSw.AudioDriver, 2015/02/11, Add for Qcom patch
+	/*Powering down the sidetones path tears down theinterpolator
+	  clock along with it before the rx path isteared down.*/
+	{"RX2 MIX2", NULL, "RX2 MIX1"},
+	#endif /* CONFIG_MACH_OPPO */
 
 	{"RX1 MIX1", NULL, "RX1 MIX1 INP1"},
 	{"RX1 MIX1", NULL, "RX1 MIX1 INP2"},
@@ -4699,8 +4763,47 @@ static const struct snd_soc_dapm_widget msm8x16_wcd_dapm_widgets[] = {
 	SND_SOC_DAPM_MIXER("SPK DAC", SND_SOC_NOPM, 0, 0,
 		spkr_switch, ARRAY_SIZE(spkr_switch)),
 
+	/*xiang.fei@Multimedia, 2014/11/26, Add for pop noise*/
+    #ifdef CONFIG_MACH_OPPO
+	SND_SOC_DAPM_VIRT_MUX("Ext Spk Switch", SND_SOC_NOPM, 0, 0,
+		&ext_spk_mux),
+	SND_SOC_DAPM_VIRT_MUX("Ext Hphl Switch", SND_SOC_NOPM, 0, 0,
+		&ext_hphl_mux),
+	SND_SOC_DAPM_VIRT_MUX("Ext Hphr Switch", SND_SOC_NOPM, 0, 0,
+		&ext_hphr_mux),
+	#endif
+    /*xiang.fei@Multimedia, 2014/11/26, Add for pop noise*/
 	/* Speaker */
+	#ifndef CONFIG_MACH_OPPO
+//John.Xu@PhoneSw.AudioDriver, 2015/02/11, Add for Qcom patch
+/*Powering down the sidetones path tears down theinterpolator
+  clock along with it before the rx path isteared down.*/
+/*
+	SND_SOC_DAPM_MIXER_E("RX1 MIX1",
+			MSM8X16_WCD_A_CDC_CLK_RX_B1_CTL, 0, 0, NULL, 0,
+			msm8x16_wcd_codec_enable_interpolator,
+			SND_SOC_DAPM_POST_PMU |
+			SND_SOC_DAPM_POST_PMD),
+	SND_SOC_DAPM_MIXER_E("RX2 MIX1",
+			MSM8X16_WCD_A_CDC_CLK_RX_B1_CTL, 1, 0, NULL, 0,
+			msm8x16_wcd_codec_enable_interpolator,
+			SND_SOC_DAPM_POST_PMU |
+			SND_SOC_DAPM_POST_PMD),
+*/
+#else /* CONFIG_MACH_OPPO */
+	SND_SOC_DAPM_MIXER("RX1 MIX1", SND_SOC_NOPM, 0, 0, NULL, 0),
+	SND_SOC_DAPM_MIXER("RX2 MIX1", SND_SOC_NOPM, 0, 0, NULL, 0),
+#endif /* CONFIG_MACH_OPPO */
 	SND_SOC_DAPM_OUTPUT("SPK_OUT"),
+	/*xiang.fei@Multimedia, 2014/11/25, Modify for BOOST_VREG_4P5(YDA145)*/
+#ifdef CONFIG_MACH_OPPO
+    SND_SOC_DAPM_SUPPLY("RX1 CLK", MSM8X16_WCD_A_DIGITAL_CDC_DIG_CLK_CTL,
+		0, 0, msm8x16_wcd_codec_enable_dig_clk, SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMD),
+#else
+    SND_SOC_DAPM_SUPPLY("RX1 CLK", MSM8X16_WCD_A_DIGITAL_CDC_DIG_CLK_CTL,
+		0, 0, NULL, 0),
+#endif
+/*xiang.fei@Multimedia, 2014/11/25, Modify for BOOST_VREG_4P5(YDA145) end*/
 
 	SND_SOC_DAPM_PGA_E("SPK PA", MSM8X16_WCD_A_ANALOG_SPKR_DRV_CTL,
 			6, 0 , NULL, 0, msm8x16_wcd_codec_enable_spk_pa,
@@ -4710,10 +4813,12 @@ static const struct snd_soc_dapm_widget msm8x16_wcd_dapm_widgets[] = {
 	SND_SOC_DAPM_SUPPLY("VDD_SPKDRV", SND_SOC_NOPM, 0, 0,
 			    msm89xx_wcd_codec_enable_vdd_spkr,
 			    SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMD),
-
+	/*zengling.wu@EXP.BaseDrv.Audio, 2016-01-28, redefinition,remove it*/
+#ifndef CONFIG_MACH_OPPO
 	SND_SOC_DAPM_VIRT_MUX("Ext Spk Switch", SND_SOC_NOPM, 0, 0,
 		&ext_spk_mux),
-
+#endif
+	/*zengling.wu@EXP.BaseDrv.Audio, 2016-01-28, redefinition,remove it end*/
 	SND_SOC_DAPM_MIXER("RX1 MIX1", SND_SOC_NOPM, 0, 0, NULL, 0),
 	SND_SOC_DAPM_MIXER("RX2 MIX1", SND_SOC_NOPM, 0, 0, NULL, 0),
 
@@ -5835,6 +5940,7 @@ static int msm8x16_wcd_spmi_probe(struct spmi_device *spmi)
 			__func__, ret);
 		goto err_supplies;
 	}
+
 	dev_set_drvdata(&spmi->dev, msm8x16);
 
 	ret = snd_soc_register_codec(&spmi->dev, &soc_codec_dev_msm8x16_wcd,
