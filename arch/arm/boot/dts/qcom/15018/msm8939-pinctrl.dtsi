@@ -1,0 +1,364 @@
+/* Copyright (c) 2014-2015, The Linux Foundation. All rights reserved.
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 and
+ * only version 2 as published by the Free Software Foundation.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ */
+
+#include "../msm8939-pinctrl.dtsi"
+
+&soc {
+	tlmm_pinmux: pinctrl@1000000 {
+		hw_operator_gpio1_config {
+			qcom,pins = <&gp 49>;
+			qcom,num-grp-pins = <1>;
+			qcom,pin-func = <0>;
+			label = "hw_operator_gpio1_config";
+
+			hw_operator_gpio1_active: active {
+				drive-strength = <2>;
+				bias-pull-up;
+			};
+
+			hw_operator_gpio1_sleep: sleep {
+				drive-strength = <2>;
+				bias-pull-down;
+			};
+		};
+
+		hw_operator_gpio2_config {
+			qcom,pins = <&gp 50>;
+			qcom,num-grp-pins = <1>;
+			qcom,pin-func = <0>;
+			label = "hw_operator_gpio2_config";
+
+			hw_operator_gpio2_active: active {
+				drive-strength = <2>;
+				bias-pull-up;
+			};
+
+			hw_operator_gpio2_sleep: sleep {
+				drive-strength = <2>;
+				bias-pull-down;
+			};
+		};
+
+		hw_sub_gpio1_config {
+			qcom,pins = <&gp 105>;
+			qcom,num-grp-pins = <1>;
+			qcom,pin-func = <0>;
+			label = "hw_sub_gpio1_config";
+
+			hw_sub_gpio1_active: active {
+				drive-strength = <2>;
+				bias-pull-up;
+			};
+
+			hw_sub_gpio1_sleep: sleep {
+				drive-strength = <2>;
+				bias-pull-down;
+			};
+		};
+
+		hw_sub_gpio2_config {
+			qcom,pins = <&gp 106>;
+			qcom,num-grp-pins = <1>;
+			qcom,pin-func = <0>;
+			label = "hw_sub_gpio2_config";
+
+			hw_sub_gpio2_active: active {
+				drive-strength = <2>;
+				bias-pull-up;
+			};
+
+			hw_sub_gpio2_sleep: sleep {
+				drive-strength = <2>;
+				bias-pull-down;
+			};
+		};
+
+		charging_switch1 {
+			qcom,pins = <&gp 1>;
+			qcom,num-grp-pins = <1>;
+			qcom,pin-func = <0>;
+			label = "charging-switch1";
+
+			charging_switch1_active: active {
+				drive-strength = <2>;
+				bias-pull-up;
+			};
+
+			charging_switch1_sleep: sleep {
+				drive-strength = <2>;
+				bias-pull-down;
+			};
+		};
+
+		charging_reset {
+			qcom,pins = <&gp 52>;
+			qcom,num-grp-pins = <1>;
+			qcom,pin-func = <0>;
+			label = "charging-reset";
+
+			charging_reset_active: active {
+				drive-strength = <2>;
+				bias-pull-up;
+			};
+
+			charging_reset_sleep: sleep {
+				drive-strength = <2>;
+				bias-pull-down;
+			};
+		};
+
+		charging_clock {
+			qcom,pins = <&gp 120>;
+			qcom,num-grp-pins = <1>;
+			qcom,pin-func = <0>;
+			label = "charging-clock";
+
+			charging_clock_active: active {
+				drive-strength = <2>;
+				bias-pull-up;
+			};
+
+			charging_clock_sleep: sleep {
+				drive-strength = <2>;
+				bias-pull-down;
+			};
+		};
+
+		charging_data {
+			qcom,pins = <&gp 109>;
+			qcom,num-grp-pins = <1>;
+			qcom,pin-func = <0>;
+			label = "charging-data";
+
+			charging_data_active: active {
+				drive-strength = <2>;
+				bias-disable;
+			};
+
+			charging_data_sleep: sleep {
+				drive-strength = <2>;
+				bias-disable;
+			};
+		};
+
+		sim2_cd_pin {
+			qcom,pins = <&gp 56>;
+			qcom,num-grp-pins = <1>;
+			qcom,pin-func = <0>;
+			label = "sim2-cd-gpio";
+
+			sim2_cd_on: cd_on {
+				drive-strength = <2>;
+				bias-pull-up;
+			};
+
+			sim2_cd_off: cd_off {
+				drive-strength = <2>;
+				bias-disable;
+			};
+		};
+
+		sim1_cd_pin {
+			qcom,pins = <&gp 60>;
+			qcom,num-grp-pins = <1>;
+			qcom,pin-func = <0>;
+			label = "sim1-cd-gpio";
+
+			sim1_cd_on: cd_on {
+				drive-strength = <2>;
+				bias-pull-up;
+			};
+
+			sim1_cd_off: cd_off {
+				drive-strength = <2>;
+				bias-disable;
+			};
+		};
+
+		pmx_i2c_1 {
+			qcom,pins = <&gp 2>, <&gp 3>;
+			qcom,num-grp-pins = <2>;
+			qcom,pin-func = <3>;
+			label = "pmx_i2c_1";
+
+			i2c_1_active: i2c_1_active {
+				drive-strength = <2>;
+				bias-disable;
+			};
+
+			i2c_1_sleep: i2c_1_sleep {
+				drive-strength = <2>;
+				bias-disable;
+			};
+		};
+
+		pmx_i2c_3 {
+			qcom,pins = <&gp 11>, <&gp 10>;
+			qcom,num-grp-pins = <2>;
+			qcom,pin-func = <2>;
+			label = "pmx_i2c_3";
+
+			i2c_3_active: i2c_3_active {
+				drive-strength = <2>;
+				bias-disable;
+			};
+
+			i2c_3_sleep: i2c_3_sleep {
+				drive-strength = <2>;
+				bias-disable;
+			};
+		};
+
+		usb-id-pin {
+			qcom,pins = <&gp 98>;
+
+			usbid_sleep: sleep {
+				drive-strength = <8>;
+				bias-disable = <0>;
+			};
+		};
+
+		spi6_active {
+			qcom,pins = <&gp 20>, <&gp 21>, <&gp 23>;
+			qcom,num-grp-pins = <3>;
+			qcom,pin-func = <1>;
+			label = "spi6-active";
+
+			spi6_default: spi6_default {
+				drive-strength = <16>;
+				bias-pull-down;
+			};
+		};
+
+		spi6_suspend {
+			qcom,pins = <&gp 20>, <&gp 21>, <&gp 23>;
+			qcom,num-grp-pins = <3>;
+			qcom,pin-func = <1>;
+			label = "spi6-suspend";
+
+			spi6_sleep: spi6_sleep {
+				drive-strength = <16>;
+				bias-pull-down;
+			};
+		};
+
+		spi6_cs0_active {
+			qcom,pins = <&gp 22>;
+			qcom,num-grp-pins = <1>;
+			qcom,pin-func = <1>;
+			label = "spi6-cs0-active";
+
+			spi6_cs0_active: cs0_active {
+				drive-strength = <16>;
+				bias-pull-down;
+			};
+		};
+
+		spi6_cs0_suspend {
+			qcom,pins = <&gp 22>;
+			qcom,num-grp-pins = <1>;
+			qcom,pin-func = <1>;
+			label = "spi6-cs0-suspend";
+
+			spi6_cs0_sleep: cs0_sleep {
+				drive-strength = <16>;
+				bias-pull-down;
+			};
+		};
+
+		tlmm_gpio_key {
+			qcom,pins = <&gp 107>, <&gp 108>;
+			qcom,num-grp-pins = <2>;
+		};
+
+		apds99xx_int_pin {
+			qcom,pins = <&gp 9>;
+		};
+
+		lis3dh_int1_pin {
+			qcom,pins = <&gp 34>;
+			qcom,num-grp-pins = <1>;
+			label = "lis3dh_int_pin";
+
+			lis3dh_int1_default: int1_default {
+				drive-strength = <6>;
+				bias-pull-down;
+			};
+
+			lis3dh_int1_sleep: int1_sleep {
+				drive-strength = <2>;
+				bias-pull-down;
+			};
+		};
+
+		/delete-node/ mpu6050_int_pin;
+
+		ext-cdc-tlmm-lines {
+			ext_cdc_tlmm_lines_act: tlmm_lines_on {
+				bias-pull-none;
+			};
+		};
+
+		cdc-ext-pa-lines {
+			qcom,pins = <&gp 113>, <&gp 114>, <&gp 115>;
+			qcom,num-grp-pins = <3>;
+			qcom,pin-func = <1>;
+			label = "cdc-ext-pa-lines";
+
+			cdc_ext_pa_act: ext_pa_on {
+				drive-strength = <8>;
+				bias-pull-none;
+			};
+
+			cdc_ext_pa_sus: ext_pa_off {
+				drive-strength = <2>;
+				bias-disable;
+			};
+		};
+
+		cdc-ext-pa-ws-line {
+			qcom,pins = <&gp 110>;
+			qcom,num-grp-pins = <1>;
+			qcom,pin-func = <2>;
+			label = "cdc-ext-pa-ws-line";
+
+			cdc_ext_pa_ws_act: ext_pa_on {
+				drive-strength = <8>;
+				bias-pull-none;
+			};
+
+			cdc_ext_pa_ws_sus: ext_pa_off {
+				drive-strength = <2>;
+				bias-disable;
+			};
+		};
+
+		audio-vdd-enable {
+			qcom,pins = <&gp 102>;
+			qcom,num-grp-pins = <1>;
+			qcom,pin-func = <0>;
+			label = "audio-vdd-en";
+
+			audio_vdd_enable_act: audio_vdd_on {
+				drive-strength = <16>;
+				bias-pull-none;
+			};
+
+			audio_vdd_enable_sus: audio_vdd_off {
+				drive-strength = <2>;
+				bias-disable;
+			};
+		};
+
+		/delete-node/ tpiu_seta_1;
+	};
+};
