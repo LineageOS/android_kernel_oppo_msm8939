@@ -1,6 +1,7 @@
 /******************** (C) COPYRIGHT 2010 STMicroelectronics ********************
  *
  * Copyright (c) 2014-2015, The Linux Foundation. All rights reserved.
+ * Copyright (C), 2008-2012, OPPO Mobile Comm Corp., Ltd
  *
  * File Name          : lis3dh_acc.c
  * Authors            : MSH - Motion Mems BU - Application Team
@@ -70,6 +71,9 @@
 #include	<linux/regulator/consumer.h>
 #include	<linux/of_gpio.h>
 #include	<linux/sensors.h>
+#ifdef CONFIG_MACH_OPPO
+#include	<linux/sensors_ftm.h>
+#endif
 
 #define	DEBUG	1
 
@@ -307,6 +311,9 @@ struct lis3dh_acc_data {
 #ifdef DEBUG
 	u8 reg_addr;
 #endif
+#ifdef CONFIG_MACH_OPPO
+	s16 cali_sw[LIS3DH_AXES_NUM + 1];
+#endif
 };
 
 static struct sensors_classdev lis3dh_acc_cdev = {
@@ -343,8 +350,13 @@ struct sensor_regulator {
 };
 
 struct sensor_regulator lis3dh_acc_vreg[] = {
+#ifdef CONFIG_MACH_OPPO
+	{NULL, "vdd", 2700000, 3300000},
+	{NULL, "vddio", 1750000, 1950000},
+#else
 	{NULL, "vdd", 1700000, 3600000},
 	{NULL, "vddio", 1700000, 3600000},
+#endif
 };
 
 static int lis3dh_acc_get_calibrate(struct lis3dh_acc_data *acc,
@@ -534,10 +546,16 @@ static int lis3dh_acc_i2c_write(struct lis3dh_acc_data *acc, u8 *buf, int len)
 static int lis3dh_acc_hw_init(struct lis3dh_acc_data *acc)
 {
 	int err = -1;
+	int i = 0;
 	u8 buf[7];
 
 	buf[0] = WHO_AM_I;
-	err = lis3dh_acc_i2c_read(acc, buf, 1);
+	for (i = 0; i < 3; i++) {
+		err = lis3dh_acc_i2c_read(acc, buf, 1);
+		if (err >= 0)
+			break;
+		msleep(10);
+	}
 	if (err < 0) {
 		dev_warn(&acc->client->dev,
 		"Error reading WHO_AM_I: is device available/working?\n");
@@ -1093,7 +1111,7 @@ static int lis3dh_acc_register_write(struct lis3dh_acc_data *acc, u8 *buf,
 }
 
 static int lis3dh_acc_get_acceleration_data(struct lis3dh_acc_data *acc,
-		int *xyz)
+		int *xyz, int cali_flag)
 {
 	int err = -1;
 	/* Data bytes from hardware xL, xH, yL, yH, zL, zH */
@@ -1131,6 +1149,17 @@ static int lis3dh_acc_get_acceleration_data(struct lis3dh_acc_data *acc,
 			return err;
 		}
 	}
+
+#ifdef CONFIG_MACH_OPPO
+	if (!cali_flag) {
+		xyz[LIS3DH_AXIS_X] += acc->cali_sw[LIS3DH_AXIS_X];
+		xyz[LIS3DH_AXIS_Y] += acc->cali_sw[LIS3DH_AXIS_Y];
+		xyz[LIS3DH_AXIS_Z] += acc->cali_sw[LIS3DH_AXIS_Z];
+	}
+
+	dev_dbg(&acc->client->dev, "%s after cali: the data x=%d, y=%d, z=%d\n",
+			LIS3DH_ACC_DEV_NAME, xyz[0], xyz[1], xyz[2]);
+#endif
 
 	return err;
 }
@@ -1264,7 +1293,7 @@ static irqreturn_t lis3dh_acc_isr1(int irq, void *dev)
 			((u64)time_ms * LIS3DH_TIME_MS_TO_NS * fifo_cnt);
 
 		for (i = 0; i < fifo_cnt; i++) {
-			err = lis3dh_acc_get_acceleration_data(acc, xyz);
+			err = lis3dh_acc_get_acceleration_data(acc, xyz, 0);
 			if (err < 0) {
 				dev_err(&acc->client->dev,
 					"get_acceleration_data failed\n");
@@ -1297,7 +1326,7 @@ static irqreturn_t lis3dh_acc_isr1(int irq, void *dev)
 			goto exit;
 		}
 	} else {
-		err = lis3dh_acc_get_acceleration_data(acc, xyz);
+		err = lis3dh_acc_get_acceleration_data(acc, xyz, 0);
 		if (err < 0) {
 			dev_err(&acc->client->dev,
 					"get_acceleration_data failed\n");
@@ -1315,7 +1344,7 @@ static irqreturn_t lis3dh_acc_isr2(int irq, void *dev)
 	struct lis3dh_acc_data *acc = dev;
 	int err;
 	int xyz[3] = { 0 };
-	err = lis3dh_acc_get_acceleration_data(acc, xyz);
+	err = lis3dh_acc_get_acceleration_data(acc, xyz, 0);
 	if (err < 0)
 		dev_err(&acc->client->dev, "get_acceleration_data failed\n");
 	else
@@ -1371,7 +1400,7 @@ static int lis3dh_axis_calibrate(struct lis3dh_acc_data *acc,
 
 	for (i = 0; i < LIS3DH_CAL_MAX; i++) {
 		msleep(FACTORY_CALIBRATION_DELAY);
-		err = lis3dh_acc_get_acceleration_data(acc, xyz);
+		err = lis3dh_acc_get_acceleration_data(acc, xyz, 0);
 		if (err < 0) {
 			dev_err(&acc->client->dev,
 					"get_acceleration_data failed\n");
@@ -1574,6 +1603,126 @@ static ssize_t attr_set_range(struct device *dev,
 	return size;
 }
 
+#ifdef CONFIG_MACH_OPPO
+static int calculate_gsensor_cali_data(struct i2c_client *client,
+		int data[LIS3DH_AXES_NUM + 1])
+{
+	u8 i = 0;
+	int average_offset[3] = {0};
+	int read_buff[3] = {0};
+	int calibration_buf[LIS3DH_AXES_NUM + 1] = {0};
+	int res = -1;
+	char buff[LIS3DH_BUFSIZE] = {0};
+	struct lis3dh_acc_data *obj =
+			(struct lis3dh_acc_data*)i2c_get_clientdata(client);
+
+	if (client == NULL) {
+		pr_err("null pointer!!\n");
+		return -EINVAL;
+	}
+
+	for (i = 0; i < 20; i ++) {
+		strcpy(buff, "calibration gsensor");
+		if ((res = lis3dh_acc_get_acceleration_data(
+				obj, read_buff, 1))) {
+			pr_err("I2C error: ret value=%d", res);
+			return -EIO;
+		}
+
+		pr_info("calculate_gsensor: (%5d %5d %5d)\n",
+				read_buff[LIS3DH_AXIS_X],
+				read_buff[LIS3DH_AXIS_Y],
+				read_buff[LIS3DH_AXIS_Z]);
+
+		average_offset[LIS3DH_AXIS_X] += read_buff[LIS3DH_AXIS_X];
+		average_offset[LIS3DH_AXIS_Y] += read_buff[LIS3DH_AXIS_Y];
+		average_offset[LIS3DH_AXIS_Z] += read_buff[LIS3DH_AXIS_Z];
+		msleep(20);
+	}
+
+	average_offset[LIS3DH_AXIS_X] /= 20;
+	average_offset[LIS3DH_AXIS_Y] /= 20;
+	average_offset[LIS3DH_AXIS_Z] /= 20;
+
+	calibration_buf[LIS3DH_AXIS_X] = 0 - average_offset[LIS3DH_AXIS_X];
+	calibration_buf[LIS3DH_AXIS_Y] = 0 - average_offset[LIS3DH_AXIS_Y];
+	calibration_buf[LIS3DH_AXIS_Z] = 16384 - average_offset[LIS3DH_AXIS_Z];
+
+	if (abs(calibration_buf[LIS3DH_AXIS_X]) <= 150
+			&& abs(calibration_buf[LIS3DH_AXIS_Y]) <= 150
+			&& abs(calibration_buf[LIS3DH_AXIS_Z]) <= 300) {
+		// calibration ok
+		calibration_buf[LIS3DH_CALIBRATION_FLAG] = 1;
+
+		// write the calibration data
+		obj->cali_sw[LIS3DH_AXIS_X] = calibration_buf[LIS3DH_AXIS_X];
+		obj->cali_sw[LIS3DH_AXIS_Y] = calibration_buf[LIS3DH_AXIS_Y];
+		obj->cali_sw[LIS3DH_AXIS_Z] = calibration_buf[LIS3DH_AXIS_Z];
+		obj->cali_sw[LIS3DH_CALIBRATION_FLAG] =
+				calibration_buf[LIS3DH_CALIBRATION_FLAG];
+	} else {
+		// calibration failed
+		calibration_buf[LIS3DH_CALIBRATION_FLAG] = 0;
+	}
+
+	data[LIS3DH_AXIS_X] = calibration_buf[LIS3DH_AXIS_X];
+	data[LIS3DH_AXIS_Y] = calibration_buf[LIS3DH_AXIS_Y];
+	data[LIS3DH_AXIS_Z] = calibration_buf[LIS3DH_AXIS_Z];
+	data[LIS3DH_CALIBRATION_FLAG] =
+			calibration_buf[LIS3DH_CALIBRATION_FLAG];
+
+	pr_info("\ngsensor offset: (%5d, %5d, %5d)\n\n",
+			data[LIS3DH_AXIS_X],
+			data[LIS3DH_AXIS_Y],
+			data[LIS3DH_AXIS_Z]);
+
+	return 0;
+}
+
+static ssize_t attr_get_cali(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	struct lis3dh_acc_data *acc = dev_get_drvdata(dev);
+	int cali_buff[LIS3DH_AXES_NUM + 1] = {0};
+
+	mutex_lock(&acc->lock);
+	calculate_gsensor_cali_data(acc->client, cali_buff);
+	mutex_unlock(&acc->lock);
+
+	return snprintf(buf, PAGE_SIZE, "%d %d %d %d\n",
+			cali_buff[0], cali_buff[1], cali_buff[2], cali_buff[3]);
+}
+
+static ssize_t attr_set_cali(struct device *dev,
+		struct device_attribute *attr,const char *buf, size_t size)
+{
+	int i, ret;
+	char *token[10];
+	s16 cali_buf[3] = {0};
+	struct lis3dh_acc_data *acc = dev_get_drvdata(dev);
+
+	mutex_lock(&acc->lock);
+
+	for (i = 0; i < 3; i++)
+		token[i] = strsep((char **)&buf, " ");
+
+	for (i = 0; i < 3; i++) {
+		ret = kstrtol(token[i], 10, (long *)&(cali_buf[i]));
+		if (ret < 0) {
+			pr_err("%s:kstrtoul failed, ret=0x%x\n",__func__, ret);
+			return ret;
+		}
+	}
+
+	mutex_unlock(&acc->lock);
+
+	for (i = 0; i < 3; i++)
+		acc->cali_sw[i] = cali_buf[i];
+
+	return size;
+}
+#endif
+
 static ssize_t attr_get_enable(struct device *dev,
 			       struct device_attribute *attr, char *buf)
 {
@@ -1767,6 +1916,9 @@ static struct device_attribute attributes[] = {
 	__ATTR(poll_delay, 0664, attr_get_polling_rate,
 			attr_set_polling_rate),
 	__ATTR(range, 0664, attr_get_range, attr_set_range),
+#ifdef CONFIG_MACH_OPPO
+	__ATTR(cali, 0664, attr_get_cali, attr_set_cali),
+#endif
 	__ATTR(enable, 0664, attr_get_enable, attr_set_enable),
 	__ATTR(int1_config, 0664, attr_get_intconfig1, attr_set_intconfig1),
 	__ATTR(int1_duration, 0664, attr_get_duration1, attr_set_duration1),
@@ -1834,7 +1986,7 @@ static int lis3dh_acc_flush(struct sensors_classdev *sensors_cdev)
 		((s64)time_ms * LIS3DH_TIME_MS_TO_NS * fifo_cnt);
 
 	for (i = 0; i < fifo_cnt; i++) {
-		err = lis3dh_acc_get_acceleration_data(acc, xyz);
+		err = lis3dh_acc_get_acceleration_data(acc, xyz, 0);
 		if (err < 0) {
 			dev_err(&acc->client->dev,
 					"get_acceleration_data failed\n");
@@ -1968,7 +2120,7 @@ static void lis3dh_acc_input_work_func(struct work_struct *work)
 			struct lis3dh_acc_data,	input_work);
 
 	mutex_lock(&acc->lock);
-	err = lis3dh_acc_get_acceleration_data(acc, xyz);
+	err = lis3dh_acc_get_acceleration_data(acc, xyz, 0);
 	if (err < 0)
 		dev_err(&acc->client->dev, "get_acceleration_data failed\n");
 	else
@@ -2201,6 +2353,124 @@ static int lis3dh_parse_dt(struct device *dev,
 }
 #endif
 
+#ifdef CONFIG_MACH_OPPO
+static struct lis3dh_acc_data *g_acc_data;
+static ssize_t lis3dh_acc_enable_store(struct kobject *kobj,
+		struct kobj_attribute *attr, const char *buf, size_t count)
+{
+	u32 data;
+	int ret = -EINVAL;
+	struct lis3dh_acc_data *acc = g_acc_data;
+
+	sscanf(buf, "%x", &data);
+	if (!atomic_cmpxchg(&acc->enabled, 0, 1)) {
+		ret = lis3dh_acc_device_power_on(acc);
+		if (ret)
+			atomic_set(&acc->enabled, 0);
+	}
+	if (ret == 0)
+		pr_info("%s: Enable sensor SUCCESS\n",__func__);
+
+	return count;
+}
+
+static ssize_t lis3dh_acc_enable_show(struct kobject *kobj,
+		struct kobj_attribute *attr, char *buf)
+{
+	struct lis3dh_acc_data *acc = g_acc_data;
+
+	return snprintf(buf, PAGE_SIZE, "accelerator:%d\n",
+			atomic_read(&acc->enabled));
+}
+
+static struct kobj_attribute enable =
+{
+	.attr = {"enable", 0664},
+	.show = lis3dh_acc_enable_show,
+	.store = lis3dh_acc_enable_store,
+};
+
+static ssize_t lis3dh_acc_raw_show(struct kobject *kobj,
+		struct kobj_attribute *attr, char *buf)
+{
+	struct lis3dh_acc_data *acc = g_acc_data;
+	int xyz[3];
+	int ret;
+
+	ret = lis3dh_acc_get_acceleration_data(acc, xyz, 0);
+
+	return snprintf(buf, PAGE_SIZE, "%d %d %d\n", xyz[0], xyz[1], xyz[2]);
+}
+
+static struct kobj_attribute accel_raw =
+{
+	.attr = {"accel_raw", 0444},
+	.show = lis3dh_acc_raw_show,
+};
+
+static ssize_t lis3dh_acc_cali_store(struct kobject *kobj,
+		struct kobj_attribute *attr, const char *buf, size_t count)
+{
+	int i, ret;
+	char *token[10];
+	s16 cali_buf[3] = {0};
+	struct lis3dh_acc_data *acc = g_acc_data;
+
+	mutex_lock(&acc->lock);
+
+	for (i = 0; i < 3; i++)
+		token[i] = strsep((char **)&buf, " ");
+
+	for (i = 0; i < 3; i++) {
+		ret = kstrtol(token[i], 10, (long *)&(cali_buf[i]));
+		if (ret < 0) {
+			pr_err("%s:kstrtoul failed, ret=0x%x\n",__func__, ret);
+			return ret;
+		}
+	}
+
+	mutex_unlock(&acc->lock);
+	pr_info("%s cali_buf[0]:%d  cali_buf[1]:%d  cali_buf[2]:%d \n",
+		__func__, cali_buf[0], cali_buf[1], cali_buf[2]);
+	for (i = 0; i < 3; i++)
+		acc->cali_sw[i] = cali_buf[i];
+
+	return count;
+}
+
+static ssize_t lis3dh_acc_cali_show(struct kobject *kobj,
+		struct kobj_attribute *attr, char *buf)
+{
+	struct lis3dh_acc_data *acc = g_acc_data;
+
+	int cali_buff[LIS3DH_AXES_NUM + 1] = {0};
+
+	mutex_lock(&acc->lock);
+	calculate_gsensor_cali_data(acc->client, cali_buff);
+	mutex_unlock(&acc->lock);
+
+	return snprintf(buf, PAGE_SIZE, "%d %d %d %d\n",
+			cali_buff[0], cali_buff[1], cali_buff[2], cali_buff[3]);
+}
+
+static struct kobj_attribute cali =
+{
+	.attr = {"cali", 0664},
+	.show = lis3dh_acc_cali_show,
+	.store = lis3dh_acc_cali_store,
+};
+
+static const struct attribute *lis3dh_attrs[] =
+{
+	&enable.attr,
+	&accel_raw.attr,
+	&cali.attr,
+	NULL
+};
+
+static struct dev_ftm lis3dh_ftm;
+#endif
+
 static int lis3dh_acc_probe(struct i2c_client *client,
 		const struct i2c_device_id *id)
 {
@@ -2223,7 +2493,7 @@ static int lis3dh_acc_probe(struct i2c_client *client,
 		goto exit_check_functionality_failed;
 	}
 
-
+	memset(acc, 0, sizeof(struct lis3dh_acc_data));
 	mutex_init(&acc->lock);
 	mutex_lock(&acc->lock);
 
@@ -2438,6 +2708,20 @@ static int lis3dh_acc_probe(struct i2c_client *client,
 			"Can't select pinctrl sleep state\n");
 
 	mutex_unlock(&acc->lock);
+
+#ifdef CONFIG_MACH_OPPO
+	g_acc_data = acc;
+
+	lis3dh_ftm.name = "accel";
+	lis3dh_ftm.i2c_client = acc->client;
+	lis3dh_ftm.priv_data = acc;
+	lis3dh_ftm.attrs = lis3dh_attrs;
+	err = register_single_dev_ftm(&lis3dh_ftm);
+	if (err) {
+		dev_dbg(&client->dev, "register_single_dev_ftm failed\n");
+		goto err_unreg_sensor_class;
+	}
+#endif
 
 	dev_dbg(&client->dev, "%s: probed\n", LIS3DH_ACC_DEV_NAME);
 
