@@ -1,0 +1,9 @@
+menu "OPPO specific options"
+
+config OPPO_DEVICE_INFO
+	bool "OPPO device info driver"
+	default y if MACH_OPPO
+	help
+	  Say Y to enable OPPO device info driver
+
+endmenu
