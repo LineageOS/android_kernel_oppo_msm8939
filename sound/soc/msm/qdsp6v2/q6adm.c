@@ -26,6 +26,9 @@
 #include <sound/audio_cal_utils.h>
 #include "msm-dts-srs-tm-config.h"
 #include <sound/asound.h>
+#ifdef CONFIG_MACH_OPPO
+#include <soc/oppo/oppo_project.h>
+#endif
 
 #define TIMEOUT_MS 1000
 
@@ -1778,12 +1781,32 @@ fail_cmd:
 
 static bool is_vptx_topology(int topology)
 {
+#ifdef CONFIG_MACH_OPPO
+	if (is_project(OPPO_15018)) {
+		if ((topology == VPM_TX_SM_ECNS_COPP_TOPOLOGY) ||
+		    (topology == VPM_TX_DM_FLUENCE_COPP_TOPOLOGY) ||
+		    (topology == VPM_TX_DM_RFECNS_COPP_TOPOLOGY) ||
+		    (topology == VPM_TX_LEC_STEREO_REF) ||
+		    (topology == VPM_TX_LEC_MONO_REF) ||
+		    (topology == VOICE_TOPOLOGY_LVVEFQ_TX_SM) ||
+		    (topology == VOICE_TOPOLOGY_LVVEFQ_TX_DM))
+			return true;
+	} else {
+		if ((topology == VPM_TX_SM_ECNS_COPP_TOPOLOGY) ||
+		    (topology == VPM_TX_DM_FLUENCE_COPP_TOPOLOGY) ||
+		    (topology == VPM_TX_DM_RFECNS_COPP_TOPOLOGY) ||
+		    (topology == VPM_TX_LEC_STEREO_REF) ||
+		    (topology == VPM_TX_LEC_MONO_REF))
+			return true;
+	}
+#else
 	if ((topology == VPM_TX_SM_ECNS_COPP_TOPOLOGY) ||
 	    (topology == VPM_TX_DM_FLUENCE_COPP_TOPOLOGY) ||
 	    (topology == VPM_TX_DM_RFECNS_COPP_TOPOLOGY) ||
 	    (topology == VPM_TX_LEC_STEREO_REF) ||
 	    (topology == VPM_TX_LEC_MONO_REF))
 		return true;
+#endif
 
 	return false;
 }

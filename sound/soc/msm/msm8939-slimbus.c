@@ -94,6 +94,9 @@ static int msm_proxy_rx_ch = 2;
 static void *adsp_state_notifier;
 
 atomic_t quat_mi2s_rsc_ref;
+#ifdef CONFIG_MACH_OPPO
+static struct regulator* hs_det_comp = NULL;
+#endif
 
 static int msm_snd_enable_codec_ext_clk(struct snd_soc_codec *codec, int enable,
 					bool dapm);
@@ -253,6 +256,9 @@ struct msm8939_asoc_mach_data {
 	int mclk_gpio;
 	u32 mclk_freq;
 	int us_euro_gpio;
+#ifdef CONFIG_MACH_OPPO
+	int spk_rec_sw;
+#endif
 	struct mutex cdc_mclk_mutex;
 	struct afe_digital_clk_cfg digital_cdc_clk;
 	struct delayed_work hs_detect_dwork;
@@ -470,6 +476,37 @@ static int slim0_rx_sample_rate_put(struct snd_kcontrol *kcontrol,
 	return 0;
 }
 
+#ifdef CONFIG_MACH_OPPO
+static int speaker_receiver_get(struct snd_kcontrol *kcontrol,
+				struct snd_ctl_elem_value *ucontrol)
+{
+	return 0;
+}
+
+static int speaker_receiver_put(struct snd_kcontrol *kcontrol,
+				struct snd_ctl_elem_value *ucontrol)
+{
+	struct msm8939_asoc_mach_data *pdata = NULL;
+	struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
+
+	pdata = snd_soc_card_get_drvdata(codec->card);
+
+	switch (ucontrol->value.integer.value[0]) {
+		case 1:
+			if (gpio_is_valid(pdata->spk_rec_sw))
+				gpio_direction_output(pdata->spk_rec_sw, 1);
+			break;
+		case 0:
+		default:
+			if (gpio_is_valid(pdata->spk_rec_sw))
+				gpio_direction_output(pdata->spk_rec_sw, 0);
+			break;
+		}
+
+	return 0;
+}
+#endif
+
 static int slim0_rx_bit_format_get(struct snd_kcontrol *kcontrol,
 	struct snd_ctl_elem_value *ucontrol)
 {
@@ -573,6 +610,9 @@ static const char *const slim0_tx_ch_text[] = {"One", "Two", "Three", "Four",
 static char const *rx_bit_format_text[] = {"S16_LE", "S24_LE"};
 static char const *slim0_rx_sample_rate_text[] = {"KHZ_48", "KHZ_96",
 					"KHZ_192"};
+#ifdef CONFIG_MACH_OPPO
+static char const *spk_rec_text[] = {"speaker_on", "receiver_on"};
+#endif
 
 static const struct soc_enum msm_snd_enum[] = {
 	SOC_ENUM_SINGLE_EXT(2, spk_function),
@@ -580,6 +620,9 @@ static const struct soc_enum msm_snd_enum[] = {
 	SOC_ENUM_SINGLE_EXT(8, slim0_tx_ch_text),
 	SOC_ENUM_SINGLE_EXT(2, rx_bit_format_text),
 	SOC_ENUM_SINGLE_EXT(3, slim0_rx_sample_rate_text),
+#ifdef CONFIG_MACH_OPPO
+	SOC_ENUM_SINGLE_EXT(2, spk_rec_text),
+#endif
 };
 
 static const struct snd_kcontrol_new msm_snd_controls[] = {
@@ -593,6 +636,10 @@ static const struct snd_kcontrol_new msm_snd_controls[] = {
 			slim0_rx_bit_format_get, slim0_rx_bit_format_put),
 	SOC_ENUM_EXT("SLIM_0_RX SampleRate", msm_snd_enum[4],
 			slim0_rx_sample_rate_get, slim0_rx_sample_rate_put),
+#ifdef CONFIG_MACH_OPPO
+	SOC_ENUM_EXT("Spk_Rec_SW", msm_snd_enum[5],
+			speaker_receiver_get, speaker_receiver_put),
+#endif
 };
 
 static int msm_be_hw_params_fixup(struct snd_soc_pcm_runtime *rtd,
@@ -610,6 +657,27 @@ static int msm_be_hw_params_fixup(struct snd_soc_pcm_runtime *rtd,
 
 	return 0;
 }
+
+#ifdef CONFIG_MACH_14005
+static int msm_be_tfa9890_hw_params_fixup(struct snd_soc_pcm_runtime *rtd,
+					  struct snd_pcm_hw_params *params)
+{
+	struct snd_interval *rate = hw_param_interval(params,
+					SNDRV_PCM_HW_PARAM_RATE);
+	struct snd_interval *channels = hw_param_interval(params,
+					SNDRV_PCM_HW_PARAM_CHANNELS);
+
+	pr_debug("%s()\n", __func__);
+	rate->min = rate->max = 48000;
+	param_set_mask(params, SNDRV_PCM_HW_PARAM_FORMAT,
+					SNDRV_PCM_FORMAT_S16_LE);
+
+	if (!channels->min)
+		channels->min = channels->max = 2;
+
+	return 0;
+}
+#endif
 
 static int msm_btsco_be_hw_params_fixup(struct snd_soc_pcm_runtime *rtd,
 					struct snd_pcm_hw_params *params)
@@ -1477,6 +1545,32 @@ static int msm_mi2s_snd_hw_params(struct snd_pcm_substream *substream,
 	return 0;
 }
 
+#ifdef CONFIG_MACH_14005
+static int msm_tfa9890_snd_hw_params(struct snd_pcm_substream *substream,
+				struct snd_pcm_hw_params *params)
+{
+	struct snd_soc_pcm_runtime *rtd = substream->private_data;
+	struct snd_soc_dai *codec_dai = rtd->codec_dai;
+	int ret;
+
+	msm_mi2s_snd_hw_params(substream, params);
+	ret = snd_soc_dai_set_sysclk(codec_dai, 0,
+		Q6AFE_LPASS_IBIT_CLK_1_P536_MHZ,
+		SND_SOC_CLOCK_IN);
+
+	if (ret < 0)
+	    pr_err("can't set rx codec clk configuration\n");
+
+	return ret;
+}
+
+
+static struct snd_soc_ops msm8x16_tfa9890_be_ops = {
+	.startup = msm_quat_mi2s_snd_startup,
+	.hw_params = msm_tfa9890_snd_hw_params,
+	.shutdown = msm_quat_mi2s_snd_shutdown,
+};
+#endif
 
 static struct snd_soc_ops msm8x16_quat_mi2s_be_ops = {
 	.startup = msm_quat_mi2s_snd_startup,
@@ -2274,12 +2368,22 @@ static struct snd_soc_dai_link msm8x16_dai[] = {
 		.stream_name = "Quaternary MI2S Playback",
 		.cpu_dai_name = "msm-dai-q6-mi2s.3",
 		.platform_name = "msm-pcm-routing",
+#ifdef CONFIG_MACH_14005
+		.codec_dai_name = "tfa9890_codec_left",
+		.codec_name = "tfa9890.3-0036",
+#else
 		.codec_dai_name = "snd-soc-dummy-dai",
 		.codec_name = "snd-soc-dummy",
+#endif
 		.no_pcm = 1,
 		.be_id = MSM_BACKEND_DAI_QUATERNARY_MI2S_RX,
+#ifdef CONFIG_MACH_14005
+		.be_hw_params_fixup = msm_be_tfa9890_hw_params_fixup,
+		.ops = &msm8x16_tfa9890_be_ops,
+#else
 		.be_hw_params_fixup = msm_be_hw_params_fixup,
 		.ops = &msm8x16_quat_mi2s_be_ops,
+#endif
 		.ignore_pmdown_time = 1, /* dai link has playback support */
 		.ignore_suspend = 1,
 	},
@@ -2765,6 +2869,42 @@ static int msm8939_asoc_machine_probe(struct platform_device *pdev)
 			"qcom,us-euro-gpios", pdata->us_euro_gpio);
 		wcd9xxx_mbhc_cfg.swap_gnd_mic = msm8939_swap_gnd_mic;
 	}
+
+#ifdef CONFIG_MACH_OPPO
+	wcd9xxx_mbhc_cfg.ap_audio_enable_gpio = of_get_named_gpio(
+			pdev->dev.of_node, "ap-audio-en-gpios", 0);
+	if (wcd9xxx_mbhc_cfg.ap_audio_enable_gpio < 0) {
+		dev_err(&pdev->dev,
+			"property %s not detected in node %s\n",
+			"ap-audio-en-gpios", pdev->dev.of_node->full_name);
+	}
+	if (gpio_is_valid(wcd9xxx_mbhc_cfg.ap_audio_enable_gpio))
+		gpio_request(wcd9xxx_mbhc_cfg.ap_audio_enable_gpio,
+				"ap_audio_enable");
+
+	pdata->spk_rec_sw = of_get_named_gpio(pdev->dev.of_node,
+			"spk-rec-sw-gpios", 0);
+	if (pdata->spk_rec_sw < 0) {
+		dev_err(&pdev->dev,
+			"property %s in node %s not found %d\n",
+			"spk-rec-sw-gpios", pdev->dev.of_node->full_name,
+			pdata->spk_rec_sw);
+	}
+	if (gpio_is_valid(pdata->spk_rec_sw)) {
+		gpio_request(pdata->spk_rec_sw, "spk_rec_sw");
+		gpio_direction_output(pdata->spk_rec_sw, 0);
+	}
+
+	if (hs_det_comp == NULL) {
+		hs_det_comp = regulator_get(&pdev->dev, "hs_det_compare");
+		ret = regulator_enable(hs_det_comp);
+		if (ret) {
+			pr_err("Regulator hs_det_comp enable failed rc=%d\n",
+					ret);
+			regulator_disable(hs_det_comp);
+		}
+	}
+#endif
 
 	return 0;
 err:
