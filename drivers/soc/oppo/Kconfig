@@ -1,0 +1,54 @@
+config MACH_OPPO
+	bool
+	depends on ARCH_MSM
+
+config MACH_OPPO_MSM8916
+	depends on ARCH_MSM8916
+	select MACH_OPPO
+	bool "OPPO MSM8916 Platform"
+	help
+	  Support for OPPO MSM8916 device variants.
+
+menu "OPPO board selection"
+
+config MACH_14005
+	select MACH_OPPO_MSM8916
+	bool "R5/R5s"
+	help
+	  Support for the R5/R5s variants
+
+config MACH_15011
+	select MACH_OPPO_MSM8916
+	bool "R7f"
+	help
+	  Support for the R7f variant
+
+config MACH_15018
+	select MACH_OPPO_MSM8916
+	bool "R7plusf"
+	help
+	  Support for the R7plusf variant
+
+config MACH_15022
+	select MACH_OPPO_MSM8916
+	bool "R7sf"
+	help
+	  Support for the R7sf variant
+
+config MACH_15109
+	select MACH_OPPO_MSM8916
+	bool "F1f"
+	help
+	  Support for the F1f variant
+
+endmenu
+
+menu "OPPO specific options"
+
+config OPPO_DEVICE_INFO
+	bool "OPPO device info driver"
+	default y if MACH_OPPO
+	help
+	  Say Y to enable OPPO device info driver
+
+endmenu
