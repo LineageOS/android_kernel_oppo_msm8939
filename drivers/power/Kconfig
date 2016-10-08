@@ -543,6 +543,13 @@ config MSM_BCL_PERIPHERAL_CTL
 	  provides routines to configure and monitor the BCL
 	  PMIC peripheral.
 
+config OPPO_CHARGER
+	tristate "OPPO Battery Charger"
+	depends on I2C
+	select REGMAP_I2C
+	help
+	  Say Y to include support for OPPO charger stack.
+
 source "drivers/power/reset/Kconfig"
 
 endif # POWER_SUPPLY
