@@ -50,6 +50,14 @@
 #define LIS3DH_ACC_G_8G			0x20
 #define LIS3DH_ACC_G_16G		0x30
 
+#ifdef CONFIG_MACH_OPPO
+#define LIS3DH_AXIS_X			0
+#define LIS3DH_AXIS_Y			1
+#define LIS3DH_AXIS_Z			2
+#define LIS3DH_CALIBRATION_FLAG		3
+#define LIS3DH_AXES_NUM			3
+#define LIS3DH_BUFSIZE			256
+#endif
 
 #ifdef	__KERNEL__
 struct lis3dh_acc_platform_data {
