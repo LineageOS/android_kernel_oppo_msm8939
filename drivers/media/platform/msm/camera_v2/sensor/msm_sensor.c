@@ -21,6 +21,31 @@
 #undef CDBG
 #define CDBG(fmt, args...) pr_debug(fmt, ##args)
 
+#ifdef CONFIG_MACH_OPPO
+/* xianglie.liu 2014-09-05 add for add project name */
+#include <soc/oppo/device_info.h>
+#include <soc/oppo/oppo_project.h>
+
+#define DEVICE_VERSION_5648_SUNNY	"ov5648_sunny"
+#define DEVICE_VERSION_5648_TRULY	"ov5648_truly"
+#define DEVICE_MANUFACUTRE_5648	"OmniVision"
+
+#define DEVICE_VERSION_S5K5E2		"s5k5e2"
+#define DEVICE_MANUFACUTRE_S5K5E2	"Samsung"
+
+#define DEVICE_VERSION_IMX278		"imx278"
+#define DEVICE_MANUFACUTRE_IMX278	"sony"
+#define DEVICE_VERSION_S5K3M2_SUNNY		"s5k3m2_sunny"
+#define DEVICE_VERSION_S5K3M2_SEMCO		"s5k3m2_semco"
+#define DEVICE_MANUFACUTRE_S5K3M2	"Samsung"
+
+#define DEVICE_VERSION_OV8858		"ov8858"
+#define DEVICE_MANUFACUTRE_OV8858	"OmniVision"
+
+bool openloop_flag = false;
+extern uint16_t s5k3m2_module;
+#endif
+
 static struct v4l2_file_operations msm_sensor_v4l2_subdev_fops;
 static void msm_sensor_adjust_mclk(struct msm_camera_power_ctrl_t *ctrl)
 {
