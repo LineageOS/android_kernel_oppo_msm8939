@@ -54,6 +54,12 @@
 #include "mdss_fb.h"
 #include "mdss_mdp_splash_logo.h"
 
+#ifdef CONFIG_MACH_OPPO
+/* Xiaori.Yuan@Mobile Phone Software Dept.Driver, 2014/08/27  Add for 14045 LCD */
+#include <soc/oppo/oppo_project.h>
+#include "mdss_dsi.h"
+#endif /*CONFIG_MACH_OPPO*/
+
 #ifdef CONFIG_FB_MSM_TRIPLE_BUFFER
 #define MDSS_FB_NUM 3
 #else
@@ -681,6 +687,56 @@ static ssize_t mdss_fb_get_doze_mode(struct device *dev,
 	return scnprintf(buf, PAGE_SIZE, "%d\n", mfd->doze_mode);
 }
 
+#ifdef CONFIG_MACH_OPPO
+/* YongPeng.Yi@SWDP.MultiMedia, 2015/05/19  Add for set cabc START */
+extern void set_acl_mode(int level);
+static ssize_t mdss_set_low_power_mode(struct device *dev,
+                               struct device_attribute *attr,
+                               const char *buf, size_t count)
+{
+    int level = 0;
+    sscanf(buf, "%du", &level);
+	if(is_project(OPPO_14005) || is_project(OPPO_15011) || is_project(OPPO_15018) || is_project(OPPO_15022))
+	set_acl_mode(level);
+    return count;
+}
+extern void set_hbm_mode(int level);
+static ssize_t mdss_set_hbm(struct device *dev,
+                               struct device_attribute *attr,
+                               const char *buf, size_t count)
+{
+    int level = 0;
+    sscanf(buf, "%du", &level);
+    set_hbm_mode(level);
+    return count;
+}
+
+extern int set_cabc(int level);
+extern int cabc_mode;
+
+static ssize_t mdss_get_cabc(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	if(!(is_project(OPPO_15109))){
+		return 0;
+	}
+	printk(KERN_INFO "get cabc mode = %d\n",cabc_mode);
+
+    return sprintf(buf, "%d\n", cabc_mode);
+}
+
+static ssize_t mdss_set_cabc(struct device *dev,
+                               struct device_attribute *attr,
+                               const char *buf, size_t count)
+{
+    int level = 0;
+    sscanf(buf, "%du", &level);
+    set_cabc(level);
+    return count;
+}
+/* YongPeng.Yi@SWDP.MultiMedia END */
+#endif /*CONFIG_MACH_OPPO*/
+
 static DEVICE_ATTR(msm_fb_type, S_IRUGO, mdss_fb_get_type, NULL);
 static DEVICE_ATTR(msm_fb_split, S_IRUGO | S_IWUSR, mdss_fb_show_split,
 					mdss_fb_store_split);
@@ -697,6 +753,15 @@ static DEVICE_ATTR(always_on, S_IRUGO | S_IWUSR | S_IWGRP,
 	mdss_fb_get_doze_mode, mdss_fb_set_doze_mode);
 static DEVICE_ATTR(msm_fb_panel_status, S_IRUGO,
 	mdss_fb_get_panel_status, NULL);
+#ifdef CONFIG_MACH_OPPO
+static DEVICE_ATTR(lpm, S_IRUGO|S_IWUSR, NULL, mdss_set_low_power_mode);
+static DEVICE_ATTR(hbm, S_IRUGO|S_IWUSR, NULL, mdss_set_hbm);
+// Also export hbm as sre, as this is what user space expects
+static DEVICE_ATTR(sre, S_IRUGO|S_IWUSR, NULL, mdss_set_hbm);
+/* YongPeng.Yi@SWDP.MultiMedia, 2015/05/19  Add for set cabc START */
+static DEVICE_ATTR(cabc, S_IRUGO|S_IWUSR, mdss_get_cabc, mdss_set_cabc);
+/* YongPeng.Yi@SWDP.MultiMedia END */
+#endif /*CONFIG_MACH_OPPO*/
 static struct attribute *mdss_fb_attrs[] = {
 	&dev_attr_msm_fb_type.attr,
 	&dev_attr_msm_fb_split.attr,
@@ -708,6 +773,13 @@ static struct attribute *mdss_fb_attrs[] = {
 	&dev_attr_msm_fb_thermal_level.attr,
 	&dev_attr_always_on.attr,
 	&dev_attr_msm_fb_panel_status.attr,
+#ifdef CONFIG_MACH_OPPO
+/* Xiaori.Yuan@Mobile Phone Software Dept.Driver, 2014/08/14  Add for ftm mode shut down lcd */
+	&dev_attr_lpm.attr,
+	&dev_attr_hbm.attr,
+	&dev_attr_sre.attr,
+	&dev_attr_cabc.attr,
+#endif /*CONFIG_MACH_OPPO*/
 	NULL,
 };
 
@@ -718,6 +790,16 @@ static struct attribute_group mdss_fb_attr_group = {
 static int mdss_fb_create_sysfs(struct msm_fb_data_type *mfd)
 {
 	int rc;
+
+	if (!is_project(OPPO_15109)) {
+		int i;
+		for (i = 0; i < ARRAY_SIZE(mdss_fb_attrs); i++) {
+			if (mdss_fb_attrs[i] == &dev_attr_cabc.attr) {
+				mdss_fb_attrs[i] = NULL;
+				break;
+			}
+		}
+	}
 
 	rc = sysfs_create_group(&mfd->fbi->dev->kobj, &mdss_fb_attr_group);
 	if (rc)
@@ -1159,6 +1241,10 @@ static void mdss_fb_scale_bl(struct msm_fb_data_type *mfd, u32 *bl_lvl)
 	(*bl_lvl) = temp;
 }
 
+#ifdef CONFIG_MACH_OPPO
+/* Xiaori.Yuan@Mobile Phone Software Dept.Driver, 2015/04/10  Add for esd */
+static int save_bl = 0;
+#endif /*CONFIG_MACH_OPPO*/
 /* must call this function from within mfd->bl_lock */
 void mdss_fb_set_backlight(struct msm_fb_data_type *mfd, u32 bkl_lvl)
 {
@@ -1181,6 +1267,12 @@ void mdss_fb_set_backlight(struct msm_fb_data_type *mfd, u32 bkl_lvl)
 	} else {
 		mfd->unset_bl_level = 0;
 	}
+
+#ifdef CONFIG_MACH_OPPO
+	if(bkl_lvl!=0){
+		save_bl = bkl_lvl;
+	}
+#endif /*VEDNOR_EDIT*/
 
 	pdata = dev_get_platdata(&mfd->pdev->dev);
 
@@ -1211,12 +1303,25 @@ void mdss_fb_set_backlight(struct msm_fb_data_type *mfd, u32 bkl_lvl)
 			mdss_fb_bl_update_notify(mfd);
 	}
 }
+//huqiao@EXP.BasicDrv.Basic 2016/3/4 add for lcd on at shutdown charger
 
+extern bool flag_lcd_off;
 void mdss_fb_update_backlight(struct msm_fb_data_type *mfd)
 {
 	struct mdss_panel_data *pdata;
 	u32 temp;
 	bool bl_notify = false;
+	//huqiao@EXP.BasicDrv.Basic 2016/3/4 add for lcd on at shutdown charger
+	#ifdef CONFIG_MACH_OPPO
+	if(is_project(OPPO_15011) ||is_project(OPPO_15018) || is_project(OPPO_15022))
+		{
+			if((!flag_lcd_off) && mfd->unset_bl_level ==0 && mfd->bl_level ==0)
+				{
+					mfd->unset_bl_level =120;
+					mfd->bl_updated =0;
+				}
+		}
+	#endif
 
 	if (!mfd->unset_bl_level)
 		return;
@@ -1262,7 +1367,10 @@ static int mdss_fb_start_disp_thread(struct msm_fb_data_type *mfd)
 
 	return ret;
 }
-
+#ifdef CONFIG_MACH_OPPO
+/* Xiaori.Yuan@Mobile Phone Software Dept.Driver, 2015/01/09  Add for 14045 esd */
+static bool panel_dead = 0;
+#endif /*CONFIG_MACH_OPPO*/
 static void mdss_fb_stop_disp_thread(struct msm_fb_data_type *mfd)
 {
 	pr_debug("%pS: stop display thread fb%d\n",
@@ -1385,7 +1493,17 @@ static int mdss_fb_blank_unblank(struct msm_fb_data_type *mfd)
 
 	if (mfd->mdp.on_fnc) {
 		ret = mfd->mdp.on_fnc(mfd);
-		if (ret) {
+#ifdef CONFIG_MACH_OPPO
+/*huqiao@EXP.BasicDrv.Basic add for lcd work normal at kernel,2016/1/20 */
+		if (ret == 0) {
+#endif /*CONFIG_MACH_OPPO*/
+#ifdef CONFIG_MACH_OPPO
+/* Xiaori.Yuan@Mobile Phone Software Dept.Driver, 2015/01/09  Add for 14045 esd */
+				panel_dead = mfd->panel_info->panel_dead;
+#endif /*CONFIG_MACH_OPPO*/
+			mfd->panel_power_state = MDSS_PANEL_POWER_ON;
+			mfd->panel_info->panel_dead = false;
+		} else if (mfd->disp_thread) {
 			mdss_fb_stop_disp_thread(mfd);
 			goto error;
 		}

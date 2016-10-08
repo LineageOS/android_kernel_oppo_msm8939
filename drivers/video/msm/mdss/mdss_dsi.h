@@ -282,6 +282,14 @@ enum {
 	DSI_CTRL_MAX,
 };
 
+/* Xiaori.Yuan@Mobile Phone Software Dept.Driver, 2015/01/09  Add for LCD driver */
+enum {
+	LCD_15109_TM_NT35592,
+	LCD_15109_TRULY_HX8394F,
+	LCD_15109_BOE_ILI9881C,
+	LCD_UNKNOWN,
+};
+
 #define DSI_CTRL_LEFT		DSI_CTRL_0
 #define DSI_CTRL_RIGHT		DSI_CTRL_1
 #define DSI_CTRL_CLK_SLAVE	DSI_CTRL_RIGHT
@@ -354,6 +362,9 @@ struct mdss_dsi_ctrl_pdata {
 	bool panel_bias_vreg;
 	bool dsi_irq_line;
 	atomic_t te_irq_ready;
+#ifdef CONFIG_MACH_OPPO
+	int lcd_en_gpio;
+#endif /*CONFIG_MACH_OPPO*/
 
 	bool cmd_clk_ln_recovery_en;
 	bool cmd_sync_wait_broadcast;
@@ -393,6 +404,10 @@ struct mdss_dsi_ctrl_pdata {
 	int mdp_busy;
 	struct mutex mutex;
 	struct mutex cmd_mutex;
+#ifdef CONFIG_MACH_OPPO
+/* Xiaori.Yuan@Mobile Phone Software Dept.Driver, 2015/06/05  Add for display dump and stuck */
+	struct mutex cmdlist_mutex;
+#endif /*CONFIG_MACH_OPPO*/
 	struct mutex clk_lane_mutex;
 
 	u32 ulps_clamp_ctrl_off;
@@ -401,6 +416,8 @@ struct mdss_dsi_ctrl_pdata {
 	bool core_power;
 	bool mmss_clamp;
 	bool timing_db_mode;
+/* Xiaori.Yuan@Mobile Phone Software Dept.Driver, 2015/06/05  Add for display dump and stuck */
+	bool burst_mode_enabled;
 
 	struct dsi_buf tx_buf;
 	struct dsi_buf rx_buf;
