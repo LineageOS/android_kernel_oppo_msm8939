@@ -24,6 +24,7 @@
 #include <linux/mfd/wcd9xxx/wcd9xxx_registers.h>
 #include <linux/mfd/wcd9xxx/wcd9320_registers.h>
 #include <linux/mfd/wcd9xxx/pdata.h>
+#include <linux/usb/msm_hsusb.h>
 #include <sound/pcm.h>
 #include <sound/pcm_params.h>
 #include <sound/soc.h>
@@ -35,6 +36,7 @@
 #include <linux/kernel.h>
 #include <linux/gpio.h>
 #include <linux/input.h>
+#include <soc/oppo/oppo_project.h>
 #include "wcd9320.h"
 #include "wcd9306.h"
 #include "wcd9xxx-mbhc.h"
@@ -197,6 +199,8 @@ enum wcd9xxx_current_v_idx {
 	WCD9XXX_CURRENT_V_B1_HU,
 	WCD9XXX_CURRENT_V_BR_H,
 };
+
+static struct wcd9xxx_mbhc *oppo_mbhc;
 
 static int wcd9xxx_detect_impedance(struct wcd9xxx_mbhc *mbhc, uint32_t *zl,
 				    uint32_t *zr);
@@ -585,6 +589,11 @@ static void wcd9xxx_codec_switch_cfilt_mode(struct wcd9xxx_mbhc *mbhc,
 	}
 }
 
+static inline bool wcd9xxx_has_usb_headset_mux(void)
+{
+	return is_project(OPPO_14005) && get_Operator_Version() >= 5;
+}
+
 static void wcd9xxx_jack_report(struct wcd9xxx_mbhc *mbhc,
 				struct snd_soc_jack *jack, int status, int mask)
 {
@@ -843,6 +852,44 @@ static void wcd9xxx_insert_detect_setup(struct wcd9xxx_mbhc *mbhc, bool ins)
 	snd_soc_update_bits(mbhc->codec, WCD9XXX_A_MBHC_INSERT_DETECT, 1, 1);
 }
 
+enum {
+	VOOC_CHARGER_MODE,
+	HEADPHONE_MODE,
+	NORMAL_CHARGER_MODE,
+};
+extern int opchg_set_switch_mode(u8 mode);
+extern void opchg_check_earphone_on(void);
+extern void opchg_check_earphone_off(void);
+
+void oppo_headset_detect_plug(int status)
+{
+	if (!wcd9xxx_has_usb_headset_mux()) {
+		return;
+	}
+	if (!oppo_mbhc) {
+		return;
+	}
+	if (status) {
+		gpio_direction_output(
+			oppo_mbhc->mbhc_cfg->ap_audio_enable_gpio, 1);
+		opchg_set_switch_mode(HEADPHONE_MODE);
+		opchg_check_earphone_on();
+		pr_err("[%s] headset insert \n", __func__);
+		oppo_mbhc->hph_status |= SND_JACK_HEADPHONE;
+		wcd9xxx_jack_report(oppo_mbhc, &oppo_mbhc->headset_jack,
+			oppo_mbhc->hph_status, WCD9XXX_JACK_MASK);
+	} else {
+		pr_err("[%s] headset remove \n", __func__);
+		gpio_direction_output(
+			oppo_mbhc->mbhc_cfg->ap_audio_enable_gpio, 0);
+		opchg_check_earphone_off();
+		opchg_set_switch_mode(NORMAL_CHARGER_MODE);
+		oppo_mbhc->hph_status &= ~SND_JACK_HEADPHONE;
+		wcd9xxx_jack_report(oppo_mbhc, &oppo_mbhc->headset_jack,
+			oppo_mbhc->hph_status, WCD9XXX_JACK_MASK);
+	}
+}
+
 /* called under codec_resource_lock acquisition */
 static void wcd9xxx_report_plug(struct wcd9xxx_mbhc *mbhc, int insertion,
 				enum snd_jack_types jack_type)
@@ -861,10 +908,12 @@ static void wcd9xxx_report_plug(struct wcd9xxx_mbhc *mbhc, int insertion,
 		if (wcd9xxx_cancel_btn_work(mbhc))
 			pr_debug("%s: button press is canceled\n", __func__);
 		else if (mbhc->buttons_pressed) {
-			pr_debug("%s: release of button press%d\n",
-				 __func__, jack_type);
-			wcd9xxx_jack_report(mbhc, &mbhc->button_jack, 0,
-					    mbhc->buttons_pressed);
+			if (!wcd9xxx_has_usb_headset_mux()) {
+				pr_debug("%s: release of button press%d\n",
+					__func__, jack_type);
+				wcd9xxx_jack_report(mbhc, &mbhc->button_jack, 0,
+						mbhc->buttons_pressed);
+			}
 			mbhc->buttons_pressed &=
 				~WCD9XXX_JACK_BUTTON_MASK;
 		}
@@ -889,6 +938,17 @@ static void wcd9xxx_report_plug(struct wcd9xxx_mbhc *mbhc, int insertion,
 		if (mbhc->mbhc_cb && mbhc->mbhc_cb->hph_auto_pulldown_ctrl)
 			mbhc->mbhc_cb->hph_auto_pulldown_ctrl(mbhc->codec,
 								false);
+		if (is_project(OPPO_14005)) {
+			gpio_direction_output(mbhc->mbhc_cfg->ap_audio_enable_gpio, 0);
+			opchg_check_earphone_off();
+
+			if (wcd9xxx_has_usb_headset_mux()) {
+				pr_err("[%s]headset remove, headset_status set to 0  \n", __func__);
+				atomic_set(&headset_status, 0);
+				oppo_mbhc = NULL;
+				opchg_set_switch_mode(NORMAL_CHARGER_MODE);
+			}
+		}
 	} else {
 		/*
 		 * Report removal of current jack type.
@@ -949,6 +1009,19 @@ static void wcd9xxx_report_plug(struct wcd9xxx_mbhc *mbhc, int insertion,
 
 		if (mbhc->impedance_detect && impedance_detect_en)
 			wcd9xxx_detect_impedance(mbhc, &mbhc->zl, &mbhc->zr);
+
+		if (is_project(OPPO_14005)) {
+			if (wcd9xxx_has_usb_headset_mux()) {
+				pr_err("[%s]mbhc->current_plug=PLUG_TYPE_HEADSET, headset_status set to 1\n", __func__);
+				atomic_set(&headset_status, 1);
+				atomic_set(&otg_id_state, 1);
+				oppo_mbhc = mbhc;
+				pr_err("[%s]otg_id_state=%d,headset_status=%d\n", __func__, atomic_read(&otg_id_state), atomic_read(&headset_status));
+			}
+			gpio_direction_output(mbhc->mbhc_cfg->ap_audio_enable_gpio, 1);
+			opchg_set_switch_mode(HEADPHONE_MODE);
+			opchg_check_earphone_on();
+		}
 
 		pr_debug("%s: Reporting insertion %d(%x)\n", __func__,
 			 jack_type, mbhc->hph_status);
@@ -2414,9 +2487,9 @@ static void wcd9xxx_find_plug_and_report(struct wcd9xxx_mbhc *mbhc,
 			wcd9xxx_cleanup_hs_polling(mbhc);
 			pr_debug("setup mic trigger for further detection\n");
 			mbhc->lpi_enabled = true;
-			wcd9xxx_enable_hs_detect(mbhc, 1, MBHC_USE_MB_TRIGGER |
-							  MBHC_USE_HPHL_TRIGGER,
-						 false);
+			if (!wcd9xxx_has_usb_headset_mux())
+				wcd9xxx_enable_hs_detect(mbhc, 1, MBHC_USE_MB_TRIGGER |
+							MBHC_USE_HPHL_TRIGGER, false);
 		}
 	} else {
 		WARN(1, "Unexpected current plug_type %d, plug_type %d\n",
@@ -2472,7 +2545,8 @@ static void wcd9xxx_mbhc_decide_swch_plug(struct wcd9xxx_mbhc *mbhc)
 		wcd9xxx_schedule_hs_detect_plug(mbhc,
 						&mbhc->correct_plug_swch);
 	} else if (plug_type == PLUG_TYPE_HEADPHONE) {
-		wcd9xxx_report_plug(mbhc, 1, SND_JACK_HEADPHONE);
+		if (!wcd9xxx_has_usb_headset_mux())
+			wcd9xxx_report_plug(mbhc, 1, SND_JACK_HEADPHONE);
 		wcd9xxx_cleanup_hs_polling(mbhc);
 		wcd9xxx_schedule_hs_detect_plug(mbhc,
 						&mbhc->correct_plug_swch);
@@ -3303,6 +3377,20 @@ static void wcd9xxx_swch_irq_handler(struct wcd9xxx_mbhc *mbhc)
 		pr_debug("%s: button press is canceled\n", __func__);
 
 	insert = !wcd9xxx_swch_level_remove(mbhc);
+
+	if (wcd9xxx_has_usb_headset_mux()) {
+		pr_err("[%s]befor check,otg_id_state=%d,headset_status=%d\n", __func__,
+			atomic_read(&otg_id_state), atomic_read(&headset_status));
+		if (atomic_read(&headset_status) == 0 && !insert) {
+			atomic_set(&otg_id_state, 1);
+			opchg_check_earphone_off();
+			opchg_set_switch_mode(NORMAL_CHARGER_MODE);
+			oppo_otg_id_status(atomic_read(&otg_id_state));
+		}
+		pr_err("[%s]after check,otg_id_state=%d,headset_status=%d\n", __func__,
+			atomic_read(&otg_id_state), atomic_read(&headset_status));
+	}
+
 	pr_debug("%s: Current plug type %d, insert %d\n", __func__,
 		 mbhc->current_plug, insert);
 	if ((mbhc->current_plug == PLUG_TYPE_NONE) && insert) {
