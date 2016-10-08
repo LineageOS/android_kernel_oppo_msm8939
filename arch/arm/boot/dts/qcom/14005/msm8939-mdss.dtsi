@@ -1,0 +1,34 @@
+/* Copyright (c) 2014, The Linux Foundation. All rights reserved.
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 and
+ * only version 2 as published by the Free Software Foundation.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ */
+
+&soc {
+	qcom,mdss_mdp@1a00000 {
+		/delete-node/ qcom,mdss_dsi_sim_cmd;
+		/delete-node/ qcom,mdss_dsi_sim_video;
+	};
+
+	qcom,mdss_dsi@1a98000 {
+		/delete-property/ vdd-supply;
+
+		qcom,panel-supply-entries {
+			/delete-node/ qcom,panel-supply-entry@0;
+		};
+	};
+
+	qcom,mdss_dsi@1aa0000 {
+		/delete-property/ vdd-supply;
+
+		qcom,panel-supply-entries {
+			/delete-node/ qcom,panel-supply-entry@0;
+		};
+	};
+};
