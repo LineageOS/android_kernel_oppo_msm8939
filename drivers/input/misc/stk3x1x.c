@@ -5,6 +5,7 @@
  *  Copyright (c) 2013, The Linux Foundation. All Rights Reserved.
  *  Copyright (C) 2012 Lex Hsieh / sensortek <lex_hsieh@sitronix.com.tw> or
  *   <lex_hsieh@sensortek.com.tw>
+ *  Copyright (C), 2012-2016, OPPO Mobile Comm Corp., Ltd
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -52,6 +53,9 @@
 #include <linux/earlysuspend.h>
 #endif
 #include "linux/stk3x1x.h"
+#ifdef CONFIG_MACH_OPPO
+#include <linux/sensors_ftm.h>
+#endif
 
 #define DRIVER_VERSION  "3.4.4ts"
 
@@ -61,7 +65,9 @@
 #define STK_ALS_CHANGE_THD	20	/* The threshold to trigger ALS interrupt, unit: lux */
 #endif	/* #ifdef CONFIG_STK_PS_ALS_USE_CHANGE_THRESHOLD */
 #define STK_INT_PS_MODE			1	/* 1, 2, or 3	*/
+#ifndef CONFIG_MACH_OPPO
 #define STK_POLL_PS
+#endif
 #define STK_POLL_ALS		/* ALS interrupt is valid only when STK_PS_INT_MODE = 1	or 4*/
 
 /* Define Register Map */
@@ -178,8 +184,80 @@
 #define STK3X1X_VIO_MIN_UV	1750000
 #define STK3X1X_VIO_MAX_UV	1950000
 
+#ifdef CONFIG_MACH_OPPO
+#define STK_FIR_LEN 4
+#else
 #define STK_FIR_LEN 16
+#endif
 #define MAX_FIR_LEN 32
+
+#ifdef CONFIG_MACH_OPPO
+#define ALSPS_DYNAMIC_THRESHOLD
+#endif
+
+#ifdef ALSPS_DYNAMIC_THRESHOLD
+#define PS_ADJUST_TREND_STATE		0
+#define PS_ADJUST_NOTREND_STATE		1
+#define PS_ADJUST_HIGHLIGHT_STATE	2
+#define PS_ADJUST_AVOID_DIRTY_STATE	3
+
+struct set_ps_thd_para {
+	int low_threshold;
+	int high_threshold;
+	int ps_average;
+	int algo_state;
+};
+
+struct ps_adjust_para {
+	int ps_up;
+	int ps_thd_low_notrend;
+	int ps_thd_high_notrend;
+	int ps_thd_low_trend;
+	int ps_thd_high_trend;
+	int ps_thd_low_highlight;
+	int ps_thd_high_highlight;
+	int ps_adjust_min;
+	int ps_adjust_max;
+	int highlight_limit;
+	int sampling_time;
+	int sampling_count;
+	int dirty_adjust_limit;
+	int dirty_adjust_low_thd;
+	int dirty_adjust_high_thd;
+};
+
+static struct ps_adjust_para cust_ps_adjust_para_stk3x1x = {
+	.ps_up = 30,
+	.ps_thd_low_notrend = 90,
+	.ps_thd_high_notrend = 120,
+	.ps_thd_low_trend = 20,
+	.ps_thd_high_trend = 30,
+	.ps_thd_low_highlight = 2100,
+	.ps_thd_high_highlight = 2150,
+	.ps_adjust_min = 0,
+	.ps_adjust_max = 2200,
+	.highlight_limit = 10000,
+	.sampling_time = 60,
+	.sampling_count = 6,
+	.dirty_adjust_limit = 2200,
+	.dirty_adjust_low_thd = 200,
+	.dirty_adjust_high_thd = 250,
+};
+
+static int ps_min = 0;
+static int last_ps;
+static int ps_sum = 0;
+static int ps_count = 0;
+static struct ps_adjust_para* g_ps_adjust_para = NULL;
+static struct set_ps_thd_para set_ps_thd_para;
+
+static struct delayed_work sample_ps_work;
+#endif
+
+#ifdef CONFIG_MACH_OPPO
+static struct stk3x1x_data *g_ps_data = NULL;
+static int g_is_resumed = 1;
+#endif
 
 static struct sensors_classdev sensors_light_cdev = {
 	.name = "stk3x1x-light",
@@ -247,6 +325,9 @@ struct stk3x1x_data {
 	bool ps_enabled;
 	struct wake_lock ps_wakelock;
 	struct work_struct stk_ps_work;
+#ifdef ALSPS_DYNAMIC_THRESHOLD
+	struct delayed_work ps_adjust_thd_work;
+#endif
 	struct workqueue_struct *stk_ps_wq;
 #ifdef STK_POLL_PS
 	struct wake_lock ps_nosuspend_wl;
@@ -255,6 +336,9 @@ struct stk3x1x_data {
 	int32_t als_lux_last;
 	uint32_t als_transmittance;
 	bool als_enabled;
+#ifdef CONFIG_MACH_OPPO
+	unsigned int als_enable_state;
+#endif
 	struct hrtimer als_timer;
 	struct hrtimer ps_timer;
 	ktime_t als_poll_delay;
@@ -299,12 +383,35 @@ static int32_t stk3x1x_set_als_thd_h(struct stk3x1x_data *ps_data, uint16_t thd_
 static int stk3x1x_device_ctl(struct stk3x1x_data *ps_data, bool enable);
 //static int32_t stk3x1x_set_ps_aoffset(struct stk3x1x_data *ps_data, uint16_t offset);
 
+#ifdef CONFIG_MACH_OPPO
+/* array: als, gain (base 100) */
+static uint32_t als_level_gain[][2] = {
+	{60, 25},
+	{8300, 26},
+};
+
+static int als_algo_del(int alscode)
+{
+	int i = 0;
+	for (i = 0 ; i < sizeof(als_level_gain) / sizeof(als_level_gain[0]); i++) {
+		if (alscode < als_level_gain[i][0])
+			return alscode*als_level_gain[i][1]/100;
+	}
+
+	return alscode / 3 > 65535 ? 65535 : alscode / 3;
+}
+#endif
+
 inline uint32_t stk_alscode2lux(struct stk3x1x_data *ps_data, uint32_t alscode)
 {
 	alscode += ((alscode<<7)+(alscode<<3)+(alscode>>1));
     alscode<<=3;
     alscode/=ps_data->als_transmittance;
+#ifdef CONFIG_MACH_OPPO
+	return als_algo_del(alscode);
+#else
 	return alscode;
+#endif
 }
 
 inline uint32_t stk_lux2alscode(struct stk3x1x_data *ps_data, uint32_t lux)
@@ -602,6 +709,47 @@ static int32_t stk3x1x_set_ps_aoffset(struct stk3x1x_data *ps_data, uint16_t off
 }
 */
 
+#ifdef CONFIG_MACH_OPPO
+// hight light process. when the light contains lots of IR, the ps value will reduce.
+static int sns_dd_alsprx_prx_val(void)
+{
+	uint8_t mode;
+	int32_t word_data, lii;
+	int32_t tmp_word_data_1 = 0;
+	int32_t tmp_word_data_2 = 0;
+
+	tmp_word_data_1 = i2c_smbus_read_word_data(g_ps_data->client, 0x20);
+	tmp_word_data_2 = i2c_smbus_read_word_data(g_ps_data->client, 0x22);
+	if (tmp_word_data_1 < 0  || tmp_word_data_2 < 0) {
+		pr_err("%s failed", __func__);
+		return 0;
+	}
+	word_data = ((tmp_word_data_1 & 0xFF00) >> 8) |
+			((tmp_word_data_1 & 0x00FF) << 8);
+	word_data += ((tmp_word_data_2 & 0xFF00) >> 8) |
+			((tmp_word_data_2 & 0x00FF) << 8);
+
+	mode = (g_ps_data->pdata->psctrl_reg) & 0x3F;
+	if (mode == 0x30)
+		lii = 100;
+	else if (mode == 0x31)
+		lii = 200;
+	else if (mode == 0x32)
+		lii = 400;
+	else if (mode == 0x33)
+		lii = 800;
+	else {
+		pr_info("unsupported PS_IT(0x%x)\n", mode);
+		return 0xFF;
+	}
+
+	if (word_data > lii * 3 / 4) //the light contains lots of IR
+		return 0xFF;
+
+	return 0;
+}
+#endif
+
 static inline uint32_t stk3x1x_get_ps_reading(struct stk3x1x_data *ps_data)
 {
 	int32_t word_data, tmp_word_data;
@@ -635,6 +783,11 @@ static int32_t stk3x1x_enable_ps(struct stk3x1x_data *ps_data, uint8_t enable)
     int32_t ret;
 	uint8_t w_state_reg;
 	uint8_t curr_ps_enable;
+#ifndef STK_POLL_PS
+	uint32_t reading;
+	int32_t near_far_state;
+#endif
+
 	curr_ps_enable = ps_data->ps_enabled?1:0;
 	if(curr_ps_enable == enable)
 		return 0;
@@ -668,9 +821,34 @@ static int32_t stk3x1x_enable_ps(struct stk3x1x_data *ps_data, uint8_t enable)
 
     if(enable)
 	{
+#ifdef ALSPS_DYNAMIC_THRESHOLD
+		int low_threshold, high_threshold;
+		unsigned long delay = msecs_to_jiffies(g_ps_adjust_para->sampling_time);
+#endif
 #ifdef STK_POLL_PS
 		hrtimer_start(&ps_data->ps_timer, ps_data->ps_poll_delay, HRTIMER_MODE_REL);
 		ps_data->ps_distance_last = -1;
+#endif
+#ifdef ALSPS_DYNAMIC_THRESHOLD
+		if (ps_min > 1000) {
+			g_ps_adjust_para->dirty_adjust_high_thd = 600;
+			g_ps_adjust_para->dirty_adjust_low_thd = 500;
+		} else {
+			g_ps_adjust_para->dirty_adjust_high_thd = 250;
+			g_ps_adjust_para->dirty_adjust_low_thd = 200;
+		}
+		last_ps = g_ps_adjust_para->ps_adjust_max;
+		if (ps_min != 0 && ps_min + g_ps_adjust_para->dirty_adjust_high_thd <
+				g_ps_adjust_para->ps_adjust_max) {
+			high_threshold = ps_min + g_ps_adjust_para->dirty_adjust_high_thd;
+			low_threshold = ps_min + g_ps_adjust_para->dirty_adjust_low_thd;
+		} else {
+			high_threshold = g_ps_adjust_para->ps_thd_high_highlight;
+			low_threshold = g_ps_adjust_para->ps_thd_low_highlight;
+		}
+
+		stk3x1x_set_ps_thd_h(g_ps_data, high_threshold);
+		stk3x1x_set_ps_thd_l(g_ps_data, low_threshold);
 #endif
 		ps_data->ps_enabled = true;
 #ifndef STK_POLL_PS
@@ -690,12 +868,15 @@ static int32_t stk3x1x_enable_ps(struct stk3x1x_data *ps_data, uint8_t enable)
 		ps_data->ps_distance_last = near_far_state;
 		input_report_abs(ps_data->ps_input_dev, ABS_DISTANCE, near_far_state);
 		input_sync(ps_data->ps_input_dev);
-		wake_lock_timeout(&ps_data->ps_wakelock, 3*HZ);
+		wake_lock_timeout(&ps_data->ps_wakelock, 2*HZ);
 		reading = stk3x1x_get_ps_reading(ps_data);
 		dev_dbg(&ps_data->client->dev,
 			"%s: ps input event=%d, ps code = %d\n",
 			__func__, near_far_state, reading);
 #endif	/* #ifndef STK_POLL_PS */
+#ifdef ALSPS_DYNAMIC_THRESHOLD
+		queue_delayed_work(ps_data->stk_ps_wq, &ps_data->ps_adjust_thd_work, delay);
+#endif
 	}
 	else
 	{
@@ -708,6 +889,13 @@ static int32_t stk3x1x_enable_ps(struct stk3x1x_data *ps_data, uint8_t enable)
 			disable_irq(ps_data->irq);
 #endif
 		ps_data->ps_enabled = false;
+#ifdef ALSPS_DYNAMIC_THRESHOLD
+		last_ps = g_ps_adjust_para->ps_adjust_max;
+		set_ps_thd_para.algo_state = -1; //invalid state
+		ps_sum = 0;
+		ps_count = 0;
+		cancel_delayed_work_sync(&ps_data->ps_adjust_thd_work);
+#endif
 	}
 	if (!enable) {
 		ret = stk3x1x_device_ctl(ps_data, enable);
@@ -762,7 +950,11 @@ static int32_t stk3x1x_enable_als(struct stk3x1x_data *ps_data, uint8_t enable)
     {
 		ps_data->als_enabled = true;
 #ifdef STK_POLL_ALS
+#ifdef CONFIG_MACH_OPPO
+		hrtimer_start(&ps_data->als_timer, ns_to_ktime(200000000), HRTIMER_MODE_REL);
+#else
 		hrtimer_start(&ps_data->als_timer, ps_data->als_poll_delay, HRTIMER_MODE_REL);
+#endif
 #else
 #ifndef STK_POLL_PS
 		if(!(ps_data->ps_enabled))
@@ -816,6 +1008,18 @@ static inline int32_t stk3x1x_filter_reading(struct stk3x1x_data *ps_data,
 static inline int32_t stk3x1x_get_als_reading(struct stk3x1x_data *ps_data)
 {
     int32_t word_data, tmp_word_data;
+
+#ifdef CONFIG_MACH_OPPO
+	tmp_word_data = i2c_smbus_read_byte_data(ps_data->client, STK_FLAG_REG);
+	if (tmp_word_data < 0) {
+		printk(KERN_ERR "%s fail, err=0x%x", __func__, tmp_word_data);
+		return tmp_word_data;
+	}
+	if ((tmp_word_data & 0x80) == 0) { // STK_FLAG_REG[bit7]: FLG_ALSDR
+		printk(KERN_ERR "%s fail, als data not ready! \n", __func__);
+		return -1;
+	}
+#endif
 
 	tmp_word_data = i2c_smbus_read_word_data(ps_data->client, STK_DATA1_ALS_REG);
 	if(tmp_word_data < 0)
@@ -1342,7 +1546,7 @@ static ssize_t stk_ps_distance_show(struct device *dev, struct device_attribute 
 	input_report_abs(ps_data->ps_input_dev, ABS_DISTANCE, dist);
 	input_sync(ps_data->ps_input_dev);
     mutex_unlock(&ps_data->io_lock);
-	wake_lock_timeout(&ps_data->ps_wakelock, 3*HZ);
+	wake_lock_timeout(&ps_data->ps_wakelock, 2*HZ);
 	dev_dbg(dev, "%s: ps input event %d cm\n", __func__, dist);
     return scnprintf(buf, PAGE_SIZE, "%d\n", dist);
 }
@@ -1365,7 +1569,7 @@ static ssize_t stk_ps_distance_store(struct device *dev, struct device_attribute
 	input_report_abs(ps_data->ps_input_dev, ABS_DISTANCE, value);
 	input_sync(ps_data->ps_input_dev);
     mutex_unlock(&ps_data->io_lock);
-	wake_lock_timeout(&ps_data->ps_wakelock, 3*HZ);
+	wake_lock_timeout(&ps_data->ps_wakelock, 2*HZ);
 	dev_dbg(dev, "%s: ps input event %ld cm\n", __func__, value);
     return size;
 }
@@ -1736,8 +1940,10 @@ static void stk_als_work_func(struct work_struct *work)
 
     mutex_lock(&ps_data->io_lock);
 	reading = stk3x1x_get_als_reading(ps_data);
-	if(reading < 0)
+	if (reading < 0) {
+		mutex_unlock(&ps_data->io_lock);
 		return;
+	}
 	ps_data->als_lux_last = stk_alscode2lux(ps_data, reading);
 	input_report_abs(ps_data->als_input_dev, ABS_MISC, ps_data->als_lux_last);
 	input_sync(ps_data->als_input_dev);
@@ -1781,7 +1987,7 @@ static void stk_ps_work_func(struct work_struct *work)
 		ps_data->ps_distance_last = near_far_state;
 		input_report_abs(ps_data->ps_input_dev, ABS_DISTANCE, near_far_state);
 		input_sync(ps_data->ps_input_dev);
-		wake_lock_timeout(&ps_data->ps_wakelock, 3*HZ);
+		wake_lock_timeout(&ps_data->ps_wakelock, 2*HZ);
 #ifdef STK_DEBUG_PRINTF
 		printk(KERN_INFO "%s: ps input event %d cm, ps code = %d\n",__func__, near_far_state, reading);
 #endif
@@ -1831,7 +2037,7 @@ static void stk_work_func(struct work_struct *work)
 	ps_data->ps_distance_last = near_far_state;
 	input_report_abs(ps_data->ps_input_dev, ABS_DISTANCE, near_far_state);
 	input_sync(ps_data->ps_input_dev);
-	wake_lock_timeout(&ps_data->ps_wakelock, 3*HZ);
+	wake_lock_timeout(&ps_data->ps_wakelock, 2*HZ);
 	reading = stk3x1x_get_ps_reading(ps_data);
 #ifdef STK_DEBUG_PRINTF
 	printk(KERN_INFO "%s: ps input event %d cm, ps code = %d\n",__func__, near_far_state, reading);
@@ -1876,7 +2082,7 @@ static void stk_work_func(struct work_struct *work)
 		ps_data->ps_distance_last = near_far_state;
 		input_report_abs(ps_data->ps_input_dev, ABS_DISTANCE, near_far_state);
 		input_sync(ps_data->ps_input_dev);
-		wake_lock_timeout(&ps_data->ps_wakelock, 3*HZ);
+		wake_lock_timeout(&ps_data->ps_wakelock, 2*HZ);
         reading = stk3x1x_get_ps_reading(ps_data);
 #ifdef STK_DEBUG_PRINTF
 		printk(KERN_INFO "%s: ps input event=%d, ps code = %d\n",__func__, near_far_state, reading);
@@ -2047,6 +2253,59 @@ static void stk3x1x_late_resume(struct early_suspend *h)
 }
 #endif	//#ifdef CONFIG_HAS_EARLYSUSPEND
 
+static int stk3x1x_suspend(struct device *dev)
+{
+	struct stk3x1x_data *ps_data = dev_get_drvdata(dev);
+#ifndef STK_POLL_PS
+	int err;
+#endif
+	mutex_lock(&ps_data->io_lock);
+	ps_data->als_enable_state = ps_data->als_enabled;
+	if (ps_data->als_enable_state)
+		stk3x1x_enable_als(ps_data, 0);
+	if (ps_data->ps_enabled) {
+#ifdef STK_POLL_PS
+		wake_lock(&ps_data->ps_nosuspend_wl);
+#else
+		err = enable_irq_wake(ps_data->irq);
+		if (err)
+			pr_warn("%s: set_irq_wake(%d) failed, err=(%d)\n",
+					__func__, ps_data->irq, err);
+#endif
+	}
+	mutex_unlock(&ps_data->io_lock);
+#ifdef CONFIG_MACH_OPPO
+	g_is_resumed = 0;
+#endif
+	return 0;
+}
+
+static int stk3x1x_resume(struct device *dev)
+{
+	struct stk3x1x_data *ps_data = dev_get_drvdata(dev);
+#ifndef STK_POLL_PS
+	int err;
+#endif
+	mutex_lock(&ps_data->io_lock);
+	if (ps_data->als_enable_state)
+		stk3x1x_enable_als(ps_data, 1);
+	if (ps_data->ps_enabled) {
+#ifdef STK_POLL_PS
+		wake_lock(&ps_data->ps_nosuspend_wl);
+#else
+		err = disable_irq_wake(ps_data->irq);
+		if (err)
+			pr_warn("%s: disable_irq_wake(%d) failed, err=(%d)\n",
+					__func__, ps_data->irq, err);
+#endif
+	}
+	mutex_unlock(&ps_data->io_lock);
+#ifdef CONFIG_MACH_OPPO
+	g_is_resumed = 1;
+#endif
+	return 0;
+}
+
 static int stk3x1x_power_ctl(struct stk3x1x_data *data, bool on)
 {
 	int ret = 0;
@@ -2215,6 +2474,16 @@ static int stk3x1x_parse_dt(struct device *dev,
 	int rc;
 	struct device_node *np = dev->of_node;
 	u32 temp_val;
+#ifdef CONFIG_MACH_OPPO
+	int vdd_gpio = 0;
+
+	vdd_gpio = of_get_named_gpio(np, "sensor,vdd-gpio", 0);
+	if (gpio_is_valid(vdd_gpio)) {
+		pr_info("%s set gpio:%d to high for vdd supply.\n", __func__, vdd_gpio);
+		gpio_request(vdd_gpio, "vdd-gpio");
+		gpio_direction_output(vdd_gpio, 1);
+	}
+#endif
 
 	pdata->int_pin = of_get_named_gpio_flags(np, "stk,irq-gpio",
 				0, &pdata->int_flags);
@@ -2298,6 +2567,306 @@ static int stk3x1x_parse_dt(struct device *dev,
 	return -ENODEV;
 }
 #endif /* !CONFIG_OF */
+
+#ifdef ALSPS_DYNAMIC_THRESHOLD
+static void sample_work_func(struct work_struct *work)
+{
+	int i;
+	int ret;
+	uint16_t ps = 0;
+	uint8_t w_state_reg;
+
+	ret = stk3x1x_device_ctl(g_ps_data, 1);
+	if (ret)
+		return;
+
+	ret = i2c_smbus_read_byte_data(g_ps_data->client, STK_STATE_REG);
+	if (ret < 0) {
+		pr_err("%s: write i2c error, ret=%d\n", __func__, ret);
+		return;
+	}
+
+	w_state_reg = ret;
+	w_state_reg &= ~(STK_STATE_EN_PS_MASK | STK_STATE_EN_WAIT_MASK | 0x60);
+
+	w_state_reg |= STK_STATE_EN_PS_MASK;
+	if (!(g_ps_data->als_enabled))
+		w_state_reg |= STK_STATE_EN_WAIT_MASK;
+
+	ret = i2c_smbus_write_byte_data(g_ps_data->client, STK_STATE_REG,
+			w_state_reg);
+	if (ret < 0) {
+		pr_err("%s: write i2c error, ret=%d\n", __func__, ret);
+		return;
+	}
+
+	msleep(10);
+	for (i = 0; i < 10; i++) {
+		if (sns_dd_alsprx_prx_val() == 0) {
+			if ((ps = stk3x1x_get_ps_reading(g_ps_data)) <= 0)
+				continue;
+		}
+		if ((ps > 0) && ((ps_min == 0) || (ps_min > ps)))
+			ps_min = ps;
+
+		msleep(10);
+	}
+
+	if (ps_min > g_ps_adjust_para->ps_adjust_max)
+		ps_min = g_ps_adjust_para->ps_adjust_max;
+
+	w_state_reg &= ~(STK_STATE_EN_PS_MASK | STK_STATE_EN_WAIT_MASK | 0x60);
+	ret = i2c_smbus_write_byte_data(g_ps_data->client, STK_STATE_REG,
+			w_state_reg);
+	if (ret < 0) {
+		pr_err("%s: write i2c error, ret=%d\n", __func__, ret);
+		return;
+	}
+
+	ret = stk3x1x_device_ctl(g_ps_data, 0);
+	if (ret)
+		return;
+}
+
+static int set_ps_threshold(int ps, int crosstalk, struct ps_adjust_para *para,
+		int state)
+{
+	int low_threshold, high_threshold;
+
+	switch (state) {
+		case PS_ADJUST_TREND_STATE:
+			low_threshold = ps + para->ps_thd_low_trend;
+			high_threshold = ps + para->ps_thd_high_trend;
+
+			if (low_threshold >
+			    (crosstalk + para->dirty_adjust_low_thd))
+				low_threshold = crosstalk +
+						para->dirty_adjust_low_thd;
+			break;
+
+		case PS_ADJUST_NOTREND_STATE:
+			low_threshold = ps + para->ps_thd_low_notrend;
+			high_threshold = ps + para->ps_thd_high_notrend;
+
+			if (low_threshold >
+			    (crosstalk + para->dirty_adjust_low_thd))
+				low_threshold = crosstalk +
+						para->dirty_adjust_low_thd;
+			break;
+
+		case PS_ADJUST_HIGHLIGHT_STATE:
+			if (set_ps_thd_para.algo_state ==
+					PS_ADJUST_HIGHLIGHT_STATE)
+				//already in HIGHLIGHT_STATE
+				return 0;
+
+			low_threshold = para->ps_thd_low_highlight;
+			high_threshold = para->ps_thd_high_highlight;
+			if (crosstalk < para->ps_thd_high_highlight / 2 &&
+			    crosstalk > para->ps_thd_high_highlight / 20) {
+				low_threshold = crosstalk +
+						para->ps_thd_low_highlight / 2;
+				high_threshold = low_threshold + para->ps_up;
+			}
+			break;
+
+		case PS_ADJUST_AVOID_DIRTY_STATE:
+			if (set_ps_thd_para.low_threshold >=
+					crosstalk + para->dirty_adjust_low_thd)
+				// threshold is large,
+				// no need to avoid Dirty Problem
+				return 0;
+
+			low_threshold = crosstalk + para->dirty_adjust_low_thd;
+			high_threshold = crosstalk +
+					para->dirty_adjust_high_thd;
+			break;
+		default:
+			pr_err("%s invalid state\n", __func__);
+			break;
+	}
+
+	if (high_threshold > para->ps_adjust_max ||
+	    low_threshold < para->ps_adjust_min)
+		return 0;
+
+	set_ps_thd_para.low_threshold = low_threshold;
+	set_ps_thd_para.high_threshold = high_threshold;
+	set_ps_thd_para.ps_average = ps;
+	set_ps_thd_para.algo_state = state;
+
+	stk3x1x_set_ps_thd_h(g_ps_data, high_threshold);
+	stk3x1x_set_ps_thd_l(g_ps_data, low_threshold);
+
+	return 0;
+}
+
+static void alsps_dymamic_threshold(struct work_struct *work)
+{
+	int ps = 0;
+	int is_far = 1;
+
+	struct ps_adjust_para para = cust_ps_adjust_para_stk3x1x;
+	unsigned long delay = msecs_to_jiffies(para.sampling_time);
+
+	struct stk3x1x_data* ps_data = container_of((struct delayed_work *)work,
+			struct stk3x1x_data, ps_adjust_thd_work);
+
+	if (ps_data->ps_enabled) {
+		if (g_is_resumed == 0) {
+			pr_info("%s driver is suspended\n", __func__);
+			goto EXIT;
+		}
+
+		if ((ps = stk3x1x_get_ps_reading(ps_data)) <= 0) {
+			pr_err("%s error reading raw ps data\n", __func__);
+			goto EXIT;
+		}
+
+		is_far = ps_data->ps_distance_last;
+
+		if (is_far) {
+			if (sns_dd_alsprx_prx_val() == 0) {
+				if (ps_count < para.sampling_count) {
+					ps_sum = ps_sum + ps;
+					ps_count++;
+					goto EXIT;
+				}
+
+				// get ps average when sampling_count
+				ps = ps_sum / para.sampling_count;
+
+				// only adjust from adjust_min to adjust_max
+				ps = (ps > para.ps_adjust_max) ?
+						para.ps_adjust_max : ps;
+				ps = (ps < para.ps_adjust_min) ?
+						para.ps_adjust_min : ps;
+
+				// guess min crosstalk when lowlight
+				ps_min = (ps_min > ps) ? ps : ps_min;
+
+				// adjust ps threshold
+				if (ps < last_ps + para.ps_up)
+					set_ps_threshold(ps, ps_min, &para,
+						PS_ADJUST_NOTREND_STATE);
+				else
+					set_ps_threshold(last_ps, ps_min, &para,
+						PS_ADJUST_TREND_STATE);
+
+				last_ps = ps;
+				ps_sum = 0;
+				ps_count = 0;
+			} else { // high light (maybe in sunshine)
+				// the more light, the ps less,
+				// so save the last threshold.
+				last_ps = para.ps_adjust_max;
+			}
+		} else { // near
+			// To avoid a dirty problem when near with a large ps
+			if (ps > para.dirty_adjust_limit)
+				set_ps_threshold(ps, ps_min, &para,
+					PS_ADJUST_AVOID_DIRTY_STATE);
+
+			last_ps = para.ps_adjust_max;
+		}
+	} else { // prox disabled
+		pr_info("%s prox disabled\n", __func__);
+		return;
+	}
+
+EXIT:
+	queue_delayed_work(ps_data->stk_ps_wq, &ps_data->ps_adjust_thd_work,
+			delay);
+	return;
+}
+#endif
+
+#ifdef CONFIG_MACH_OPPO
+static ssize_t stk3x1x_alsps_enable_store(struct kobject *kobj,
+		struct kobj_attribute *attr, const char *buf, size_t count)
+{
+	u32 data[2];
+	int ret = -EINVAL;
+
+	sscanf(buf, "%x %x", (unsigned int *)&data[0],(unsigned int *)&data[1]);
+	switch (data[0]) {
+		case SENSOR_TYPE_LIGHT:
+			ret = stk3x1x_enable_als(g_ps_data,(int)data[1]);
+			if (ret < 0)
+				pr_err("%s: %s als fail\n", __func__,
+					(data[1] == 1) ? "enable" : "disable");
+		break;
+
+		case SENSOR_TYPE_PROXIMITY:
+			ret = stk3x1x_enable_ps(g_ps_data, (int)data[1]);
+			if (ret < 0)
+				pr_err("%s: %s prox fail\n", __func__,
+					(data[1] == 1) ? "enable" : "disable");
+		break;
+
+		default:
+			ret = -EINVAL;
+			pr_err("%s: this type of sensor is not supported\n",
+				__func__);
+		break;
+	}
+
+	if (ret == 0)
+		pr_info("%s: Enable sensor SUCCESS\n",__func__);
+
+	return count;
+}
+
+static ssize_t stk3x1x_alsps_enable_show(struct kobject *kobj,
+		struct kobj_attribute *attr, char *buf)
+{
+	return snprintf(buf, PAGE_SIZE, "als:%d  prox:%d\n",
+			g_ps_data->als_enabled, g_ps_data->ps_enabled);
+}
+
+static struct kobj_attribute enable = {
+	.attr = {"enable", 0664},
+	.show = stk3x1x_alsps_enable_show,
+	.store = stk3x1x_alsps_enable_store,
+};
+
+static ssize_t stk3x1x_prox_raw_show(struct kobject *kobj,
+		struct kobj_attribute *attr, char *buf)
+{
+	uint32_t reading;
+
+	reading = stk3x1x_get_ps_reading(g_ps_data);
+	return snprintf(buf, PAGE_SIZE, "%d\n", reading);
+}
+
+static struct kobj_attribute prox_raw = {
+	.attr = {"prox_raw", 0444},
+	.show = stk3x1x_prox_raw_show,
+};
+
+static ssize_t stk3x1x_als_raw_show(struct kobject *kobj,
+		struct kobj_attribute *attr, char *buf)
+{
+	int32_t reading;
+
+	reading = stk3x1x_get_als_reading(g_ps_data);
+	return snprintf(buf, PAGE_SIZE, "%d\n", reading);
+}
+
+static struct kobj_attribute als_raw = {
+	.attr = {"als_raw", 0444},
+	.show = stk3x1x_als_raw_show,
+};
+
+static const struct attribute *stk3x1x_ftm_attrs[] = {
+	&enable.attr,
+	&prox_raw.attr,
+	&als_raw.attr,
+	NULL
+};
+
+static struct dev_ftm stk3x1x_ftm;
+#endif
 
 static int stk3x1x_probe(struct i2c_client *client,
                         const struct i2c_device_id *id)
@@ -2441,6 +3010,12 @@ static int stk3x1x_probe(struct i2c_client *client,
 	if (err)
 		goto err_power_on;
 
+#ifdef CONFIG_MACH_OPPO
+	err = stk3x1x_init_all_setting(client, ps_data->pdata);
+	if (err)
+		goto err_power_on;
+#endif
+
 	ps_data->als_enabled = false;
 	ps_data->ps_enabled = false;
 #ifdef CONFIG_HAS_EARLYSUSPEND
@@ -2469,6 +3044,27 @@ static int stk3x1x_probe(struct i2c_client *client,
 	err = stk3x1x_power_ctl(ps_data, false);
 	if (err)
 		goto err_init_all_setting;
+
+#ifdef CONFIG_MACH_OPPO
+	g_ps_data = ps_data;
+
+	stk3x1x_ftm.name = "als_prox";
+	stk3x1x_ftm.i2c_client = ps_data->client;
+	stk3x1x_ftm.attrs = stk3x1x_ftm_attrs;
+	stk3x1x_ftm.priv_data = ps_data;
+	register_single_dev_ftm(&stk3x1x_ftm);
+#endif
+
+#ifdef ALSPS_DYNAMIC_THRESHOLD
+	g_ps_adjust_para = &cust_ps_adjust_para_stk3x1x;
+	ps_min = g_ps_adjust_para->ps_adjust_max;
+	INIT_DELAYED_WORK(&ps_data->ps_adjust_thd_work,
+			alsps_dymamic_threshold);
+
+	INIT_DELAYED_WORK(&sample_ps_work, sample_work_func);
+	queue_delayed_work(ps_data->stk_ps_wq, &sample_ps_work,
+			msecs_to_jiffies(1 * HZ));
+#endif
 
 	dev_dbg(&client->dev, "%s: probe successfully", __func__);
 	return 0;
@@ -2549,12 +3145,18 @@ static struct of_device_id stk_match_table[] = {
 	{ },
 };
 
+static const struct dev_pm_ops stk3x1x_pm_ops = {
+	.suspend	= stk3x1x_suspend,
+	.resume 	= stk3x1x_resume,
+};
+
 static struct i2c_driver stk_ps_driver =
 {
     .driver = {
         .name = DEVICE_NAME,
 		.owner = THIS_MODULE,
 		.of_match_table = stk_match_table,
+		.pm = &stk3x1x_pm_ops,
     },
     .probe = stk3x1x_probe,
     .remove = stk3x1x_remove,
