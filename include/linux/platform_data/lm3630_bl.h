@@ -51,6 +51,9 @@ struct lm3630_platform_data {
 	enum lm3630_bank_a_ctrl bank_a_ctrl;
 	enum lm3630_bank_b_ctrl bank_b_ctrl;
 	unsigned int pwm_period;
+#ifdef CONFIG_MACH_OPPO
+	int bl_en_gpio;
+#endif
 	void (*pwm_set_intensity) (int brightness, int max_brightness);
 };
 
