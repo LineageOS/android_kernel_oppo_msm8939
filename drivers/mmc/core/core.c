@@ -1034,8 +1034,10 @@ EXPORT_SYMBOL(mmc_start_req);
 void mmc_wait_for_req(struct mmc_host *host, struct mmc_request *mrq)
 {
 #ifdef CONFIG_MMC_BLOCK_DEFERRED_RESUME
+	if(mmc_bus_manual_resume(host)){  //added by songxh for qcom patch fot removed tf card had no notified when sleep  2015-06-29
 	if (mmc_bus_needs_resume(host))
 		mmc_resume_bus(host);
+	}
 #endif
 	__mmc_start_req(host, mrq);
 	mmc_wait_for_req_done(host, mrq);

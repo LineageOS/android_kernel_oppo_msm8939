@@ -2801,8 +2801,10 @@ static int mmc_blk_issue_rq(struct mmc_queue *mq, struct request *req)
 		/* claim host only for the first request */
 		mmc_claim_host(card->host);
 #ifdef CONFIG_MMC_BLOCK_DEFERRED_RESUME
+	if(card->host->card->type == 0){ //added by songxh for qcom patch fot removed tf card had no notified when sleep  2015-06-29
 	if (mmc_bus_needs_resume(card->host))
 		mmc_resume_bus(card->host);
+	}
 #endif
 		if (mmc_card_get_bkops_en_manual(card))
 			mmc_stop_bkops(card);
@@ -3298,8 +3300,11 @@ static int mmc_blk_probe(struct mmc_card *card)
 	/*
 	 * Check that the card supports the command class(es) we need.
 	 */
+#ifndef CONFIG_MACH_OPPO
+//yh@bsp, 2015/08/03, remove for can not initialize specific sdcard(CSD info mismatch card real capability)
 	if (!(card->csd.cmdclass & CCC_BLOCK_READ))
 		return -ENODEV;
+#endif
 
 	md = mmc_blk_alloc(card);
 	if (IS_ERR(md))
@@ -3318,7 +3323,9 @@ static int mmc_blk_probe(struct mmc_card *card)
 	mmc_fixup_device(card, blk_fixups);
 
 #ifdef CONFIG_MMC_BLOCK_DEFERRED_RESUME
+	if(card->host->card->type == 0){ //added by songxh for qcom patch fot removed tf card had no notified when sleep  2015-06-29
 	mmc_set_bus_resume_policy(card->host, 1);
+	}
 #endif
 	if (mmc_add_disk(md))
 		goto out;
@@ -3346,7 +3353,9 @@ static void mmc_blk_remove(struct mmc_card *card)
 	mmc_blk_remove_req(md);
 	mmc_set_drvdata(card, NULL);
 #ifdef CONFIG_MMC_BLOCK_DEFERRED_RESUME
+	if(card->host->card->type == 0){ //added by songxh for qcom patch fot removed tf card had no notified when sleep  2015-06-29
 	mmc_set_bus_resume_policy(card->host, 0);
+	}
 #endif
 }
 
