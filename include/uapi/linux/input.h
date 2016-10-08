@@ -476,6 +476,20 @@ struct input_keymap_entry {
 
 #define KEY_MICMUTE		248	/* Mute / unmute the microphone */
 
+/* Oppo specific keycodes */
+#define KEY_GESTURE_CIRCLE		250
+#define KEY_GESTURE_DOUBLE_SWIPE	251
+#define KEY_GESTURE_DOWN_ARROW		252
+#define KEY_GESTURE_LEFT_ARROW		253
+#define KEY_GESTURE_RIGHT_ARROW		254
+#define KEY_GESTURE_UP_ARROW		255
+#define KEY_GESTURE_SWIPE_RIGHT		256
+#define KEY_GESTURE_SWIPE_LEFT		257
+#define KEY_GESTURE_SWIPE_DOWN		258
+#define KEY_GESTURE_SWIPE_UP		259
+#define KEY_GESTURE_W			260
+#define KEY_GESTURE_M			261
+
 /* Code 255 is reserved for special needs of AT keyboard driver */
 
 #define BTN_MISC		0x100
