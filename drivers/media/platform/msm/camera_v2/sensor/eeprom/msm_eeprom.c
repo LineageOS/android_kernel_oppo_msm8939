@@ -17,6 +17,7 @@
 #include "msm_sd.h"
 #include "msm_cci.h"
 #include "msm_eeprom.h"
+#include <linux/proc_fs.h>
 
 #undef CDBG
 #define CDBG(fmt, args...) pr_debug(fmt, ##args)
@@ -920,6 +921,127 @@ static long msm_eeprom_subdev_fops_ioctl32(struct file *file, unsigned int cmd,
 
 #endif
 
+#ifdef CONFIG_MACH_OPPO
+/*zhengrong.zhang, 2015/03/02, modify for 15013 eeprom*/
+uint16_t s5k3m2_module = 0;
+uint16_t s5k3m2_lsc_info = 0;
+extern bool pdaf_calibration_flag;
+static void msm_eeprom_s5k3m2_read_vendorInfo(struct msm_eeprom_ctrl_t *e_ctrl)
+{
+    int rc = 0;
+    uint16_t read_data = 0;
+
+    e_ctrl->i2c_client.addr_type = MSM_CAMERA_I2C_WORD_ADDR;
+
+    rc = e_ctrl->i2c_client.i2c_func_tbl->i2c_read(
+			&e_ctrl->i2c_client, 0x0031,
+			&read_data, MSM_CAMERA_I2C_BYTE_DATA);
+    if (rc < 0) {
+		pr_err("%s read 0x0031 failed\n", __func__);
+	} else {
+        pr_err("%s read 0x0031=%d\n", __func__,read_data);
+    }
+
+    if (read_data == 0x01) {
+        int i;
+        uint16_t sum1 = 0, read_value = 0;
+        for (i = 0; i <= 0x1B; i++) {
+            rc = e_ctrl->i2c_client.i2c_func_tbl->i2c_read(
+			&e_ctrl->i2c_client, i,
+			&read_data, MSM_CAMERA_I2C_BYTE_DATA);
+            if (rc < 0) {
+			pr_err("%s read 0x%x fail\n", __func__, i);
+		} else {
+		    if (i == 0) {
+                    read_value = read_data;
+                    //pr_err("%s read 0x%x=%d\n", __func__, i, read_value);
+		    }
+                sum1 += read_data;
+            }
+        }
+        sum1 = sum1%255;
+
+        rc = e_ctrl->i2c_client.i2c_func_tbl->i2c_read(
+			&e_ctrl->i2c_client, 0x0032,
+			&read_data, MSM_CAMERA_I2C_BYTE_DATA);
+
+        if (sum1 == read_data) {
+            pr_err("%s read module info success,value=%d\n", __func__, read_value);
+            s5k3m2_module = read_value;
+        }
+
+        //read PDAF calibration
+        read_data = 0;
+        read_value = 0;
+        //PDAF Gain Map Flag
+        rc = e_ctrl->i2c_client.i2c_func_tbl->i2c_read(
+			&e_ctrl->i2c_client, 0x0B08,
+			&read_data, MSM_CAMERA_I2C_BYTE_DATA);
+        if (rc < 0) {
+            pr_err("%s read 0x0B08 failed\n", __func__);
+        }
+
+		//PDAF PCC Flag
+        rc = e_ctrl->i2c_client.i2c_func_tbl->i2c_read(
+			&e_ctrl->i2c_client, 0x0B0A,
+			&read_value, MSM_CAMERA_I2C_BYTE_DATA);
+        if (rc < 0) {
+            pr_err("%s read 0x0B0A failed\n", __func__);
+        }
+
+        if (read_data == 1 && read_value == 1) {
+            pr_err("%s pdaf calibration is valid\n", __func__);
+            pdaf_calibration_flag = true;
+        }
+
+
+        //read LSC algorithm manufacture
+        rc = e_ctrl->i2c_client.i2c_func_tbl->i2c_read(
+			&e_ctrl->i2c_client, 0x0030,
+			&s5k3m2_lsc_info, MSM_CAMERA_I2C_BYTE_DATA);
+        if (rc < 0) {
+            pr_err("%s read 0x0030 failed\n", __func__);
+        } else {
+            pr_err("%s read 0x0030=%d\n", __func__,s5k3m2_lsc_info);
+        }
+
+    }
+}
+#ifdef CONFIG_MACH_OPPO
+/*zhengrong.zhang, 2015/04/15, add for pdaf engineer mode*/
+static ssize_t s5k3m2_eeprom_proc_read(struct file *filp, char __user *buff,
+				size_t len, loff_t *data)
+{
+    char value[2] = {0};
+
+    snprintf(value, sizeof(value), "%d", s5k3m2_lsc_info);
+
+    pr_err("%s,lsc_info=%d,value=%s\n", __func__,s5k3m2_lsc_info,value);
+    return simple_read_from_buffer(buff, len, data, value,1);
+}
+
+static const struct file_operations s5k3m2_eeprom_test_fops = {
+    .owner		= THIS_MODULE,
+    .read		= s5k3m2_eeprom_proc_read,
+};
+
+static int msm_eeprom_proc_init(void)
+{
+    int ret=0;
+    struct proc_dir_entry *proc_entry;
+
+    proc_entry = proc_create_data("s5k3m2_eeprom_info", 0666, NULL, &s5k3m2_eeprom_test_fops, NULL);
+    if (proc_entry == NULL)
+    {
+		ret = -ENOMEM;
+		pr_err("[%s]: Error! Couldn't create s5k3m2_eeprom_info proc entry\n", __func__);
+    }
+    return ret;
+}
+
+#endif
+#endif
+
 static int msm_eeprom_platform_probe(struct platform_device *pdev)
 {
 	int rc = 0;
@@ -1042,6 +1164,13 @@ static int msm_eeprom_platform_probe(struct platform_device *pdev)
 		pr_err("failed rc %d\n", rc);
 		goto memdata_free;
 	}
+#ifdef CONFIG_MACH_OPPO
+/*zhengrong.zhang, 2015/03/02, modify for 15013 eeprom*/
+    if (strcmp(eb_info->eeprom_name, "sunny_f13s01l") == 0) {
+        msm_eeprom_s5k3m2_read_vendorInfo(e_ctrl);
+        msm_eeprom_proc_init();
+    }
+#endif
 	rc = read_eeprom_memory(e_ctrl, &e_ctrl->cal_data);
 	if (rc < 0) {
 		pr_err("%s read_eeprom_memory failed\n", __func__);
@@ -1347,6 +1476,10 @@ static int __init msm_eeprom_init_module(void)
 	rc = platform_driver_probe(&msm_eeprom_platform_driver,
 		msm_eeprom_platform_probe);
 	CDBG("%s:%d platform rc %d\n", __func__, __LINE__, rc);
+#ifdef CONFIG_MACH_OPPO
+/*zhengrong.zhang, 2015/03/02, modify for eeprom*/
+    return rc;
+#endif
 	rc = spi_register_driver(&msm_eeprom_spi_driver);
 	CDBG("%s:%d spi rc %d\n", __func__, __LINE__, rc);
 	return i2c_add_driver(&msm_eeprom_i2c_driver);
@@ -1355,6 +1488,10 @@ static int __init msm_eeprom_init_module(void)
 static void __exit msm_eeprom_exit_module(void)
 {
 	platform_driver_unregister(&msm_eeprom_platform_driver);
+#ifdef CONFIG_MACH_OPPO
+/*zhengrong.zhang, 2015/03/02, modify for eeprom*/
+    return;
+#endif
 	spi_unregister_driver(&msm_eeprom_spi_driver);
 	i2c_del_driver(&msm_eeprom_i2c_driver);
 }

@@ -120,7 +120,13 @@ static long msm_sensor_init_subdev_ioctl(struct v4l2_subdev *sd,
 		break;
 	}
 
+
+ #ifdef CONFIG_MACH_OPPO
+ /*zhengjiang.zhu@ camera , 2016/01/28, add for load the lib of sensor correctly*/
+    return rc;
+ #else
 	return 0;
+ #endif
 }
 
 #ifdef CONFIG_COMPAT
