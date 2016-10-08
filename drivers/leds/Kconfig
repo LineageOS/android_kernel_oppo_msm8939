@@ -398,6 +398,15 @@ config LEDS_INTEL_SS4200
 	  drive or power LEDs on the front panel.  Using this driver
 	  can stop the front LED from blinking after startup.
 
+config LEDS_KTD2026
+	tristate "LED driver for the KTD2026"
+	depends on LEDS_CLASS
+	depends on I2C
+	default n
+	help
+	  This option enabled support for KTD2026 RGB LED driver chips
+	  accessed via I2C bus.
+
 config LEDS_LT3593
 	tristate "LED driver for LT3593 controllers"
 	depends on LEDS_CLASS
