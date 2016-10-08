@@ -893,5 +893,16 @@ config SENSORS_BMI160_ENABLE_INT2
 	help
 	 If you say yes here, you get INT2 support for Bosch Sensortec
 	 sensors BMI160.
+
+config SENSORS_APDS9921
+	tristate "APDS9921 device driver"
+	depends on I2C
+	default n
+	help
+	  Say Y here you want to enable for the sitronix apds9921
+	  light and proximity sensors driver.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called apds9921.
 endif
 
