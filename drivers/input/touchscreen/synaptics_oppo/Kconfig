@@ -1,0 +1,7 @@
+config TOUCHSCREEN_SYNAPTICS_OPPO
+	bool "Synaptics touchscreen (OPPO variant)"
+	help
+	  Say Y here if you have a Synaptics touchscreen connected
+	  to your system (OPPO variant).
+
+	  If unsure, say N.
