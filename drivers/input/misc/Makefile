@@ -105,4 +105,4 @@ ifeq ($(CONFIG_SENSORS_BMI160_I2C),y)
 	EXTRA_CFLAGS += -DBMI_USE_BASIC_I2C_FUNC
 endif
 obj-$(CONFIG_SENSORS_APDS9921)	+= apds9921.o
-obj-$(CONFIG_BTP_FPC1140)	+= fpc1020_tee_legacy.o
+obj-$(CONFIG_BTP_FPC1140)	+= fpc1020_tee_legacy.o fpc1020_tee_qsee4.o
