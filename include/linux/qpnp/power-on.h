@@ -52,9 +52,11 @@ enum pon_restart_reason {
 	PON_RESTART_REASON_RECOVERY	        = 0x01,
 	PON_RESTART_REASON_BOOTLOADER	        = 0x02,
 	PON_RESTART_REASON_RTC		        = 0x03,
+#ifndef CONFIG_MACH_OPPO
         PON_RESTART_REASON_DMVERITY_CORRUPTED   = 0x04,
         PON_RESTART_REASON_DMVERITY_ENFORCE     = 0x05,
         PON_RESTART_REASON_KEYS_CLEAR           = 0x06,
+#endif
 };
 
 #ifdef CONFIG_QPNP_POWER_ON
@@ -88,6 +90,10 @@ static inline bool qpnp_pon_check_hard_reset_stored(void)
 {
 	return false;
 }
+#endif
+
+#ifdef CONFIG_MACH_OPPO
+int qpnp_silence_write(u16 addr, u8 val);
 #endif
 
 #endif
