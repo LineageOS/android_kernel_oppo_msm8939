@@ -1337,6 +1337,13 @@ int mmc_attach_sd(struct mmc_host *host)
 	BUG_ON(!host);
 	WARN_ON(!host->claimed);
 
+#ifdef CONFIG_MACH_OPPO
+    //Lycan.Wang@Prd.BasicDrv, 2014-07-10 Add for retry 5 times when new sdcard init error
+	if (!host->detect_change_retry) {
+        pr_err("%s have init error 5 times\n", __func__);
+        return -ETIMEDOUT;
+    }
+#endif /* CONFIG_MACH_OPPO */
 	err = mmc_send_app_op_cond(host, 0, &ocr);
 	if (err)
 		return err;
@@ -1389,7 +1396,15 @@ int mmc_attach_sd(struct mmc_host *host)
 	 * Detect and init the card.
 	 */
 #ifdef CONFIG_MMC_PARANOID_SD_INIT
-	retries = 5;
+#ifndef CONFIG_MACH_OPPO
+    //Lycan.Wang@Prd.BasicDrv, 2014-07-10 Modify for init retry only once when have init error before
+    retries = 5;
+#else /* CONFIG_MACH_OPPO */
+    if (host->detect_change_retry < 5)
+        retries = 1;
+    else
+        retries = 5;
+#endif /* CONFIG_MACH_OPPO */
 	/*
 	 * Some bad cards may take a long time to init, give preference to
 	 * suspend in those cases.
@@ -1428,7 +1443,10 @@ int mmc_attach_sd(struct mmc_host *host)
 		goto remove_card;
 
 	mmc_init_clk_scaling(host);
-
+#ifdef CONFIG_MACH_OPPO
+    //Tong.han@Bsp.group.Tp, 2015-02-03 Add for retry 5 times when new sdcard init error
+    host->detect_change_retry = 5;
+#endif /* CONFIG_MACH_OPPO */
 	return 0;
 
 remove_card:
@@ -1438,6 +1456,11 @@ remove_card:
 	mmc_claim_host(host);
 err:
 	mmc_detach_bus(host);
+#ifdef CONFIG_MACH_OPPO
+    //Lycan.Wang@Prd.BasicDrv, 2014-07-10 Add for retry 5 times when new sdcard init error
+    host->detect_change_retry--;
+    pr_err("detect_change_retry = %d !!!\n", host->detect_change_retry);
+#endif /* CONFIG_MACH_OPPO */
 	if (err)
 		pr_err("%s: error %d whilst initialising SD card: rescan: %d\n",
 		       mmc_hostname(host), err, host->rescan_disable);
