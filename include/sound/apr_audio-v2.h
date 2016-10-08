@@ -2512,6 +2512,12 @@ struct afe_port_cmdrsp_get_param_v2 {
 #define VPM_TX_LEC_MONO_REF				0x00010F8D
 #define ADM_CMD_COPP_OPEN_TOPOLOGY_ID_DTS_HPX_0		0x00010347
 #define ADM_CMD_COPP_OPEN_TOPOLOGY_ID_DTS_HPX_1		0x00010348
+#ifdef CONFIG_MACH_OPPO //Jianfeng.Qiu@PhoneSw.AudioDriver, 2015/04/22, Add for LVVE
+/* LVVEFQ Tx 1-mic Topology ID */
+#define VOICE_TOPOLOGY_LVVEFQ_TX_SM    (0x1000BFF0)
+/* LVVEFQ Tx 2-mic Topology ID */
+#define VOICE_TOPOLOGY_LVVEFQ_TX_DM    (0x1000BFF1)
+#endif /* CONFIG_MACH_OPPO */
 #define ADM_CMD_COPP_OPEN_TOPOLOGY_ID_AUDIOSPHERE	0x10015003
 
 /* Memory map regions command payload used by the

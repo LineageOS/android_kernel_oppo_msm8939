@@ -30,6 +30,10 @@
 #include <sound/asound.h>
 #include "msm-dts-eagle.h"
 
+#ifdef CONFIG_MACH_OPPO //Jianfeng.Qiu@PhoneSw.AudioDriver, 2015/04/22, Add for LVVE
+#include <soc/oppo/oppo_project.h>
+#endif /* CONFIG_MACH_OPPO */
+
 #define TIMEOUT_MS 1000
 
 #define RESET_COPP_ID 99
@@ -1928,12 +1932,32 @@ fail_cmd:
 
 static bool is_vptx_topology(int topology)
 {
+#ifdef CONFIG_MACH_OPPO
+	if (is_project(OPPO_15018)) {
+		if ((topology == VPM_TX_SM_ECNS_COPP_TOPOLOGY) ||
+		    (topology == VPM_TX_DM_FLUENCE_COPP_TOPOLOGY) ||
+		    (topology == VPM_TX_DM_RFECNS_COPP_TOPOLOGY) ||
+		    (topology == VPM_TX_LEC_STEREO_REF) ||
+		    (topology == VPM_TX_LEC_MONO_REF) ||
+		    (topology == VOICE_TOPOLOGY_LVVEFQ_TX_SM) ||
+		    (topology == VOICE_TOPOLOGY_LVVEFQ_TX_DM))
+			return true;
+	} else {
+		if ((topology == VPM_TX_SM_ECNS_COPP_TOPOLOGY) ||
+		    (topology == VPM_TX_DM_FLUENCE_COPP_TOPOLOGY) ||
+		    (topology == VPM_TX_DM_RFECNS_COPP_TOPOLOGY) ||
+		    (topology == VPM_TX_LEC_STEREO_REF) ||
+		    (topology == VPM_TX_LEC_MONO_REF))
+			return true;
+	}
+#else
 	if ((topology == VPM_TX_SM_ECNS_COPP_TOPOLOGY) ||
 	    (topology == VPM_TX_DM_FLUENCE_COPP_TOPOLOGY) ||
 	    (topology == VPM_TX_DM_RFECNS_COPP_TOPOLOGY) ||
 	    (topology == VPM_TX_LEC_STEREO_REF) ||
 	    (topology == VPM_TX_LEC_MONO_REF))
 		return true;
+#endif
 
 	return false;
 }
