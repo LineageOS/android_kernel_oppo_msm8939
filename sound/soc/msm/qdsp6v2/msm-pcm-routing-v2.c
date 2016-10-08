@@ -32,6 +32,7 @@
 #include <sound/pcm_params.h>
 #include <sound/q6core.h>
 #include <linux/slab.h>
+#include <soc/oppo/oppo_project.h>
 
 #include "msm-pcm-routing-v2.h"
 #include "msm-pcm-routing-devdep.h"
@@ -2317,6 +2318,13 @@ static const struct snd_kcontrol_new mi2s_hl_mixer_controls[] = {
 	SOC_SINGLE_EXT("INTERNAL_FM_TX", MSM_BACKEND_DAI_SECONDARY_MI2S_RX,
 	MSM_BACKEND_DAI_INT_FM_TX, 1, 0, msm_routing_get_port_mixer,
 	msm_routing_put_port_mixer),
+	/*OPPO	2015-01-27, zhangping add for 14045 MMI */
+#ifdef CONFIG_MACH_OPPO
+	SOC_SINGLE_EXT("TERT_MI2S_TX_SEC", MSM_BACKEND_DAI_SECONDARY_MI2S_RX,
+	MSM_BACKEND_DAI_TERTIARY_MI2S_TX, 1, 0, msm_routing_get_port_mixer,
+	msm_routing_put_port_mixer),
+#endif
+	/*OPPO 2015-01-27 zhangping add end*/
 };
 
 static const struct snd_kcontrol_new primary_mi2s_rx_mixer_controls[] = {
@@ -3776,6 +3784,13 @@ static const struct snd_kcontrol_new primary_mi2s_rx_port_mixer_controls[] = {
 	SOC_SINGLE_EXT("PRI_MI2S_TX", MSM_BACKEND_DAI_PRI_MI2S_RX,
 	MSM_BACKEND_DAI_PRI_MI2S_TX, 1, 0, msm_routing_get_port_mixer,
 	msm_routing_put_port_mixer),
+/*OPPO	2015-01-27, zhangping add for 14045 MMI */
+#ifdef CONFIG_MACH_OPPO
+	SOC_SINGLE_EXT("TERT_MI2S_TX_PRI", MSM_BACKEND_DAI_PRI_MI2S_RX,
+	MSM_BACKEND_DAI_TERTIARY_MI2S_TX, 1, 0, msm_routing_get_port_mixer,
+	msm_routing_put_port_mixer),
+#endif
+/*OPPO 2015-01-27 zhangping add end*/
 };
 
 static const struct snd_kcontrol_new quat_mi2s_rx_port_mixer_controls[] = {
@@ -3788,6 +3803,20 @@ static const struct snd_kcontrol_new quat_mi2s_rx_port_mixer_controls[] = {
 	SOC_SINGLE_EXT("INTERNAL_FM_TX", MSM_BACKEND_DAI_QUATERNARY_MI2S_RX,
 	MSM_BACKEND_DAI_INT_FM_TX, 1, 0, msm_routing_get_port_mixer,
 	msm_routing_put_port_mixer),
+	/*OPPO 2014-08-05 zhzhyon Add for quat i2s loopback*/
+#ifdef CONFIG_MACH_OPPO
+	SOC_SINGLE_EXT("TERT_MI2S_TX_QUAT", MSM_BACKEND_DAI_QUATERNARY_MI2S_RX,
+	MSM_BACKEND_DAI_TERTIARY_MI2S_TX, 1, 0, msm_routing_get_port_mixer,
+	msm_routing_put_port_mixer),
+#endif
+	/*OPPO 2014-08-05 zhzhyon Add end*/
+	/*OPPO 2014-08-28 zhzhyon Add for quat i2s loopback*/
+#ifdef CONFIG_MACH_OPPO
+	SOC_SINGLE_EXT("SLIM_0_TX", MSM_BACKEND_DAI_QUATERNARY_MI2S_RX,
+	MSM_BACKEND_DAI_SLIMBUS_0_TX, 1, 0, msm_routing_get_port_mixer,
+	msm_routing_put_port_mixer),
+#endif
+	/*OPPO 2014-08-28 zhzhyon Add end*/
 };
 
 static const struct snd_kcontrol_new lsm1_mixer_controls[] = {
@@ -4016,6 +4045,15 @@ static const struct snd_kcontrol_new quat_mi2s_rx_switch_mixer_controls =
 	SOC_SINGLE_EXT("Switch", SND_SOC_NOPM,
 	0, 1, 0, msm_routing_get_switch_mixer,
 	msm_routing_put_switch_mixer);
+
+/*OPPO	2015-01-27, zhangping add for 14045 MMI */
+#ifdef CONFIG_MACH_OPPO
+static const struct snd_kcontrol_new sec_mi2s_rx_switch_mixer_controls =
+	SOC_SINGLE_EXT("Switch", SND_SOC_NOPM,
+	0, 1, 0, msm_routing_get_switch_mixer,
+	msm_routing_put_switch_mixer);
+#endif
+/*OPPO 2015-01-27 zhangping add end*/
 
 static const struct snd_kcontrol_new hfp_aux_switch_mixer_controls =
 	SOC_SINGLE_EXT("Switch", SND_SOC_NOPM,
@@ -4904,6 +4942,13 @@ static const struct snd_soc_dapm_widget msm_qdsp6_widgets[] = {
 	SND_SOC_DAPM_AIF_IN("SEC_MI2S_DL_HL",
 		"Secondary MI2S_RX Hostless Playback",
 		0, 0, 0, 0),
+	/*OPPO 2014-08-05 zhzhyon Add for loopback*/
+#ifdef CONFIG_MACH_OPPO
+	SND_SOC_DAPM_AIF_IN("TERT_MI2S_DL_HL",
+		"Tertiary MI2S_RX Hostless Playback",
+		0, 0, 0, 0),
+#endif
+	/*OPPO 2014-08-05 zhzhyon Add end*/
 	SND_SOC_DAPM_AIF_IN("QUAT_MI2S_DL_HL",
 		"Quaternary MI2S_RX Hostless Playback",
 		0, 0, 0, 0),
@@ -5048,6 +5093,12 @@ static const struct snd_soc_dapm_widget msm_qdsp6_widgets[] = {
 				&pri_mi2s_rx_switch_mixer_controls),
 	SND_SOC_DAPM_SWITCH("QUAT_MI2S_RX_DL_HL", SND_SOC_NOPM, 0, 0,
 				&quat_mi2s_rx_switch_mixer_controls),
+	/*OPPO	2015-01-27, zhangping add for 14045 MMI */
+#ifdef CONFIG_MACH_OPPO
+	SND_SOC_DAPM_SWITCH("SEC_MI2S_RX_DL_HL", SND_SOC_NOPM, 0, 0,
+				&sec_mi2s_rx_switch_mixer_controls),
+#endif
+	/*OPPO 2015-01-27 zhangping add end*/
 	SND_SOC_DAPM_SWITCH("HFP_AUX_UL_HL", SND_SOC_NOPM, 0, 0,
 				&hfp_aux_switch_mixer_controls),
 	SND_SOC_DAPM_SWITCH("HFP_INT_UL_HL", SND_SOC_NOPM, 0, 0,
@@ -5281,6 +5332,24 @@ static const struct snd_soc_dapm_widget msm_qdsp6_widgets[] = {
 	SND_SOC_DAPM_MUX("AUDIO_REF_EC_UL9 MUX", SND_SOC_NOPM, 0, 0,
 		&ext_ec_ref_mux_ul9),
 };
+
+/*OPPO 2014-09-12 zhzhyon Add for 14005 and 14045 loopback*/
+#ifdef CONFIG_MACH_OPPO
+static const struct snd_soc_dapm_route intercon_tert_i2s[] =
+{
+	{"QUAT_MI2S_RX_DL_HL", "Switch", "TERT_MI2S_DL_HL"},
+	/*OPPO	2015-01-27, zhangping add for 14045 MMI */
+    {"SEC_MI2S_RX_DL_HL", "Switch", "TERT_MI2S_DL_HL"},
+	{"PRI_MI2S_RX_DL_HL", "Switch", "TERT_MI2S_DL_HL"},
+	/*OPPO 2015-01-27 zhangping add end*/
+};
+static const struct snd_soc_dapm_route intercon_slim[] =
+{
+	{"QUAT_MI2S_RX_DL_HL", "Switch", "SLIM0_DL_HL"},
+};
+#endif
+/*OPPO 2014-09-12 zhzhyon Add end*/
+
 
 static const struct snd_soc_dapm_route intercon[] = {
 	{"PRI_RX Audio Mixer", "MultiMedia1", "MM_DL1"},
@@ -5999,7 +6068,9 @@ static const struct snd_soc_dapm_route intercon[] = {
 	{"PRI_MI2S_RX_DL_HL", "Switch", "PRI_MI2S_DL_HL"},
 	{"PRI_MI2S_RX", NULL, "PRI_MI2S_RX_DL_HL"},
 
+#ifndef CONFIG_MACH_OPPO //Jianfeng.Qiu@PhoneSw.Multimedia.Audio, 2014-04-14, Delete for no use and conflict
 	{"QUAT_MI2S_RX_DL_HL", "Switch", "QUAT_MI2S_DL_HL"},
+#endif
 	{"QUAT_MI2S_RX", NULL, "QUAT_MI2S_RX_DL_HL"},
 	{"MI2S_UL_HL", NULL, "TERT_MI2S_TX"},
 	{"TERT_MI2S_UL_HL", NULL, "TERT_MI2S_TX"},
@@ -6008,6 +6079,12 @@ static const struct snd_soc_dapm_route intercon[] = {
 	{"SEC_MI2S_RX", NULL, "SEC_MI2S_DL_HL"},
 	{"PRI_MI2S_RX", NULL, "PRI_MI2S_DL_HL"},
 	{"QUAT_MI2S_UL_HL", NULL, "QUAT_MI2S_TX"},
+	/*OPPO	2015-01-27, zhangping add for 14045 MMI */
+#ifdef CONFIG_MACH_OPPO
+	{"SEC_MI2S_RX", NULL, "SEC_MI2S_RX_DL_HL"},
+	{"PRI_MI2S_RX", NULL, "PRI_MI2S_RX_DL_HL"},
+#endif
+	/*OPPO 2015-01-27 zhangping add end*/
 
 	{"SLIMBUS_0_RX Port Mixer", "INTERNAL_FM_TX", "INT_FM_TX"},
 	{"SLIMBUS_0_RX Port Mixer", "SLIM_0_TX", "SLIMBUS_0_TX"},
@@ -6124,9 +6201,22 @@ static const struct snd_soc_dapm_route intercon[] = {
 	{"QUAT_MI2S_RX Port Mixer", "PRI_MI2S_TX", "PRI_MI2S_TX"},
 	{"QUAT_MI2S_RX Port Mixer", "INTERNAL_FM_TX", "INT_FM_TX"},
 	{"QUAT_MI2S_RX", NULL, "QUAT_MI2S_RX Port Mixer"},
-
+#ifdef CONFIG_MACH_OPPO
+	/*OPPO 2014-08-05 zhzhyon Add for quat i2s loopback*/
+	{"QUAT_MI2S_RX Port Mixer", "TERT_MI2S_TX_QUAT", "TERT_MI2S_TX"},
+	/*OPPO 2014-08-05 zhzhyon Add end*/
+	/*OPPO 2014-08-28 zhzhyon Add for loopback*/
+	{"QUAT_MI2S_RX Port Mixer", "SLIM_0_TX", "SLIMBUS_0_TX"},
+	/*OPPO 2014-08-28 zhzhyon Add end*/
+#endif
 	/* Backend Enablement */
-
+#ifdef CONFIG_MACH_OPPO
+	/*OPPO	2015-01-27, zhangping add for 14045 MMI */
+	{"SEC_MI2S_RX", NULL, "SEC_MI2S_RX Port Mixer"},
+	{"SEC_MI2S_RX Port Mixer", "TERT_MI2S_TX_SEC", "TERT_MI2S_TX"},
+	{"PRI_MI2S_RX Port Mixer", "TERT_MI2S_TX_PRI", "TERT_MI2S_TX"},
+	/*OPPO 2015-01-27 zhangping add end*/
+#endif
 	{"BE_OUT", NULL, "PRI_I2S_RX"},
 	{"BE_OUT", NULL, "SEC_I2S_RX"},
 	{"BE_OUT", NULL, "SLIMBUS_0_RX"},
@@ -6567,6 +6657,21 @@ static int msm_routing_probe(struct snd_soc_platform *platform)
 {
 	snd_soc_dapm_new_controls(&platform->dapm, msm_qdsp6_widgets,
 			   ARRAY_SIZE(msm_qdsp6_widgets));
+	/*OPPO 2014-09-12 zhzhyon Add for 14045 and 14005 loopback*/
+	#ifdef CONFIG_MACH_OPPO
+	if(is_project(OPPO_14005))
+	{
+		snd_soc_dapm_add_routes(&platform->dapm, intercon_slim,
+			ARRAY_SIZE(intercon_slim));
+	}
+	else
+	{
+		snd_soc_dapm_add_routes(&platform->dapm, intercon_tert_i2s,
+			ARRAY_SIZE(intercon_tert_i2s));
+
+	}
+	#endif
+	/*OPPO 2014-09-12 zhzhyon Add end*/
 	snd_soc_dapm_add_routes(&platform->dapm, intercon,
 		ARRAY_SIZE(intercon));
 
