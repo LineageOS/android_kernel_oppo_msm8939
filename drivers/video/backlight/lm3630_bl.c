@@ -17,11 +17,18 @@
 #include <linux/interrupt.h>
 #include <linux/regmap.h>
 #include <linux/platform_data/lm3630_bl.h>
+#ifdef CONFIG_MACH_OPPO
+#include <linux/of_gpio.h>
+#endif
 
 #define REG_CTRL	0x00
 #define REG_CONFIG	0x01
 #define REG_BRT_A	0x03
 #define REG_BRT_B	0x04
+#ifdef CONFIG_MACH_OPPO
+#define REG_MAXCU_A	0x05
+#define REG_MAXCU_B	0x06
+#endif
 #define REG_INT_STATUS	0x09
 #define REG_INT_EN	0x0A
 #define REG_FAULT	0x0B
@@ -31,6 +38,17 @@
 
 #define INT_DEBOUNCE_MSEC	10
 
+#ifdef CONFIG_MACH_OPPO
+#define FILTER_STR	0x50
+static struct lm3630_chip_data *lm3630_pchip;
+#endif
+
+#ifndef CONFIG_MACH_OPPO
+#define LM3630_BL_REGISTER
+#define LM3630_INTERRUPT_HANDLING
+#endif
+
+#ifdef LM3630_BL_REGISTER
 enum lm3630_leds {
 	BLED_ALL = 0,
 	BLED_1,
@@ -42,6 +60,7 @@ static const char * const bled_name[] = {
 	[BLED_1] = "lm3630_bled1",	/*Bank1 controls bled1 */
 	[BLED_2] = "lm3630_bled2",	/*Bank1 or 2 controls bled2 */
 };
+#endif
 
 struct lm3630_chip_data {
 	struct device *dev;
@@ -61,6 +80,12 @@ static int lm3630_chip_init(struct lm3630_chip_data *pchip)
 	unsigned int reg_val;
 	struct lm3630_platform_data *pdata = pchip->pdata;
 
+#ifdef CONFIG_MACH_OPPO
+	ret = regmap_write(pchip->regmap, FILTER_STR, 0x03);
+	if (ret < 0)
+		goto out;
+#endif
+
 	/*pwm control */
 	reg_val = ((pdata->pwm_active & 0x01) << 2) | (pdata->pwm_ctrl & 0x03);
 	ret = regmap_update_bits(pchip->regmap, REG_CONFIG, 0x07, reg_val);
@@ -68,15 +93,30 @@ static int lm3630_chip_init(struct lm3630_chip_data *pchip)
 		goto out;
 
 	/* bank control */
+#ifndef CONFIG_MACH_OPPO
 	reg_val = ((pdata->bank_b_ctrl & 0x01) << 1) |
 			(pdata->bank_a_ctrl & 0x07);
 	ret = regmap_update_bits(pchip->regmap, REG_CTRL, 0x07, reg_val);
+#else
+	ret = regmap_update_bits(pchip->regmap, REG_CTRL, 0x1F, 0x1F);
+#endif
 	if (ret < 0)
 		goto out;
 
 	ret = regmap_update_bits(pchip->regmap, REG_CTRL, 0x80, 0x00);
 	if (ret < 0)
 		goto out;
+
+#ifdef CONFIG_MACH_OPPO
+	/* set initial current */
+	ret = regmap_write(pchip->regmap, REG_MAXCU_A, 20);
+	if (ret < 0)
+		goto out;
+
+	ret = regmap_write(pchip->regmap, REG_MAXCU_B, 20);
+	if (ret < 0)
+		goto out;
+#endif
 
 	/* set initial brightness */
 	if (pdata->bank_a_ctrl != BANK_A_CTRL_DISABLE) {
@@ -99,6 +139,7 @@ out:
 	return ret;
 }
 
+#ifdef LM3630_INTERRUPT_HANDLING
 /* interrupt handling */
 static void lm3630_delayed_func(struct work_struct *work)
 {
@@ -152,7 +193,9 @@ static int lm3630_intr_config(struct lm3630_chip_data *pchip)
 	}
 	return 0;
 }
+#endif
 
+#ifdef LM3630_BL_REGISTER
 static bool
 set_intensity(struct backlight_device *bl, struct lm3630_chip_data *pchip)
 {
@@ -342,6 +385,50 @@ static void lm3630_backlight_unregister(struct lm3630_chip_data *pchip)
 	if (pchip->bled2)
 		backlight_device_unregister(pchip->bled2);
 }
+#endif
+
+#ifdef CONFIG_MACH_OPPO
+/* update and get brightness */
+int lm3630_bank_a_update_status(u32 bl_level)
+{
+	int ret;
+	struct lm3630_chip_data *pchip = lm3630_pchip;
+
+	if (!pchip) {
+		dev_err(pchip->dev, "lm3630_bank_a_update_status pchip is null\n");
+		return -ENOMEM;
+	}
+
+	if (!pchip->regmap || !lm3630_pchip->regmap) {
+		pr_err("%s pchip->regmap is NULL.\n", __func__);
+		return bl_level;
+	}
+
+	/* brightness 0 means disable */
+	if (!bl_level) {
+		ret = regmap_write(lm3630_pchip->regmap, REG_BRT_A, 0);
+		ret = regmap_update_bits(pchip->regmap, REG_CTRL, 0x80, 0x80);
+		if (ret < 0)
+			goto out;
+
+		return bl_level;
+	}
+
+	/* i2c control */
+	ret = regmap_update_bits(pchip->regmap, REG_CTRL, 0x80, 0x00);
+	if (ret < 0)
+		goto out;
+
+	mdelay(1);
+
+	ret = regmap_write(pchip->regmap, REG_BRT_A, bl_level);
+
+	return bl_level;
+out:
+	dev_err(pchip->dev, "i2c failed to access REG_CTRL\n");
+	return bl_level;
+}
+#endif
 
 static const struct regmap_config lm3630_regmap = {
 	.reg_bits = 8,
@@ -349,12 +436,106 @@ static const struct regmap_config lm3630_regmap = {
 	.max_register = REG_MAX,
 };
 
+#ifdef CONFIG_MACH_OPPO
+static int lm3630_dt(struct device *dev, struct lm3630_platform_data *pdata)
+{
+	u32 temp_val;
+	int rc;
+	struct device_node *np = dev->of_node;
+
+	rc = of_property_read_u32(np, "ti,bank-a-ctrl", &temp_val);
+	if (rc) {
+		dev_err(dev, "Unable to read bank-a-ctrl\n");
+		pdata->bank_a_ctrl = BANK_A_CTRL_ALL;
+	} else {
+		pdata->bank_a_ctrl = temp_val;
+	}
+
+	rc = of_property_read_u32(np, "ti,init-brt-led1", &temp_val);
+	if (rc) {
+		dev_err(dev, "Unable to readinit-brt-led1\n");
+		pdata->init_brt_led1 = 200;
+	} else {
+		pdata->init_brt_led1 = temp_val;
+	}
+
+	rc = of_property_read_u32(np, "ti,init-brt-led2", &temp_val);
+	if (rc) {
+		dev_err(dev, "Unable to read init-brt-led2\n");
+		pdata->init_brt_led2 = 200;
+	} else {
+		pdata->init_brt_led2 = temp_val;
+	}
+
+	rc = of_property_read_u32(np, "ti,max-brt-led1", &temp_val);
+	if (rc) {
+		dev_err(dev, "Unable to read max-brt-led1\n");
+		pdata->max_brt_led1 = 255;
+	} else {
+		pdata->max_brt_led1 = temp_val;
+	}
+
+	rc = of_property_read_u32(np, "ti,max-brt-led2", &temp_val);
+	if (rc) {
+		dev_err(dev, "Unable to read max-brt-led2\n");
+		pdata->max_brt_led2 = 255;
+	} else {
+		pdata->max_brt_led2 = temp_val;
+	}
+
+	rc = of_property_read_u32(np, "ti,pwm-active", &temp_val);
+	if (rc) {
+		dev_err(dev, "Unable to read pwm-active\n");
+		pdata->pwm_active = PWM_ACTIVE_HIGH;
+	} else {
+		pdata->pwm_active = temp_val;
+	}
+
+	rc = of_property_read_u32(np, "ti,pwm-ctrl", &temp_val);
+	if (rc) {
+		dev_err(dev, "Unable to read pwm-ctrl\n");
+		pdata->pwm_ctrl = PWM_CTRL_DISABLE;
+	} else {
+		pdata->pwm_ctrl = temp_val;
+	}
+
+	rc = of_property_read_u32(np, "ti,pwm-period", &temp_val);
+	if (rc) {
+		dev_err(dev, "Unable to read pwm-period\n");
+		pdata->pwm_period = 255;
+	} else {
+		pdata->pwm_period = temp_val;
+	}
+
+	pdata->bl_en_gpio = of_get_named_gpio(np, "ti,bl-enable-gpio", 0);
+	if (!gpio_is_valid(pdata->bl_en_gpio))
+		pr_err("%s: bl-enable-gpio not specified\n", __func__);
+
+	return 0;
+}
+#endif
+
 static int lm3630_probe(struct i2c_client *client,
 				  const struct i2c_device_id *id)
 {
 	struct lm3630_platform_data *pdata = client->dev.platform_data;
 	struct lm3630_chip_data *pchip;
 	int ret;
+
+#ifdef CONFIG_MACH_OPPO
+	if (client->dev.of_node) {
+		pdata = devm_kzalloc(&client->dev,
+			sizeof(struct lm3630_platform_data), GFP_KERNEL);
+		if (!pdata) {
+			dev_err(&client->dev, "Failed to allocate memory\n");
+			return -ENOMEM;
+		}
+
+		ret = lm3630_dt(&client->dev, pdata);
+		if (ret)
+			return ret;
+	}
+#endif
 
 	if (!i2c_check_functionality(client->adapter, I2C_FUNC_I2C)) {
 		dev_err(&client->dev, "fail : i2c functionality check...\n");
@@ -370,8 +551,23 @@ static int lm3630_probe(struct i2c_client *client,
 			     GFP_KERNEL);
 	if (!pchip)
 		return -ENOMEM;
+#ifdef CONFIG_MACH_OPPO
+	lm3630_pchip = pchip;
+#endif
+
 	pchip->pdata = pdata;
 	pchip->dev = &client->dev;
+
+#ifdef CONFIG_MACH_OPPO
+	ret = gpio_request(pdata->bl_en_gpio, "backlight_enable");
+	if (ret)
+		pr_err("request enable gpio failed, ret=%d\n", ret);
+
+	if (gpio_is_valid(pdata->bl_en_gpio)) {
+		gpio_set_value((pdata->bl_en_gpio), 1);
+		gpio_direction_output((pdata->bl_en_gpio), 1);
+	}
+#endif
 
 	pchip->regmap = devm_regmap_init_i2c(client, &lm3630_regmap);
 	if (IS_ERR(pchip->regmap)) {
@@ -389,6 +585,7 @@ static int lm3630_probe(struct i2c_client *client,
 		goto err_chip_init;
 	}
 
+#ifdef LM3630_BL_REGISTER
 	switch (pdata->bank_a_ctrl) {
 	case BANK_A_CTRL_ALL:
 		ret = lm3630_backlight_register(pchip, BLED_ALL);
@@ -413,18 +610,29 @@ static int lm3630_probe(struct i2c_client *client,
 		if (ret < 0)
 			goto err_bl_reg;
 	}
+#endif
 
+#ifdef LM3630_INTERRUPT_HANDLING
 	/* interrupt enable  : irq 0 is not allowed for lm3630 */
 	pchip->irq = client->irq;
 	if (pchip->irq)
 		lm3630_intr_config(pchip);
+#endif
 
 	dev_info(&client->dev, "LM3630 backlight register OK.\n");
+
+#ifdef CONFIG_MACH_OPPO
+	/* Always enable PWM mode */
+	regmap_update_bits(lm3630_pchip->regmap, REG_CONFIG, 0x01, 0x01);
+#endif
+
 	return 0;
 
+#ifdef LM3630_BL_REGISTER
 err_bl_reg:
 	dev_err(&client->dev, "fail : backlight register.\n");
 	lm3630_backlight_unregister(pchip);
+#endif
 err_chip_init:
 	return ret;
 }
@@ -442,7 +650,15 @@ static int lm3630_remove(struct i2c_client *client)
 	if (ret < 0)
 		dev_err(pchip->dev, "i2c failed to access register\n");
 
+#ifdef LM3630_BL_REGISTER
 	lm3630_backlight_unregister(pchip);
+#endif
+
+#ifdef CONFIG_MACH_OPPO
+	if (gpio_is_valid(pchip->pdata->bl_en_gpio))
+		gpio_free(pchip->pdata->bl_en_gpio);
+#endif
+
 	if (pchip->irq) {
 		free_irq(pchip->irq, pchip);
 		flush_workqueue(pchip->irqthread);
@@ -458,9 +674,42 @@ static const struct i2c_device_id lm3630_id[] = {
 
 MODULE_DEVICE_TABLE(i2c, lm3630_id);
 
+#ifdef CONFIG_MACH_OPPO
+static int lm3630_suspend(struct device *dev)
+{
+	int rc;
+
+	pr_debug("%s: backlight suspend.\n", __func__);
+
+	rc = regmap_update_bits(lm3630_pchip->regmap, REG_CTRL, 0x80, 0x80);
+	if (rc < 0)
+		pr_err("%s: unable to suspend\n", __func__);
+
+	return 0;
+}
+
+static int lm3630_resume(struct device *dev)
+{
+	int rc;
+
+	pr_debug("%s: backlight resume.\n", __func__);
+
+	rc = regmap_update_bits(lm3630_pchip->regmap, REG_CTRL, 0x80, 0x00);
+	if (rc < 0)
+		pr_err("%s: unable to resume\n", __func__);
+
+	return 0;
+}
+
+static SIMPLE_DEV_PM_OPS(lm3630_pm_ops, lm3630_suspend, lm3630_resume);
+#endif
+
 static struct i2c_driver lm3630_i2c_driver = {
 	.driver = {
 		   .name = LM3630_NAME,
+#ifdef CONFIG_MACH_OPPO
+		   .pm = &lm3630_pm_ops,
+#endif
 		   },
 	.probe = lm3630_probe,
 	.remove = lm3630_remove,
