@@ -493,6 +493,25 @@ int qpnp_pon_trigger_config(enum pon_trigger_source pon_src, bool enable)
 }
 EXPORT_SYMBOL(qpnp_pon_trigger_config);
 
+#ifdef CONFIG_MACH_OPPO
+int qpnp_silence_write(u16 addr, u8 val)
+{
+	int rc;
+	u8 reg;
+	struct qpnp_pon *pon = sys_reset_dev;
+
+	reg = val;
+
+	rc = spmi_ext_register_writel(pon->spmi->ctrl, pon->spmi->sid,
+				      addr, &reg, 1);
+	if (rc)
+		dev_err(&pon->spmi->dev,
+			"Unable to write to addr=%x, rc(%d)\n", addr, rc);
+	return rc;
+}
+EXPORT_SYMBOL(qpnp_silence_write);
+#endif
+
 /*
  * This function stores the PMIC warm reset reason register values. It also
  * clears these registers if the qcom,clear-warm-reset device tree property
