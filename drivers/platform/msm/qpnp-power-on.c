@@ -680,8 +680,9 @@ static irqreturn_t qpnp_cblpwr_irq(int irq, void *_pon)
 #define CBL_POWER_ON_VALID				BIT(2)
 extern void opchg_usbin_valid_irq_handler(bool usb_present);
 
-static bool qpnp_cblpwr_is_usb_plugged_in(struct qpnp_pon *pon)
+static irqreturn_t qpnp_cblpwr_irq(int irq, void *_pon)
 {
+	struct qpnp_pon *pon = _pon;
 	int rc;
 	u8 valid_sta;
 
@@ -689,28 +690,12 @@ static bool qpnp_cblpwr_is_usb_plugged_in(struct qpnp_pon *pon)
 				CBL_POWER_ON_VALID_REG, &valid_sta, 1);
 	if (rc) {
 		dev_err(&pon->spmi->dev, "Unable to read PON RT status\n");
-		return rc;
+	} else {
+		bool usb_present = (valid_sta & CBL_POWER_ON_VALID_MASK) != 0;
+		pr_info("%s usbin-valid triggered: %d\n", __func__, usb_present);
+		opchg_usbin_valid_irq_handler(usb_present);
 	}
-	return (valid_sta & CBL_POWER_ON_VALID_MASK) ? 1 : 0;
-}
-
-static irqreturn_t qpnp_cblpwr_irq(int irq, void *_pon)
-{
-	struct qpnp_pon *pon = _pon;
-	bool usb_present = 0;
-
-	usb_present = qpnp_cblpwr_is_usb_plugged_in(pon);
-	pr_info("%s usbin-valid triggered: %d\n", __func__, usb_present);
-	opchg_usbin_valid_irq_handler(usb_present);
 	return IRQ_HANDLED;
-}
-
-int opchg_get_charger_inout_cblpwr(void)
-{
-	int charger_in = 0;
-
-	charger_in = qpnp_cblpwr_is_usb_plugged_in(sys_reset_dev);
-	return charger_in;
 }
 #endif
 
