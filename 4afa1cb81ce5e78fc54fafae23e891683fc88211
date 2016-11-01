@@ -16,6 +16,24 @@
       "revId": "4afa1cb81ce5e78fc54fafae23e891683fc88211",
       "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71",
       "unresolved": false
+    },
+    {
+      "key": {
+        "uuid": "ff2e2bb8_509ad16d",
+        "filename": "sound/soc/codecs/msm8x16-wcd.c",
+        "patchSetId": 1
+      },
+      "lineNbr": 48,
+      "author": {
+        "id": 4550
+      },
+      "writtenOn": "2016-11-01T10:56:12Z",
+      "side": 1,
+      "message": "Yes, this is just a leftover",
+      "parentUuid": "ff2e2bb8_3022ad53",
+      "revId": "4afa1cb81ce5e78fc54fafae23e891683fc88211",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71",
+      "unresolved": false
     }
   ]
 }
