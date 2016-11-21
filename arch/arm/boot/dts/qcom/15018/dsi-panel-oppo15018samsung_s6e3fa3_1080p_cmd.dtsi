@@ -19,7 +19,7 @@
 		qcom,mdss-dsi-panel-controller = <&mdss_dsi0>;
 		qcom,mdss-dsi-panel-type = "dsi_cmd_mode";
 		qcom,mdss-dsi-panel-destination = "display_1";
-		qcom,mdss-dsi-panel-framerate = <70>;
+		qcom,mdss-dsi-panel-framerate = <60>;
 		qcom,mdss-dsi-virtual-channel-id = <0>;
 		qcom,mdss-dsi-stream = <0>;
 		qcom,mdss-dsi-panel-width = <1080>;
@@ -45,7 +45,7 @@
 			15 01 00 00 00 00 02 35 00
 			29 01 00 00 00 00 03 FC 5A 5A
 			15 01 00 00 00 00 02 B0 1E
-			15 01 00 00 00 00 02 FD BC
+			15 01 00 00 00 00 02 FD A8
 			29 01 00 00 00 00 03 FC A5 A5];
 		qcom,mdss-dsi-off-command = [
 			05 01 00 00 28 00 02 28 00
@@ -61,7 +61,7 @@
 		qcom,mdss-dsi-lane-1-state;
 		qcom,mdss-dsi-lane-2-state;
 		qcom,mdss-dsi-lane-3-state;
-		qcom,mdss-dsi-panel-timings = [f0 3c 26 00 6a 6a 30 3c 32 03 04 00];
+		qcom,mdss-dsi-panel-timings = [f0 3d 26 00 6a 6a 30 3e 32 03 04 00];
 		qcom,mdss-dsi-te-pin-select = <1>;
 		qcom,mdss-dsi-te-v-sync-rd-ptr-irq-line = <0x2c>;
 		qcom,mdss-dsi-te-v-sync-continue-lines = <0x3c>;
@@ -87,6 +87,7 @@
 		qcom,mdss-dsi-panel-status-value = <0x9C>;
 		qcom,mdss-pan-physical-width-dimension = <74>;
 		qcom,mdss-pan-physical-height-dimension = <132>;
+		qcom,mdss-mdp-transfer-time-us = <12000>;
 
 		cm,mdss-livedisplay-cabc-cmd = [
 			15 01 00 00 00 00 02 55 00];
