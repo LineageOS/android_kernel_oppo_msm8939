@@ -1050,7 +1050,7 @@ static void audit_log_execve_info(struct audit_context *context,
 	/* scratch buffer to hold the userspace args */
 	buf_head = kmalloc(MAX_EXECVE_AUDIT_LEN + 1, GFP_KERNEL);
 	if (!buf_head) {
-		audit_panic("out of memory for argv string\n");
+		audit_panic("out of memory for argv string");
 		return;
 	}
 	buf = buf_head;
@@ -1139,9 +1139,9 @@ static void audit_log_execve_info(struct audit_context *context,
 			    ((len_abuf + sizeof(abuf)) > len_rem)) {
 				if (iter == 0) {
 					len_tmp += snprintf(&abuf[len_tmp],
-							    sizeof(abuf) - len_tmp,
-							    " a%d_len=%lu",
-							    arg, len_full);
+							sizeof(abuf) - len_tmp,
+							" a%d_len=%lu",
+							arg, len_full);
 				}
 				len_tmp += snprintf(&abuf[len_tmp],
 						    sizeof(abuf) - len_tmp,
