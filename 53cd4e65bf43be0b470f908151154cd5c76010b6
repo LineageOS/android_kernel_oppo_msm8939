@@ -50,6 +50,23 @@
       "revId": "53cd4e65bf43be0b470f908151154cd5c76010b6",
       "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71",
       "unresolved": false
+    },
+    {
+      "key": {
+        "uuid": "5f681702_71456fb3",
+        "filename": "drivers/input/touchscreen/synaptics_oppo/synaptics_oppo_driver_3508.c",
+        "patchSetId": 1
+      },
+      "lineNbr": 1171,
+      "author": {
+        "id": 4550
+      },
+      "writtenOn": "2016-12-05T16:19:44Z",
+      "side": 1,
+      "message": "Looks like we can support more gestures (^, M, W, swipe up/down/left/right)",
+      "revId": "53cd4e65bf43be0b470f908151154cd5c76010b6",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71",
+      "unresolved": false
     }
   ]
 }
