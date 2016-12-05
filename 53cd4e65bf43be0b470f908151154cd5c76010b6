@@ -1,0 +1,55 @@
+{
+  "comments": [
+    {
+      "key": {
+        "uuid": "5f681702_31e3f707",
+        "filename": "drivers/input/touchscreen/synaptics_oppo/synaptics_oppo_driver_3508.c",
+        "patchSetId": 1
+      },
+      "lineNbr": 364,
+      "author": {
+        "id": 7880
+      },
+      "writtenOn": "2016-12-05T14:34:25Z",
+      "side": 1,
+      "message": "Might want to change all \u0027circle\u0027 references  to \u0027letter_o\u0027, since that is how the gesture is named in CMParts. (will need to update the cmhw impl. as well)",
+      "revId": "53cd4e65bf43be0b470f908151154cd5c76010b6",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71",
+      "unresolved": false
+    },
+    {
+      "key": {
+        "uuid": "5f681702_91f00bcc",
+        "filename": "drivers/input/touchscreen/synaptics_oppo/synaptics_oppo_driver_3508.c",
+        "patchSetId": 1
+      },
+      "lineNbr": 365,
+      "author": {
+        "id": 7880
+      },
+      "writtenOn": "2016-12-05T14:34:25Z",
+      "side": 1,
+      "message": "This is more trivial than the other 2, but can also be changed to \u0027two_finger_down_swipe\u0027",
+      "revId": "53cd4e65bf43be0b470f908151154cd5c76010b6",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71",
+      "unresolved": false
+    },
+    {
+      "key": {
+        "uuid": "5f681702_51e67318",
+        "filename": "drivers/input/touchscreen/synaptics_oppo/synaptics_oppo_driver_3508.c",
+        "patchSetId": 1
+      },
+      "lineNbr": 368,
+      "author": {
+        "id": 7880
+      },
+      "writtenOn": "2016-12-05T14:34:25Z",
+      "side": 1,
+      "message": "This could also be changed to \u0027letter_v\u0027",
+      "revId": "53cd4e65bf43be0b470f908151154cd5c76010b6",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71",
+      "unresolved": false
+    }
+  ]
+}
