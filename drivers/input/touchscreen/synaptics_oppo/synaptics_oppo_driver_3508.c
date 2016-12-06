@@ -2484,43 +2484,43 @@ static int init_synaptics_proc(struct synaptics_ts_data *ts)
 
 #ifdef SUPPORT_GESTURE
 	if(ts->black_gesture_support) {
-		prEntry_tmp = proc_create( "double_tap_enable", 0666, prEntry_tp, &tp_double_proc_fops);
+		prEntry_tmp = proc_create( "double_tap_enable", 0600, prEntry_tp, &tp_double_proc_fops);
 		if(prEntry_tmp == NULL){
 			ret = -ENOMEM;
 			printk(KERN_INFO"init_synaptics_proc: Couldn't create proc entry\n");
 		}
 
-		prEntry_tmp = proc_create( "letter_o_enable", 0666, prEntry_tp, &tp_letter_o_proc_fops);
+		prEntry_tmp = proc_create( "letter_o_enable", 0600, prEntry_tp, &tp_letter_o_proc_fops);
 		if(prEntry_tmp == NULL){
 			ret = -ENOMEM;
 			printk(KERN_INFO"init_synaptics_proc: Couldn't create proc entry\n");
 		}
 
-		prEntry_tmp = proc_create( "left_arrow_enable", 0666, prEntry_tp, &tp_left_arrow_proc_fops);
+		prEntry_tmp = proc_create( "left_arrow_enable", 0600, prEntry_tp, &tp_left_arrow_proc_fops);
 		if(prEntry_tmp == NULL){
 			ret = -ENOMEM;
 			printk(KERN_INFO"init_synaptics_proc: Couldn't create proc entry\n");
 		}
 
-		prEntry_tmp = proc_create( "right_arrow_enable", 0666, prEntry_tp, &tp_right_arrow_proc_fops);
+		prEntry_tmp = proc_create( "right_arrow_enable", 0600, prEntry_tp, &tp_right_arrow_proc_fops);
 		if(prEntry_tmp == NULL){
 			ret = -ENOMEM;
 			printk(KERN_INFO"init_synaptics_proc: Couldn't create proc entry\n");
 		}
 
-		prEntry_tmp = proc_create( "letter_v_enable", 0666, prEntry_tp, &tp_letter_v_proc_fops);
+		prEntry_tmp = proc_create( "letter_v_enable", 0600, prEntry_tp, &tp_letter_v_proc_fops);
 		if(prEntry_tmp == NULL){
 			ret = -ENOMEM;
 			printk(KERN_INFO"init_synaptics_proc: Couldn't create proc entry\n");
 		}
 
-		prEntry_tmp = proc_create( "down_swipe_enable", 0666, prEntry_tp, &tp_down_swipe_proc_fops);
+		prEntry_tmp = proc_create( "down_swipe_enable", 0600, prEntry_tp, &tp_down_swipe_proc_fops);
 		if(prEntry_tmp == NULL){
 			ret = -ENOMEM;
 			printk(KERN_INFO"init_synaptics_proc: Couldn't create proc entry\n");
 		}
 
-		prEntry_tmp = proc_create("coordinate", 0444, prEntry_tp, &coordinate_proc_fops);
+		prEntry_tmp = proc_create("coordinate", 0400, prEntry_tp, &coordinate_proc_fops);
 		if(prEntry_tmp == NULL){
 			ret = -ENOMEM;
 			printk(KERN_INFO"init_synaptics_proc: Couldn't create proc entry\n");
@@ -2530,7 +2530,7 @@ static int init_synaptics_proc(struct synaptics_ts_data *ts)
 
 #ifdef SUPPORT_GLOVES_MODE
 	if(ts->glove_mode_enabled) {
-		prEntry_tmp = proc_create( "glove_mode_enable", 0666, prEntry_tp,&glove_mode_enable_proc_fops);
+		prEntry_tmp = proc_create( "glove_mode_enable", 0600, prEntry_tp,&glove_mode_enable_proc_fops);
 		if(prEntry_tmp == NULL) {
 			ret = -ENOMEM;
 			printk(KERN_INFO"init_synaptics_proc: Couldn't create proc entry\n");
@@ -2539,7 +2539,7 @@ static int init_synaptics_proc(struct synaptics_ts_data *ts)
 #endif
 
 #ifdef SUPPORT_TP_SLEEP_MODE
-	prEntry_tmp = proc_create("sleep_mode_enable", 0666, prEntry_tp, &sleep_mode_enable_proc_fops);
+	prEntry_tmp = proc_create("sleep_mode_enable", 0600, prEntry_tp, &sleep_mode_enable_proc_fops);
 	if( prEntry_tmp == NULL ){
 		ret = -ENOMEM;
 		printk(KERN_INFO"init_synaptics_proc: Couldn't create proc entry\n");
@@ -2547,27 +2547,27 @@ static int init_synaptics_proc(struct synaptics_ts_data *ts)
 #endif
 
 #ifdef RESET_ONESECOND
-	prEntry_tmp = proc_create( "tp_reset", 0666, prEntry_tp, &tp_reset_proc_fops);
+	prEntry_tmp = proc_create( "tp_reset", 0600, prEntry_tp, &tp_reset_proc_fops);
 	if( prEntry_tmp == NULL ){
 		ret = -ENOMEM;
 		printk(KERN_INFO"init_synaptics_proc: Couldn't create tp reset proc entry\n");
 	}
 #endif
 	//wangwenxue@BSP add for change baseline_test to "proc\touchpanel\baseline_test"  begin
-	prEntry_tmp = proc_create( "baseline_test", 0666, prEntry_tp, &tp_baseline_test_proc_fops);
+	prEntry_tmp = proc_create( "baseline_test", 0600, prEntry_tp, &tp_baseline_test_proc_fops);
 	if(prEntry_tmp == NULL){
 		ret = -ENOMEM;
 		printk(KERN_INFO"init_synaptics_proc: Couldn't create proc entry\n");
 	}
 	//wangwenxue@BSP add for change baseline_test to "proc\touchpanel\baseline_test"  end
 	//wangwenxue@BSP add for change baseline_test to "proc\touchpanel\i2c_device_test"  begin
-	prEntry_tmp = proc_create( "i2c_device_test", 0666, prEntry_tp, &i2c_device_test_fops);
+	prEntry_tmp = proc_create( "i2c_device_test", 0600, prEntry_tp, &i2c_device_test_fops);
 	if(prEntry_tmp == NULL){
 		ret = -ENOMEM;
 		printk(KERN_INFO"init_synaptics_proc: Couldn't create proc entry\n");
 	}
 
-	prEntry_tmp = proc_create( "synaptics_register_address", 0777, prEntry_tp, &base_register_address);
+	prEntry_tmp = proc_create( "synaptics_register_address", 0600, prEntry_tp, &base_register_address);
 	if(prEntry_tmp == NULL){
 		ret = -ENOMEM;
 		printk(KERN_INFO"init_synaptics_proc: Couldn't create proc entry\n");
