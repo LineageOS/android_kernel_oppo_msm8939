@@ -1,0 +1,21 @@
+{
+  "comments": [
+    {
+      "key": {
+        "uuid": "fa3479d7_4c41b30a",
+        "filename": "arch/arm/configs/lineageos_r5_defconfig",
+        "patchSetId": 4
+      },
+      "lineNbr": 1,
+      "author": {
+        "id": 7880
+      },
+      "writtenOn": "2017-01-04T07:57:18Z",
+      "side": 1,
+      "message": "This should be in lowercase: \"-lineageos\"",
+      "revId": "48c15d307a48e74486042699a29abefb684e9018",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71",
+      "unresolved": false
+    }
+  ]
+}
