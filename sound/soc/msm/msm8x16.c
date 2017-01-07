@@ -43,10 +43,6 @@
 
 #define DRV_NAME "msm8x16-asoc-wcd"
 
-#define SAMPLING_RATE_48KHZ 48000
-#define SAMPLING_RATE_96KHZ 96000
-#define SAMPLING_RATE_192KHZ 192000
-
 #define BTSCO_RATE_8KHZ 8000
 #define BTSCO_RATE_16KHZ 16000
 #ifdef CONFIG_MACH_OPPO
@@ -598,7 +594,7 @@ static int msm_be_tfa9890_hw_params_fixup(struct snd_soc_pcm_runtime *rtd,
 					SNDRV_PCM_HW_PARAM_CHANNELS);
 
 	pr_debug("%s()\n", __func__);
-	rate->min = rate->max = 48000;
+	rate->min = rate->max = mi2s_rx_sample_rate;
 	param_set_mask(params, SNDRV_PCM_HW_PARAM_FORMAT,
 					SNDRV_PCM_FORMAT_S16_LE);
 
