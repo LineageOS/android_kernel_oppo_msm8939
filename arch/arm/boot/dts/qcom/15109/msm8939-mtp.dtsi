@@ -53,17 +53,16 @@
 			gpio-key,wakeup;
 			debounce-interval = <15>;
 		};
+	};
 
-		hallsensor_key {
-			label = "hallsensor_key";
-			gpios = <&msm_gpio 12 1>;
-			interrupt-parent = <&msm_gpio>;
-			interrupts = <12 0x0>;
-			linux,input-type = <5>;
-			linux,code = <0>;
-			gpio-key,wakeup;
-			debounce-interval = <150>;
-		};
+	hallsensor {
+		compatible = "gpio-switch";
+		name = "hallsensor";
+		gpio = <&msm_gpio 12 1>;
+		interrupt-parent = <&msm_gpio>;
+		interrupts = <12 0x0>;
+		switch,state_on = "0";
+		switch,state_off = "1";
 	};
 
 	i2c@78b5000 { /* BLSP1 QUP1 */
