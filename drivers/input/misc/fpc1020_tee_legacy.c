@@ -321,6 +321,48 @@ static int fpc1020_reset(fpc1020_data_t *fpc1020)
 	return error;
 }
 
+static int fpc1020_check_hw_id(fpc1020_data_t *fpc1020)
+{
+	static const struct {
+		u16 id;
+		const char *name;
+	} chip_ids[] = {
+		{ 0x020a, "FPC1020A" },
+		{ 0x021a, "FPC1021A" },
+		{ 0x021b, "FPC1021B" },
+		{ 0x150a, "FPC1150A" },
+		{ 0x150b, "FPC1150B" },
+		{ 0x150f, "FPC1150F" }
+	};
+
+	int error = 0, i;
+	u16 hardware_id;
+	fpc1020_reg_access_t reg_hw_id = {
+		.reg = FPC102X_REG_HWID,
+		.write = false,
+		.reg_size = 2,
+		.dataptr = (u8*) &hardware_id
+	};
+
+	error = fpc1020_reg_access(fpc1020, &reg_hw_id);
+	if (error < 0)
+		return error;
+
+	for (i = 0; i < ARRAY_SIZE(chip_ids); i++) {
+		if (chip_ids[i].id == hardware_id) {
+			dev_info(&fpc1020->spi->dev, "Sensor is a %s\n",
+				 chip_ids[i].name);
+			break;
+		}
+	}
+	if (i == ARRAY_SIZE(chip_ids)) {
+		dev_info(&fpc1020->spi->dev, "Sensor is unknown (%04x)\n",
+			 hardware_id);
+	}
+
+	return 0;
+}
+
 static int fpc1020_spi_setup(fpc1020_data_t *fpc1020)
 {
 	int error = 0;
@@ -796,6 +838,10 @@ static int fpc1020_probe(struct spi_device *spi)
 		goto err;
 
 	error = fpc1020_reset(fpc1020);
+	if (error)
+		goto err;
+
+	error = fpc1020_check_hw_id(fpc1020);
 	if (error)
 		goto err;
 
