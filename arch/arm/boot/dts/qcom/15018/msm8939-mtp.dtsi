@@ -20,22 +20,6 @@
 #include "dsi-panel-oppo15018samsung_s6e3fa3_1080p_cmd.dtsi"
 
 &soc {
-	spi@78ba000 { /* BLSP1 QUP6 */
-		fpc_fpc1020@0 {
-			compatible = "fpc,fpc1020";
-			reg = <0>;
-			spi-max-frequency = <19200000>;
-			fpc,gpio_irq = <&msm_gpio 31 0x00>;
-			fpc,gpio_reset = <&msm_gpio 95 0x00>;
-
-			vdd_io-supply = <&pm8916_l5>;
-
-			clocks = <&clock_gcc clk_gcc_blsp1_ahb_clk>,
-				 <&clock_gcc clk_gcc_blsp1_qup6_spi_apps_clk>;
-			clock-names = "iface_clk", "core_clk";
-		};
-	};
-
 	devinfo {
 		compatible = "oppo-devinfo";
 		Hw,operator-gpio1 = <&msm_gpio 49 0x00>;

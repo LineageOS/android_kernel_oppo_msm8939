@@ -21,3 +21,92 @@
 	compatible = "qcom,msm8939-mtp", "qcom,msm8939", "qcom,mtp";
 	qcom,board-id = <8 0 15018>;
 };
+
+&soc {
+	pinctrl@1000000 {
+		spi6_active {
+			qcom,pins = <&gp 20>, <&gp 21>, <&gp 23>;
+			qcom,num-grp-pins = <3>;
+			qcom,pin-func = <1>;
+			label = "spi6-active";
+
+			spi6_default: spi6_default {
+				drive-strength = <16>;
+				bias-pull-down;
+			};
+		};
+
+		spi6_suspend {
+			qcom,pins = <&gp 20>, <&gp 21>, <&gp 23>;
+			qcom,num-grp-pins = <3>;
+			qcom,pin-func = <1>;
+			label = "spi6-suspend";
+
+			spi6_sleep: spi6_sleep {
+				drive-strength = <16>;
+				bias-pull-down;
+			};
+		};
+
+		spi6_cs0_active {
+			qcom,pins = <&gp 22>;
+			qcom,num-grp-pins = <1>;
+			qcom,pin-func = <1>;
+			label = "spi6-cs0-active";
+
+			spi6_cs0_active: cs0_active {
+				drive-strength = <16>;
+				bias-pull-down;
+			};
+		};
+
+		spi6_cs0_suspend {
+			qcom,pins = <&gp 22>;
+			qcom,num-grp-pins = <1>;
+			qcom,pin-func = <1>;
+			label = "spi6-cs0-suspend";
+
+			spi6_cs0_sleep: cs0_sleep {
+				drive-strength = <16>;
+				bias-pull-down;
+			};
+		};
+	};
+
+	spi@78ba000 { /* BLSP1 QUP6 */
+		compatible = "qcom,spi-qup-v2";
+		#address-cells = <1>;
+		#size-cells = <0>;
+		reg-names = "spi_physical", "spi_bam_physical";
+		reg = <0x78bA000 0x1000>,
+		      <0xF9904000 0x19000>;
+		interrupt-names = "spi_irq", "spi_bam_irq";
+		interrupts = <0 100 0>, <0 238 0>;
+		spi-max-frequency = <9600000>;
+		qcom,use-pinctrl;
+		pinctrl-names = "spi_default", "spi_sleep";
+		pinctrl-0 = <&spi6_default &spi6_cs0_active>;
+		pinctrl-1 = <&spi6_sleep &spi6_cs0_sleep>;
+		clocks = <&clock_gcc clk_gcc_blsp1_ahb_clk>,
+			 <&clock_gcc clk_gcc_blsp1_qup6_spi_apps_clk>;
+		clock-names = "iface_clk", "core_clk";
+		qcom,infinite-mode = <0>;
+		qcom,ver-reg-exists;
+		qcom,bam-consumer-pipe-index = <14>;
+		qcom,bam-producer-pipe-index = <15>;
+		qcom,master-id = <86>;
+		status = "okay";
+
+		fpc_fpc1020@0 {
+			compatible = "fpc,fpc1020";
+			reg = <0>;
+			spi-max-frequency = <19200000>;
+			fpc,gpio_irq = <&msm_gpio 31 0x00>;
+			fpc,gpio_reset = <&msm_gpio 95 0x00>;
+			vdd_io-supply = <&pm8916_l5>;
+			clocks = <&clock_gcc clk_gcc_blsp1_ahb_clk>,
+				 <&clock_gcc clk_gcc_blsp1_qup6_spi_apps_clk>;
+			clock-names = "iface_clk", "core_clk";
+		};
+	};
+};
