@@ -21,3 +21,15 @@
 	compatible = "qcom,msm8939-mtp", "qcom,msm8939", "qcom,mtp";
 	qcom,board-id = <8 0>;
 };
+
+&soc {
+	fpc_fpc1020@0 {
+		compatible = "fpc,fpc1020-qsee4";
+		fpc,reset-gpio = <&msm_gpio 95 0x00>;
+		fpc,irq-gpio = <&msm_gpio 31 0x00>;
+		vdd_io-supply = <&pm8916_l5>;
+		clocks = <&clock_gcc clk_gcc_blsp1_ahb_clk>,
+			 <&clock_gcc clk_gcc_blsp1_qup6_spi_apps_clk>;
+		clock-names = "iface_clk", "core_clk";
+	};
+};

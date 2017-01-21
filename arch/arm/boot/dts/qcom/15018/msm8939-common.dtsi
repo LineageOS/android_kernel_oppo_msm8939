@@ -128,31 +128,6 @@
 		status = "disabled";
 	};
 
-	spi_6: spi@78ba000 { /* BLSP1 QUP6 */
-		compatible = "qcom,spi-qup-v2";
-		#address-cells = <1>;
-		#size-cells = <0>;
-		reg-names = "spi_physical", "spi_bam_physical";
-		reg = <0x78bA000 0x1000>,
-		      <0xF9904000 0x19000>;
-		interrupt-names = "spi_irq", "spi_bam_irq";
-		interrupts = <0 100 0>, <0 238 0>;
-		spi-max-frequency = <9600000>;
-		qcom,use-pinctrl;
-		pinctrl-names = "spi_default", "spi_sleep";
-		pinctrl-0 = <&spi6_default &spi6_cs0_active>;
-		pinctrl-1 = <&spi6_sleep &spi6_cs0_sleep>;
-		clocks = <&clock_gcc clk_gcc_blsp1_ahb_clk>,
-			 <&clock_gcc clk_gcc_blsp1_qup6_spi_apps_clk>;
-		clock-names = "iface_clk", "core_clk";
-		qcom,infinite-mode = <0>;
-		qcom,ver-reg-exists;
-		qcom,bam-consumer-pipe-index = <14>;
-		qcom,bam-producer-pipe-index = <15>;
-		qcom,master-id = <86>;
-		status = "okay";
-	};
-
 	qcom,opponvbk_sharedmem@0x85f00000 {
 		compatible = "qcom,sharedmem-uio";
 		reg = <0x85f00000 0x100000>;
