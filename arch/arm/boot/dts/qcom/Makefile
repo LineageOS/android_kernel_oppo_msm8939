@@ -85,7 +85,8 @@ dtb-$(CONFIG_MACH_15018) += msm8939-v3.0-mtp-15018.dtb \
 	msm8939-v3.0-mtp-15018-spectrum.dtb
 dtb-$(CONFIG_MACH_15022) += msm8939-v3.0-mtp-15022.dtb \
 	msm8939-v3.0-mtp-15022-spectrum.dtb
-dtb-$(CONFIG_MACH_15109) += msm8939-v3.0-mtp-15109.dtb
+dtb-$(CONFIG_MACH_15109) += msm8939-v3.0-mtp-15109.dtb \
+	msm8939-v3.0-mtp-15109-spectrum.dtb
 else
 dtb-$(CONFIG_ARCH_MSM8916) += msm8916-cdp.dtb \
 	msm8916-cdp-smb1360.dtb \
