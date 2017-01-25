@@ -58,8 +58,17 @@ struct vreg_config {
 	int ua_load;
 };
 
+struct clock_config {
+	char *name;
+	int rate;
+};
+
 static const struct vreg_config const vreg_conf[] = {
 	{ "vdd_io", 1800000UL, 1800000UL, 6000, },
+};
+static const struct clock_config const clock_conf[] = {
+	{ "iface_clk", 0 },
+	{ "core_clk", 4800000 }
 };
 
 struct fpc1020_data {
@@ -69,13 +78,11 @@ struct fpc1020_data {
 	int irq_num;
 	struct mutex lock;
 	bool prepared;
-	int irq_enabled;
+	bool wakeup_enabled;
 
-	struct pinctrl *ts_pinctrl;
-	struct pinctrl_state *gpio_state_active;
-	struct pinctrl_state *gpio_state_suspend;
 	struct wake_lock ttw_wl;
 	struct regulator *vreg[ARRAY_SIZE(vreg_conf)];
+	struct clk *clock[ARRAY_SIZE(clock_conf)];
 };
 
 static int fpc1020_request_named_gpio(struct fpc1020_data *fpc1020,
@@ -153,37 +160,76 @@ found:
 		}
 		rc = 0;
 	}
+	dev_info(dev, "vreg_setup %s enable %d result %d\n", name, enable, rc);
 	return rc;
 }
 
-static DEFINE_SPINLOCK(fpc1020_lock);
-
-static int fpc1020_enable_irq(struct fpc1020_data *fpc1020, bool enable)
+static int clock_setup(struct fpc1020_data *fpc1020, bool enable)
 {
-	spin_lock_irq(&fpc1020_lock);
-	if (enable) {
-		if (!fpc1020->irq_enabled) {
-			enable_irq(gpio_to_irq(fpc1020->irq_gpio));
-			enable_irq_wake(gpio_to_irq(fpc1020->irq_gpio));
-			fpc1020->irq_enabled = 1;
-			dev_info(fpc1020->dev, "%s: enabled\n", __func__);
+	struct device *dev = fpc1020->dev;
+	size_t i;
+
+	for (i = 0; i < ARRAY_SIZE(fpc1020->clock); i++) {
+		if (enable) {
+			const char *name = clock_conf[i].name;
+			int rc, rate = clock_conf[i].rate;
+			struct clk *c = clk_get(dev, name);
+			if (IS_ERR(c)) {
+				dev_err(dev, "Failed to get clock %s\n", name);
+				return PTR_ERR(c);
+			}
+			if (rate) {
+				rc = clk_set_rate(c, rate);
+				if (rc < 0) {
+					dev_err(dev, "Failed to set clock rate for %s\n", name);
+					clk_put(c);
+					return rc;
+				} else {
+					dev_info(dev, "Set clock %s to rate %d\n", name, rate);
+				}
+			}
+			rc = clk_prepare_enable(c);
+			if (rc) {
+				dev_err(dev, "Failed to enable clock %s\n", name);
+				clk_put(c);
+				return rc;
+			} else {
+				dev_info(dev, "Enabled clock %s\n", name);
+			}
+			fpc1020->clock[i] = c;
 		} else {
-			dev_info(fpc1020->dev, "%s: no need to enable\n", __func__);
-		}
-	} else {
-		if (fpc1020->irq_enabled) {
-			disable_irq_wake(gpio_to_irq(fpc1020->irq_gpio));
-			disable_irq_nosync(gpio_to_irq(fpc1020->irq_gpio));
-			fpc1020->irq_enabled = 0;
-			dev_info(fpc1020->dev, "%s: disabled\n", __func__);
-		} else {
-			dev_info(fpc1020->dev, "%s: no need to disable\n", __func__);
+			struct clk *c = fpc1020->clock[i];
+			if (c) {
+				clk_disable_unprepare(c);
+				clk_put(c);
+				fpc1020->clock[i] = NULL;
+			}
 		}
 	}
-	spin_unlock_irq(&fpc1020_lock);
 
 	return 0;
 }
+
+/**
+ * sysfs node for controlling whether the driver is allowed
+ * to wake up the platform on interrupt.
+ */
+static ssize_t wakeup_enable_set(struct device *dev,
+				 struct device_attribute *attr,
+				 const char *buf, size_t count)
+{
+	struct fpc1020_data *fpc1020 = dev_get_drvdata(dev);
+
+	if (!strncmp(buf, "enable", strlen("enable")))
+		fpc1020->wakeup_enabled = true;
+	else if (!strncmp(buf, "disable", strlen("disable")))
+		fpc1020->wakeup_enabled = false;
+	else
+		return -EINVAL;
+
+	return count;
+}
+static DEVICE_ATTR(wakeup_enable, S_IWUSR, NULL, wakeup_enable_set);
 
 /**
  * sysf node to check the interrupt status of the sensor, the interrupt
@@ -232,43 +278,13 @@ static ssize_t regulator_enable_set(struct device *dev,
 	return rc ? rc : count;
 }
 
-static ssize_t irq_enable_set(struct device *dev,
-	struct device_attribute *attribute, const char *buffer, size_t count)
-{
-	int op = 0;
-	bool enable;
-	int rc = 0;
-	struct fpc1020_data *fpc1020 = dev_get_drvdata(dev);
-
-	if (1 == sscanf(buffer, "%d", &op)) {
-		if (op == 1)
-			enable = true;
-		else if (op == 0)
-			enable = false;
-	} else {
-		pr_err("invalid content: '%s', length = %zd\n", buffer, count);
-		return -EINVAL;
-	}
-	rc = fpc1020_enable_irq(fpc1020,  enable);
-	return rc ? rc : count;
-}
-
-static ssize_t irq_enable_get(struct device* dev,
-			     struct device_attribute* attribute,
-			     char* buffer)
-{
-	struct fpc1020_data* fpc1020 = dev_get_drvdata(dev);
-	return scnprintf(buffer, PAGE_SIZE, "%i\n",fpc1020->irq_enabled);
-}
-
 static DEVICE_ATTR(irq, S_IRUSR | S_IWUSR, irq_get, irq_ack);
 static DEVICE_ATTR(regulator_enable, S_IWUSR, NULL, regulator_enable_set);
-static DEVICE_ATTR(irq_enable, S_IWUSR, irq_enable_get, irq_enable_set);
 
 static struct attribute *attributes[] = {
+	&dev_attr_wakeup_enable.attr,
 	&dev_attr_irq.attr,
 	&dev_attr_regulator_enable.attr,
-	&dev_attr_irq_enable.attr,
 	NULL
 };
 
@@ -280,7 +296,15 @@ static irqreturn_t fpc1020_irq_handler(int irq, void *handle)
 {
 	struct fpc1020_data *fpc1020 = handle;
 
+	dev_info(fpc1020->dev, "%s\n", __func__);
+
+	/* Make sure 'wakeup_enabled' is updated before using it
+	 * since this is interrupt context (other thread...) */
 	smp_rmb();
+
+	if (fpc1020->wakeup_enabled) {
+		wake_lock_timeout(&fpc1020->ttw_wl, msecs_to_jiffies(FPC_TTW_HOLD_TIME));
+	}
 
 	wake_lock_timeout(&fpc1020->ttw_wl, msecs_to_jiffies(FPC_TTW_HOLD_TIME));
 
@@ -332,6 +356,8 @@ static int fpc1020_probe(struct platform_device *pdev)
 	if (rc)
 		goto exit;
 
+	fpc1020->wakeup_enabled = false;
+
 	irqf = IRQF_TRIGGER_RISING | IRQF_ONESHOT;
 	mutex_init(&fpc1020->lock);
 	rc = devm_request_threaded_irq(dev, gpio_to_irq(fpc1020->irq_gpio),
@@ -343,8 +369,7 @@ static int fpc1020_probe(struct platform_device *pdev)
 		goto exit;
 	}
 
-	disable_irq_nosync(gpio_to_irq(fpc1020->irq_gpio));
-	fpc1020->irq_enabled = 0;
+	enable_irq_wake(gpio_to_irq(fpc1020->irq_gpio));
 
 	wake_lock_init(&fpc1020->ttw_wl, WAKE_LOCK_SUSPEND, "fpc_ttw_wl");
 
@@ -369,6 +394,12 @@ static int fpc1020_probe(struct platform_device *pdev)
 
 	gpio_set_value(fpc1020->rst_gpio, 1);
 	udelay(FPC1020_RESET_HIGH2_US);
+
+	rc = clock_setup(fpc1020, true);
+	if (rc) {
+		dev_err(fpc1020->dev, "clock setup failed.\n");
+		goto exit;
+	}
 
 	rc = vreg_setup(fpc1020, "vdd_io", true);
 	if (rc)
