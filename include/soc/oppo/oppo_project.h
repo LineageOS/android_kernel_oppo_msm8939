@@ -38,9 +38,16 @@ enum {
 enum OPPO_PROJECT {
 	OPPO_UNKNOWN = 0,
 	OPPO_14005 = 14005,
+	OPPO_14037 = 14037,
+	OPPO_14045 = 14045,
+	OPPO_14051 = 14051,
+	OPPO_15005 = 15005,
+	OPPO_15009 = 15009,
 	OPPO_15011 = 15011,
 	OPPO_15018 = 15018,
 	OPPO_15022 = 15022,
+	OPPO_15037 = 15037,
+	OPPO_15057 = 15057,
 	OPPO_15109 = 15109,
 };
 
@@ -80,3 +87,4 @@ unsigned char get_Modem_Version(void);
 unsigned char get_Operator_Version(void);
 
 #endif
+
