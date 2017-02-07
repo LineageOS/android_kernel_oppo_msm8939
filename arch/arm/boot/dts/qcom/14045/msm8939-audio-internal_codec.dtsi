@@ -1,0 +1,77 @@
+/* Copyright (c) 2014, The Linux Foundation. All rights reserved.
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 and
+ * only version 2 as published by the Free Software Foundation.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ */
+
+&soc {
+	/*OPPO 2014-08-30 zhzhyon Add for sound card*/
+	sound {
+		compatible = "qcom,msm8x16-audio-codec";
+		qcom,model = "msm8939-snd-card";
+		/*OPPO 2014-08-21 zhzhyon Modify from 0 to 3*/
+		qcom,msm-snd-card-id = <3>;
+		qcom,msm-codec-type = "internal";
+		/*OPPO 2014-07-21 zhzhyon Modify for QUAT I2S PATCH*/
+		/*qcom,msm-ext-pa = "primary";*/
+		qcom,msm-ext-pa = "secondary", "quaternary";
+		/*OPPO 2014-07-21 zhzhyon Modify end*/
+		qcom,msm-mbhc-hphl-swh = <1>;
+		qcom,msm-mbhc-gnd-swh = <0>;
+		qcom,msm-micbias1-ext-cap;
+		qcom,msm-hs-micbias-type = "internal";
+		qcom,audio-routing =
+			"RX_BIAS", "MCLK",
+			"SPK_RX_BIAS", "MCLK",
+			"INT_LDO_H", "MCLK",
+			"MIC BIAS External", "Handset Mic",
+			"MIC BIAS Internal2", "Headset Mic",
+			"MIC BIAS External", "Secondary Mic",
+			"AMIC1", "MIC BIAS External",
+			"AMIC2", "MIC BIAS Internal2",
+			"AMIC3", "MIC BIAS External",
+			/*OPPO 2014-07-30 zhzhyon Add for DMIC*/
+			"DMIC1", "MIC BIAS Internal1",
+			"MIC BIAS Internal1", "Digital Mic1", 
+			"DMIC2", "MIC BIAS Internal1", 
+			"MIC BIAS Internal1", "Digital Mic2"; 
+			/*OPPO 2014-07-30 zhzhyon Add end*/
+		pinctrl-names = "cdc_lines_act",
+				"cdc_lines_sus",
+				/*OPPO 2014-07-21 zhzhyon Modify for QUAT I2S patch*/
+				/*"cross_conn_det_act",*/
+				/*"cross_conn_det_sus";*/
+				"cdc_lines_quat_sec_ext_act",
+				"cdc_lines_quat_sec_ext_sus";
+				/*OPPO 2014-07-21 zhzhyon Modify end*/						
+		pinctrl-0 = <&cdc_pdm_lines_act>;
+		pinctrl-1 = <&cdc_pdm_lines_sus>;
+		/*OPPO 2014-07-21 zhzhyon Modify for QUAT I2S patch*/
+		/*pinctrl-2 = <&cross_conn_det_act>;*/
+		/*pinctrl-3 = <&cross_conn_det_sus>;*/
+		pinctrl-2 = <&cdc_pdm_lines_act &cdc_ext_pa_act
+						&cdc_ext_pa_ws_act &ext_cdc_tlmm_lines_act
+						&mclk_lines_act>;
+		pinctrl-3 = <&cdc_pdm_lines_sus &cdc_ext_pa_sus
+						&cdc_ext_pa_ws_sus &ext_cdc_tlmm_lines_sus
+						&mclk_lines_sus>;
+		/*OPPO 2014-07-21 zhzhyon Modify end*/
+		qcom,cdc-us-euro-gpios = <&msm_gpio 120 0>;
+		/*OPPO 2014-07-21 zhzhyon Add for tfa9890 resource*/
+		nxp,reset-gpio = <&msm_gpio 16 0x00>;
+		audio-vdd-enable-gpios = <&msm_gpio 109 0x00>;
+		/*spk-rec-sw-gpios = <&msm_gpio 97 0x00>;*/
+		/*OPPO 2014-07-21 zhzhyon Add end*/
+		/*OPPO 2014-08-20 zhzhyon Add for tfa9890*/
+		tfa9890_vdd-supply = <&pm8916_l6>;
+		/*OPPO 2014-08-20 zhzhyon Add end*/
+	};	
+	/*OPPO 2014-08-30 zhzhyon Add end*/
+};
+
