@@ -1,0 +1,498 @@
+{
+  "comments": [
+    {
+      "key": {
+        "uuid": "5a2585a7_c74a2255",
+        "filename": "drivers/input/touchscreen/synaptics_oppo/Makefile",
+        "patchSetId": 3
+      },
+      "lineNbr": 8,
+      "author": {
+        "id": 11883
+      },
+      "writtenOn": "2017-02-11T20:43:42Z",
+      "side": 1,
+      "message": "should be splitted per-soc",
+      "range": {
+        "startLine": 8,
+        "startChar": 0,
+        "endLine": 8,
+        "endChar": 147
+      },
+      "revId": "0ec4172ef0598a6ab08ce64d800e0b56d4f9d3c7",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71",
+      "unresolved": false
+    },
+    {
+      "key": {
+        "uuid": "5a2585a7_275c4625",
+        "filename": "drivers/input/touchscreen/synaptics_oppo/Makefile",
+        "patchSetId": 3
+      },
+      "lineNbr": 10,
+      "author": {
+        "id": 11883
+      },
+      "writtenOn": "2017-02-11T20:43:42Z",
+      "side": 1,
+      "message": "newline",
+      "revId": "0ec4172ef0598a6ab08ce64d800e0b56d4f9d3c7",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71",
+      "unresolved": false
+    },
+    {
+      "key": {
+        "uuid": "5a2585a7_874d3a75",
+        "filename": "include/linux/platform_data/lm3630_bl.h",
+        "patchSetId": 3
+      },
+      "lineNbr": 59,
+      "author": {
+        "id": 11883
+      },
+      "writtenOn": "2017-02-11T20:43:42Z",
+      "side": 1,
+      "message": "unused",
+      "range": {
+        "startLine": 54,
+        "startChar": 0,
+        "endLine": 59,
+        "endChar": 24
+      },
+      "revId": "0ec4172ef0598a6ab08ce64d800e0b56d4f9d3c7",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71",
+      "unresolved": false
+    },
+    {
+      "key": {
+        "uuid": "5a2585a7_272566ab",
+        "filename": "include/soc/oppo/boot_mode.h",
+        "patchSetId": 3
+      },
+      "lineNbr": 19,
+      "author": {
+        "id": 11883
+      },
+      "writtenOn": "2017-02-11T20:43:42Z",
+      "side": 1,
+      "message": "unused",
+      "range": {
+        "startLine": 19,
+        "startChar": 0,
+        "endLine": 19,
+        "endChar": 25
+      },
+      "revId": "0ec4172ef0598a6ab08ce64d800e0b56d4f9d3c7",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71",
+      "unresolved": false
+    },
+    {
+      "key": {
+        "uuid": "5a2585a7_073a6acd",
+        "filename": "include/soc/oppo/boot_mode.h",
+        "patchSetId": 3
+      },
+      "lineNbr": 24,
+      "author": {
+        "id": 11883
+      },
+      "writtenOn": "2017-02-11T20:43:42Z",
+      "side": 1,
+      "message": "same",
+      "range": {
+        "startLine": 24,
+        "startChar": 0,
+        "endLine": 24,
+        "endChar": 20
+      },
+      "revId": "0ec4172ef0598a6ab08ce64d800e0b56d4f9d3c7",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71",
+      "unresolved": false
+    },
+    {
+      "key": {
+        "uuid": "5a2585a7_e7363ee7",
+        "filename": "include/soc/oppo/boot_mode.h",
+        "patchSetId": 3
+      },
+      "lineNbr": 25,
+      "author": {
+        "id": 11883
+      },
+      "writtenOn": "2017-02-11T20:43:42Z",
+      "side": 1,
+      "message": "same",
+      "range": {
+        "startLine": 25,
+        "startChar": 0,
+        "endLine": 25,
+        "endChar": 23
+      },
+      "revId": "0ec4172ef0598a6ab08ce64d800e0b56d4f9d3c7",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71",
+      "unresolved": false
+    },
+    {
+      "key": {
+        "uuid": "5a2585a7_c73342f5",
+        "filename": "include/soc/oppo/boot_mode.h",
+        "patchSetId": 3
+      },
+      "lineNbr": 26,
+      "author": {
+        "id": 11883
+      },
+      "writtenOn": "2017-02-11T20:43:42Z",
+      "side": 1,
+      "message": "same",
+      "range": {
+        "startLine": 26,
+        "startChar": 0,
+        "endLine": 26,
+        "endChar": 24
+      },
+      "revId": "0ec4172ef0598a6ab08ce64d800e0b56d4f9d3c7",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71",
+      "unresolved": false
+    },
+    {
+      "key": {
+        "uuid": "5a2585a7_c71c626d",
+        "filename": "include/soc/oppo/oppo_project.h",
+        "patchSetId": 3
+      },
+      "lineNbr": 41,
+      "author": {
+        "id": 11883
+      },
+      "writtenOn": "2017-02-11T20:43:42Z",
+      "side": 1,
+      "message": "unused",
+      "range": {
+        "startLine": 41,
+        "startChar": 0,
+        "endLine": 41,
+        "endChar": 20
+      },
+      "revId": "0ec4172ef0598a6ab08ce64d800e0b56d4f9d3c7",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71",
+      "unresolved": false
+    },
+    {
+      "key": {
+        "uuid": "5a2585a7_a719567b",
+        "filename": "include/soc/oppo/oppo_project.h",
+        "patchSetId": 3
+      },
+      "lineNbr": 43,
+      "author": {
+        "id": 11883
+      },
+      "writtenOn": "2017-02-11T20:43:42Z",
+      "side": 1,
+      "message": "same",
+      "range": {
+        "startLine": 43,
+        "startChar": 0,
+        "endLine": 43,
+        "endChar": 20
+      },
+      "revId": "0ec4172ef0598a6ab08ce64d800e0b56d4f9d3c7",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71",
+      "unresolved": false
+    },
+    {
+      "key": {
+        "uuid": "5a2585a7_87265ab9",
+        "filename": "include/soc/oppo/oppo_project.h",
+        "patchSetId": 3
+      },
+      "lineNbr": 44,
+      "author": {
+        "id": 11883
+      },
+      "writtenOn": "2017-02-11T20:43:42Z",
+      "side": 1,
+      "message": "same",
+      "range": {
+        "startLine": 44,
+        "startChar": 0,
+        "endLine": 44,
+        "endChar": 20
+      },
+      "revId": "0ec4172ef0598a6ab08ce64d800e0b56d4f9d3c7",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71",
+      "unresolved": false
+    },
+    {
+      "key": {
+        "uuid": "5a2585a7_4720729b",
+        "filename": "include/soc/oppo/oppo_project.h",
+        "patchSetId": 3
+      },
+      "lineNbr": 50,
+      "author": {
+        "id": 11883
+      },
+      "writtenOn": "2017-02-11T20:43:42Z",
+      "side": 1,
+      "message": "same",
+      "range": {
+        "startLine": 50,
+        "startChar": 0,
+        "endLine": 50,
+        "endChar": 20
+      },
+      "revId": "0ec4172ef0598a6ab08ce64d800e0b56d4f9d3c7",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71",
+      "unresolved": false
+    },
+    {
+      "key": {
+        "uuid": "5a2585a7_e70f5e2d",
+        "filename": "include/soc/oppo/oppo_project.h",
+        "patchSetId": 3
+      },
+      "lineNbr": 90,
+      "author": {
+        "id": 11883
+      },
+      "writtenOn": "2017-02-11T20:43:42Z",
+      "side": 1,
+      "message": "new line",
+      "revId": "0ec4172ef0598a6ab08ce64d800e0b56d4f9d3c7",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71",
+      "unresolved": false
+    },
+    {
+      "key": {
+        "uuid": "5a2585a7_1c176153",
+        "filename": "sound/soc/msm/msm8x16.c",
+        "patchSetId": 3
+      },
+      "lineNbr": 587,
+      "author": {
+        "id": 11883
+      },
+      "writtenOn": "2017-02-11T20:43:42Z",
+      "side": 1,
+      "message": "whitespace",
+      "range": {
+        "startLine": 587,
+        "startChar": 90,
+        "endLine": 587,
+        "endChar": 91
+      },
+      "revId": "0ec4172ef0598a6ab08ce64d800e0b56d4f9d3c7",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71",
+      "unresolved": false
+    },
+    {
+      "key": {
+        "uuid": "5a2585a7_fc0b7529",
+        "filename": "sound/soc/msm/msm8x16.c",
+        "patchSetId": 3
+      },
+      "lineNbr": 1056,
+      "author": {
+        "id": 11883
+      },
+      "writtenOn": "2017-02-11T20:43:42Z",
+      "side": 1,
+      "message": "same",
+      "range": {
+        "startLine": 1056,
+        "startChar": 90,
+        "endLine": 1056,
+        "endChar": 91
+      },
+      "revId": "0ec4172ef0598a6ab08ce64d800e0b56d4f9d3c7",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71",
+      "unresolved": false
+    },
+    {
+      "key": {
+        "uuid": "5a2585a7_dc08b92f",
+        "filename": "sound/soc/msm/msm8x16.c",
+        "patchSetId": 3
+      },
+      "lineNbr": 1525,
+      "author": {
+        "id": 11883
+      },
+      "writtenOn": "2017-02-11T20:43:42Z",
+      "side": 1,
+      "message": "same",
+      "range": {
+        "startLine": 1525,
+        "startChar": 60,
+        "endLine": 1525,
+        "endChar": 61
+      },
+      "revId": "0ec4172ef0598a6ab08ce64d800e0b56d4f9d3c7",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71",
+      "unresolved": false
+    },
+    {
+      "key": {
+        "uuid": "5a2585a7_bc05ed15",
+        "filename": "sound/soc/msm/msm8x16.c",
+        "patchSetId": 3
+      },
+      "lineNbr": 1570,
+      "author": {
+        "id": 11883
+      },
+      "writtenOn": "2017-02-11T20:43:42Z",
+      "side": 1,
+      "message": "same",
+      "range": {
+        "startLine": 1570,
+        "startChar": 60,
+        "endLine": 1570,
+        "endChar": 61
+      },
+      "revId": "0ec4172ef0598a6ab08ce64d800e0b56d4f9d3c7",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71",
+      "unresolved": false
+    },
+    {
+      "key": {
+        "uuid": "5a2585a7_9c02310a",
+        "filename": "sound/soc/msm/msm8x16.c",
+        "patchSetId": 3
+      },
+      "lineNbr": 2043,
+      "author": {
+        "id": 11883
+      },
+      "writtenOn": "2017-02-11T20:43:42Z",
+      "side": 1,
+      "message": "same",
+      "range": {
+        "startLine": 2043,
+        "startChar": 90,
+        "endLine": 2043,
+        "endChar": 91
+      },
+      "revId": "0ec4172ef0598a6ab08ce64d800e0b56d4f9d3c7",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71",
+      "unresolved": false
+    },
+    {
+      "key": {
+        "uuid": "5a2585a7_87ff7a01",
+        "filename": "sound/soc/msm/msm8x16.c",
+        "patchSetId": 3
+      },
+      "lineNbr": 2157,
+      "author": {
+        "id": 11883
+      },
+      "writtenOn": "2017-02-11T20:43:42Z",
+      "side": 1,
+      "message": "same",
+      "range": {
+        "startLine": 2157,
+        "startChar": 60,
+        "endLine": 2157,
+        "endChar": 61
+      },
+      "revId": "0ec4172ef0598a6ab08ce64d800e0b56d4f9d3c7",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71",
+      "unresolved": false
+    },
+    {
+      "key": {
+        "uuid": "5a2585a7_67048e15",
+        "filename": "sound/soc/msm/msm8x16.c",
+        "patchSetId": 3
+      },
+      "lineNbr": 2180,
+      "author": {
+        "id": 11883
+      },
+      "writtenOn": "2017-02-11T20:43:42Z",
+      "side": 1,
+      "message": "same",
+      "range": {
+        "startLine": 2180,
+        "startChar": 90,
+        "endLine": 2180,
+        "endChar": 91
+      },
+      "revId": "0ec4172ef0598a6ab08ce64d800e0b56d4f9d3c7",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71",
+      "unresolved": false
+    },
+    {
+      "key": {
+        "uuid": "5a2585a7_4709922b",
+        "filename": "sound/soc/msm/msm8x16.c",
+        "patchSetId": 3
+      },
+      "lineNbr": 2190,
+      "author": {
+        "id": 11883
+      },
+      "writtenOn": "2017-02-11T20:43:42Z",
+      "side": 1,
+      "message": "same",
+      "range": {
+        "startLine": 2190,
+        "startChar": 90,
+        "endLine": 2190,
+        "endChar": 91
+      },
+      "revId": "0ec4172ef0598a6ab08ce64d800e0b56d4f9d3c7",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71",
+      "unresolved": false
+    },
+    {
+      "key": {
+        "uuid": "5a2585a7_270e8635",
+        "filename": "sound/soc/msm/msm8x16.c",
+        "patchSetId": 3
+      },
+      "lineNbr": 2233,
+      "author": {
+        "id": 11883
+      },
+      "writtenOn": "2017-02-11T20:43:42Z",
+      "side": 1,
+      "message": "same",
+      "range": {
+        "startLine": 2233,
+        "startChar": 60,
+        "endLine": 2233,
+        "endChar": 61
+      },
+      "revId": "0ec4172ef0598a6ab08ce64d800e0b56d4f9d3c7",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71",
+      "unresolved": false
+    },
+    {
+      "key": {
+        "uuid": "5a2585a7_07138a5d",
+        "filename": "sound/soc/msm/msm8x16.c",
+        "patchSetId": 3
+      },
+      "lineNbr": 2243,
+      "author": {
+        "id": 11883
+      },
+      "writtenOn": "2017-02-11T20:43:42Z",
+      "side": 1,
+      "message": "same",
+      "range": {
+        "startLine": 2243,
+        "startChar": 60,
+        "endLine": 2243,
+        "endChar": 61
+      },
+      "revId": "0ec4172ef0598a6ab08ce64d800e0b56d4f9d3c7",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71",
+      "unresolved": false
+    }
+  ]
+}
