@@ -1,0 +1,67 @@
+{
+  "comments": [
+    {
+      "key": {
+        "uuid": "5a2585a7_7c18a584",
+        "filename": "include/soc/oppo/boot_mode.h",
+        "patchSetId": 2
+      },
+      "lineNbr": 17,
+      "author": {
+        "id": 11883
+      },
+      "writtenOn": "2017-02-11T20:37:13Z",
+      "side": 1,
+      "message": "missing whitespace",
+      "revId": "0f10f50e67b9017002b76911b2998570a5d7cf9c",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71",
+      "unresolved": false
+    },
+    {
+      "key": {
+        "uuid": "5a2585a7_9c2b5194",
+        "filename": "include/soc/oppo/boot_mode.h",
+        "patchSetId": 2
+      },
+      "lineNbr": 27,
+      "author": {
+        "id": 11883
+      },
+      "writtenOn": "2017-02-11T20:37:13Z",
+      "side": 1,
+      "message": "whitespace",
+      "range": {
+        "startLine": 27,
+        "startChar": 0,
+        "endLine": 27,
+        "endChar": 3
+      },
+      "revId": "0f10f50e67b9017002b76911b2998570a5d7cf9c",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71",
+      "unresolved": false
+    },
+    {
+      "key": {
+        "uuid": "5a2585a7_bc2e0da4",
+        "filename": "scripts/gcc-wrapper.py",
+        "patchSetId": 2
+      },
+      "lineNbr": 1,
+      "author": {
+        "id": 11883
+      },
+      "writtenOn": "2017-02-11T20:37:13Z",
+      "side": 1,
+      "message": "Another commit",
+      "range": {
+        "startLine": 1,
+        "startChar": 0,
+        "endLine": 1,
+        "endChar": 23
+      },
+      "revId": "0f10f50e67b9017002b76911b2998570a5d7cf9c",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71",
+      "unresolved": false
+    }
+  ]
+}
