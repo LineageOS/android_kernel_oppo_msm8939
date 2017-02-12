@@ -396,14 +396,14 @@ int opchg_battery_set_property(struct power_supply *psy,
 		chip->is_factory_mode= val->intval;
 		if(chip->is_factory_mode == true)
 		{
-			if(is_project(OPPO_15011) || is_project(OPPO_15018) || is_project(OPPO_15022))
+			if(is_project(OPPO_14045) || is_project(OPPO_15011) || is_project(OPPO_15018) || is_project(OPPO_15022))
 			{
 				opchg_config_charging_disable(chip, FACTORY_MODE_DISABLE, 0);
 			}
 		}
 		else
 		{
-			if(is_project(OPPO_15011) || is_project(OPPO_15018) || is_project(OPPO_15022))
+			if(is_project(OPPO_14045) || is_project(OPPO_15011) || is_project(OPPO_15018) || is_project(OPPO_15022))
 			{
 				opchg_set_switch_mode(NORMAL_CHARGER_MODE);
 			}
@@ -592,7 +592,7 @@ int opchg_battery_get_property(struct power_supply *psy,
 			break;
 
 		case POWER_SUPPLY_PROP_BATTERY_FCC:			//dengnw add for battery fcc
-			if(is_project(OPPO_14005) || is_project(OPPO_15011) || is_project(OPPO_15018) || is_project(OPPO_15022))
+			if(is_project(OPPO_14005) || is_project(OPPO_14045) || is_project(OPPO_15011) || is_project(OPPO_15018) || is_project(OPPO_15022))
 			{
 				if(bq27541_di == NULL)
 				{
@@ -610,7 +610,7 @@ int opchg_battery_get_property(struct power_supply *psy,
 			}
 			break;
 		case POWER_SUPPLY_PROP_BATTERY_SOH:			//dengnw add for battery soh
-			if(is_project(OPPO_14005) || is_project(OPPO_15011) || is_project(OPPO_15018) || is_project(OPPO_15022))
+			if(is_project(OPPO_14005) || is_project(OPPO_14045) || is_project(OPPO_15011) || is_project(OPPO_15018) || is_project(OPPO_15022))
 			{
 				if(bq27541_di == NULL)
 				{
@@ -628,7 +628,7 @@ int opchg_battery_get_property(struct power_supply *psy,
 			}
 			break;
 		case POWER_SUPPLY_PROP_BATTERY_CC:			//dengnw add for battery cc
-			if(is_project(OPPO_14005) || is_project(OPPO_15011) || is_project(OPPO_15018) || is_project(OPPO_15022))
+			if(is_project(OPPO_14005) || is_project(OPPO_14045) || is_project(OPPO_15011) || is_project(OPPO_15018) || is_project(OPPO_15022))
 			{
 				if(bq27541_di == NULL)
 				{
