@@ -73,6 +73,10 @@ config SND_SOC_QDSP6V2
 	 audio drivers. This includes q6asm, q6adm,
 	 q6afe interfaces to DSP using apr.
 
+config SND_SOC_QDSP6V2_CALIB_IOCTL_COMPAT
+	bool "Use legacy style of audio calibration ioctls"
+	depends on SND_SOC_QDSP6V2
+
 config AUDIO_OCMEM
 	bool "Enable OCMEM for audio/voice usecase"
 	depends on MSM_OCMEM
