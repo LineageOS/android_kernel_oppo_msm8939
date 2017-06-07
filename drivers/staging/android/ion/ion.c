@@ -443,7 +443,8 @@ static void user_ion_handle_get(struct ion_handle *handle)
 }
 
 /* Must hold the client lock */
-static struct ion_handle *user_ion_handle_get_check_overflow(struct ion_handle *handle)
+static struct ion_handle *user_ion_handle_get_check_overflow(
+	struct ion_handle *handle)
 {
 	if (handle->user_ref_count + 1 == 0)
 		return ERR_PTR(-EOVERFLOW);
@@ -469,7 +470,7 @@ static struct ion_handle *pass_to_user(struct ion_handle *handle)
 /* Must hold the client lock */
 static int user_ion_handle_put_nolock(struct ion_handle *handle)
 {
-	int ret;
+	int ret = 0;
 
 	if (--handle->user_ref_count == 0)
 		ret = ion_handle_put_nolock(handle);
@@ -692,8 +693,8 @@ static void ion_free_nolock(struct ion_client *client, struct ion_handle *handle
 	ion_handle_put_nolock(handle);
 }
 
-/* Must hold the client lock */
-static void user_ion_free_nolock(struct ion_client *client, struct ion_handle *handle)
+static void user_ion_free_nolock(struct ion_client *client,
+				 struct ion_handle *handle)
 {
 	bool valid_handle;
 
@@ -704,7 +705,7 @@ static void user_ion_free_nolock(struct ion_client *client, struct ion_handle *h
 		WARN(1, "%s: invalid handle passed to free.\n", __func__);
 		return;
 	}
-	if (handle->user_ref_count == 0) {
+	if (!handle->user_ref_count > 0) {
 		WARN(1, "%s: User does not have access!\n", __func__);
 		return;
 	}
