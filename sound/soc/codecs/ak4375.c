@@ -30,7 +30,7 @@
 
 #include "ak4375.h"
 
-#define AK4375_DEBUG			//used at debug mode
+//#define AK4375_DEBUG			//used at debug mode
 //#define AK4375_CONTIF_DEBUG		//used at debug mode
 
 #ifdef AK4375_DEBUG
@@ -235,7 +235,7 @@ static int ak4375_set_bickfs(struct snd_soc_codec *codec)
 {
 	struct ak4375_priv *ak4375 = snd_soc_codec_get_drvdata(codec);
 
-	if ( ak4375->nBickFreq == 0 ) { 	//32fs
+	if ( ak4375->nBickFreq == 0 ) {		//32fs
 		ak4375_writeMask(codec, AK4375_15_AUDIO_IF_FORMAT, 0x03, 0x01);	//DL1-0=01(16bit, >=32fs)
 	}
 	else if( ak4375->nBickFreq == 1 ) {	//48fs
@@ -331,15 +331,15 @@ static int ak4375_set_dfsrc8fs(struct snd_soc_codec *codec)
 
 	switch (ak4375->dfsrc8fs) {
 	case 0:		//DAC Filter
-		ak4375_writeMask(codec, AK4375_06_DIGITAL_FILTER_SELECT, 0x08, 0x00); 	//DFTHR=0
+		ak4375_writeMask(codec, AK4375_06_DIGITAL_FILTER_SELECT, 0x08, 0x00);	//DFTHR=0
 		ak4375_writeMask(codec, AK4375_0A_JITTER_CLEANER_SETTING3, 0x20, 0x00); //SRCO8FS=0
 		break;
 	case 1:		//Bypass
-		ak4375_writeMask(codec, AK4375_06_DIGITAL_FILTER_SELECT, 0x08, 0x08); 	//DFTHR=1
+		ak4375_writeMask(codec, AK4375_06_DIGITAL_FILTER_SELECT, 0x08, 0x08);	//DFTHR=1
 		ak4375_writeMask(codec, AK4375_0A_JITTER_CLEANER_SETTING3, 0x20, 0x00); //SRCO8FS=0
 		break;
 	case 2:		//8fs mode
-		ak4375_writeMask(codec, AK4375_06_DIGITAL_FILTER_SELECT, 0x08, 0x08); 	//DFTHR=1
+		ak4375_writeMask(codec, AK4375_06_DIGITAL_FILTER_SELECT, 0x08, 0x08);	//DFTHR=1
 		ak4375_writeMask(codec, AK4375_0A_JITTER_CLEANER_SETTING3, 0x20, 0x20); //SRCO8FS=1
 		break;
 	}
@@ -798,7 +798,7 @@ static int ak4375_set_pllblock(struct snd_soc_codec *codec, int fs)
 		nRefClk = 48 * fs / PLDbit;
 	}
 	else
-	{  									// 64fs
+	{									// 64fs
 		if ( fs <= 48000 ) PLDbit = 1;
 		else if ( fs <= 96000 ) PLDbit = 2;
 		else PLDbit = 4;
@@ -821,24 +821,31 @@ static int ak4375_set_pllblock(struct snd_soc_codec *codec, int fs)
 	PLDbit--;
 	PLMbit--;
 	MDIVbit--;
-/*
+
+	/*OPPO 2015-07-15 qiujianfeng enable for dynamic set*/
 	//PLD15-0
 	snd_soc_write(codec, AK4375_0F_PLL_REF_CLK_DIVIDER1, ((PLDbit & 0xFF00) >> 8));
 	snd_soc_write(codec, AK4375_10_PLL_REF_CLK_DIVIDER2, ((PLDbit & 0x00FF) >> 0));
 	//PLM15-0
 	snd_soc_write(codec, AK4375_11_PLL_FB_CLK_DIVIDER1, ((PLMbit & 0xFF00) >> 8));
 	snd_soc_write(codec, AK4375_12_PLL_FB_CLK_DIVIDER2, ((PLMbit & 0x00FF) >> 0));
-*/
+	/*OPPO 2015-07-15 qiujianfeng enable for dynamic set end*/
+
 	//DIVbit
 	nTemp = snd_soc_read(codec, AK4375_13_SRC_CLK_SOURCE);
 	nTemp &= ~0x10;
 	nTemp |= ( DIVbit << 4 );
 	snd_soc_write(codec, AK4375_13_SRC_CLK_SOURCE, (nTemp|0x01));		//DIV=0or1,SRCCKS=1(SRC Clock Select=PLL) set
+	snd_soc_write(codec, AK4375_0E_PLL_CLK_SOURCE_SELECT, 0x01);	//PLS=1(BCLK)//2015-07-15 qiujianfeng add for set BCLK
+/*OPPO 2015-07-15 qiujianfeng delete for dynamic set*/
+#if 0
 	snd_soc_write(codec, AK4375_0E_PLL_CLK_SOURCE_SELECT, 0x00);	//PLS=0(MCLK)//zhzhyon mark
 	snd_soc_write(codec, AK4375_0F_PLL_REF_CLK_DIVIDER1, 0x00);
 	snd_soc_write(codec, AK4375_10_PLL_REF_CLK_DIVIDER2, 0x04);
 	snd_soc_write(codec, AK4375_11_PLL_FB_CLK_DIVIDER1, 0x00);
 	snd_soc_write(codec, AK4375_12_PLL_FB_CLK_DIVIDER2, 0x3F);
+#endif
+/*OPPO 2015-07-15 qiujianfeng delete for dynamic set end*/
 
 	//MDIV7-0
 	snd_soc_write(codec, AK4375_14_DAC_CLK_DIVIDER, MDIVbit);
@@ -857,7 +864,7 @@ static int ak4375_set_timer(struct snd_soc_codec *codec)
 	hptm = 0;
 
 	if ( ak4375_data->nSeldain == 1 ) nfs = ak4375_data->fs2;
-	else 	nfs = ak4375_data->fs1;
+	else	nfs = ak4375_data->fs1;
 
 	//LVDTM2-0 bits set
 	ret = snd_soc_read(codec, AK4375_03_POWER_MANAGEMENT4);
@@ -906,7 +913,7 @@ static int ak4375_set_timer(struct snd_soc_codec *codec)
 
 static int ak4375_hw_params_set(struct snd_soc_codec *codec, int nfs1)
 {
-	u8 	fs;
+	u8	fs;
 	u8  src;
 
 	akdbgprt("\t[AK4375] %s(%d)\n",__FUNCTION__,__LINE__);
@@ -1152,7 +1159,7 @@ u16 value)
 // * for AK4375
 static int ak4375_trigger(struct snd_pcm_substream *substream, int cmd, struct snd_soc_dai *codec_dai)
 {
-	int 	ret = 0;
+	int	ret = 0;
  //   struct snd_soc_codec *codec = codec_dai->codec;
 
 	akdbgprt("\t[AK4375] %s(%d)\n",__FUNCTION__,__LINE__);
@@ -1185,7 +1192,7 @@ static int ak4375_set_dai_mute2(struct snd_soc_codec *codec, int mute)
 	int nfs, ndt, ndt2;
 
 	if ( ak4375_data->nSeldain == 1 ) nfs = ak4375_data->fs2;
-	else 	nfs = ak4375_data->fs1;
+	else	nfs = ak4375_data->fs1;
 
 	akdbgprt("\t[AK4375] %s mute[%s]\n",__FUNCTION__, mute ? "ON":"OFF");
 
@@ -1288,7 +1295,7 @@ static int ak4375_init_reg(struct snd_soc_codec *codec)
 
 #ifdef PLL_BICK_MODE
 		ak4375_writeMask(codec, AK4375_13_SRC_CLK_SOURCE, 0x01, 0x01);			//SRCCKS=1(SRC Clock Select=PLL)
-		//ak4375_writeMask(codec, AK4375_0E_PLL_CLK_SOURCE_SELECT, 0x01, 0x01);	//PLS=1(BICK)
+		ak4375_writeMask(codec, AK4375_0E_PLL_CLK_SOURCE_SELECT, 0x01, 0x01);	//PLS=1(BICK)
 #endif
 
 	return 0;
