@@ -335,6 +335,7 @@ struct synaptics_ts_data {
 	struct mutex mutex;
 	bool glove_mode_enabled;
 	bool black_gesture_support;
+	bool charger_pump_support;
 	int irq;
 	int irq_gpio;
 	int id1_gpio;
@@ -501,6 +502,7 @@ static int Dot_report_up = 0;
 static void tpd_up(struct synaptics_ts_data *ts, int raw_x, int raw_y, int x, int y, int p) {
 	if( ts && ts->input_dev ){
 		input_report_key(ts->input_dev, BTN_TOUCH, 0);
+		input_report_key(ts->input_dev, BTN_TOOL_FINGER, 0);
 		TPD_DEBUG("Up[%4d %4d %4d]\n", x, y, p);
 		if( Dot_report_up == 150 ){
 			TPD_ERR("Up[%4d %4d %4d]\n", x, y, p);
@@ -731,19 +733,24 @@ static int synaptics_enable_interrupt_for_gesture(struct synaptics_ts_data *ts, 
 	ret = i2c_smbus_write_i2c_block_data( ts->client, F12_2D_CTRL27, 4, &(val[0x0]) );
 
 	if( enable ) {
-		ts->gesture_enable = 1;
 		reportbuf[2] |= 0x02 ;
 	} else {
-		ts->gesture_enable = 0;
 		reportbuf[2] &= 0xfd ;
 	}
-	printk("%s:reportbuf[2] = 0x%x\n", __func__, reportbuf[2]);
+	TPD_DEBUG("%s:reportbuf[2] = 0x%x\n", __func__, reportbuf[2]);
+
+	ret = synaptics_rmi4_i2c_write_byte(ts->client, 0xff, 0x0);
+	if( ret < 0 ) {
+		TPD_ERR("%s: select page failed ret = %d\n", __func__, ret);
+		return -1;
+	}
 	ret = i2c_smbus_write_i2c_block_data( ts->client, F12_2D_CTRL20, 3, &(reportbuf[0x0]) );
 	if( ret < 0 ){
 		TPD_ERR("%s :Failed to write report buffer\n", __func__);
 		return -1;
 	}
 	gesture = UnkownGesture;
+	ts->gesture_enable = enable;
 	return 0;
 }
 #endif
@@ -938,6 +945,12 @@ static void int_state(struct synaptics_ts_data *ts)
 		return;
 	}
 	if(ts->gesture_enable == 1) {
+		ret = i2c_smbus_write_byte_data(ts->client, 0xff, 0x00);
+		if (ret < 0){
+			TPD_ERR("%s page select failed\n", __func__);
+		}else{
+			ret = i2c_smbus_write_byte_data(ts_g->client, F01_RMI_CTRL02, 0x03);
+		}
 		synaptics_enable_interrupt_for_gesture(ts, 1);
 	}
 }
@@ -1070,19 +1083,16 @@ static void synaptics_get_coordinate_point(struct synaptics_ts_data *ts)
 
 	TPD_DEBUG("%s is called!\n",__func__);
 	ret = synaptics_rmi4_i2c_write_byte(ts->client, 0xff, 0x4);
-		ret = i2c_smbus_read_i2c_block_data(ts->client, F51_CUSTOM_DATA11, 8, &(coordinate_buf[0]));
-		ret = i2c_smbus_read_i2c_block_data(ts->client, F51_CUSTOM_DATA11 + 8, 8, &(coordinate_buf[8]));
-		ret = i2c_smbus_read_i2c_block_data(ts->client, F51_CUSTOM_DATA11 + 16, 8, &(coordinate_buf[16]));
-		ret = i2c_smbus_read_i2c_block_data(ts->client, F51_CUSTOM_DATA11 + 24, 1, &(coordinate_buf[24]));
-
+	ret = i2c_smbus_read_i2c_block_data(ts->client, F51_CUSTOM_DATA11, 8, &(coordinate_buf[0]));
+	ret = i2c_smbus_read_i2c_block_data(ts->client, F51_CUSTOM_DATA11 + 8, 8, &(coordinate_buf[8]));
+	ret = i2c_smbus_read_i2c_block_data(ts->client, F51_CUSTOM_DATA11 + 16, 8, &(coordinate_buf[16]));
+	ret = i2c_smbus_read_i2c_block_data(ts->client, F51_CUSTOM_DATA11 + 24, 1, &(coordinate_buf[24]));
+	ret = synaptics_rmi4_i2c_write_byte(ts->client, 0xff, 0x0);
 	for(i = 0; i< 23; i += 2) {
 		trspoint = coordinate_buf[i]|coordinate_buf[i+1] << 8;
 		TPD_DEBUG("synaptics TP read coordinate_point[%d] = %d\n",i,trspoint);
     }
-
 	TPD_DEBUG("synaptics TP coordinate_buf = 0x%x\n",coordinate_buf[24]);
-
-	ret = synaptics_rmi4_i2c_write_byte(ts->client, 0xff, 0x0);
 	Point_start.x = (coordinate_buf[0] | (coordinate_buf[1] << 8)) * LCD_WIDTH/ (ts->max_x);
 	Point_start.y = (coordinate_buf[2] | (coordinate_buf[3] << 8)) * LCD_HEIGHT/ (ts->max_y);
 	Point_end.x   = (coordinate_buf[4] | (coordinate_buf[5] << 8)) * LCD_WIDTH / (ts->max_x);
@@ -1107,7 +1117,6 @@ static void gesture_judge(struct synaptics_ts_data *ts)
 	unsigned int keycode = 0;
 	F12_2D_DATA04 = 0x0008;
 
-	TPD_DEBUG("%s is called!\n",__func__);
 	ret = synaptics_rmi4_i2c_write_byte(ts->client, 0xff, 0x00);
 	if (ret < 0) {
 		TPDTM_DMESG("failed to transfer the data, ret = %d\n", ret);
@@ -1210,6 +1219,7 @@ static void gesture_judge(struct synaptics_ts_data *ts)
 			input_sync(ts->input_dev);
 		}
 	} else {
+		ret = synaptics_rmi4_i2c_write_byte(ts->client, 0xff, 0x0);
 		ret = i2c_smbus_read_i2c_block_data( ts->client, F12_2D_CTRL20, 3, &(reportbuf[0x0]) );
 		ret = reportbuf[2] & 0x20;
 		if(ret == 0)
@@ -1230,14 +1240,15 @@ static void int_touch(struct synaptics_ts_data *ts)
     uint8_t buf[80];
     uint32_t finger_state = 0;
 	uint8_t finger_num = 0;
+	int obj_attention =0;
     struct point_info points;
 
     memset(buf, 0, sizeof(buf));
 	points.x = 0;
 	points.y = 0;
 	points.z = 0;
-	ret = i2c_smbus_read_word_data(ts->client, F12_2D_DATA_BASE+0x03);
-	if( (ret&0x03FF) != 0 ){
+	obj_attention = i2c_smbus_read_word_data(ts->client, F12_2D_DATA_BASE+0x03);
+	if( (obj_attention&0x03FF) != 0 ){
 		ret = synaptics_rmi4_i2c_read_block(ts->client, F12_2D_DATA_BASE, 80, buf);
 		if (ret < 0) {
 			TPD_ERR("synaptics_int_touch: i2c_transfer failed\n");
@@ -1255,7 +1266,7 @@ static void int_touch(struct synaptics_ts_data *ts)
 				points.y = ((buf[i*8+4]&0x0f)<<8) | (buf[i*8+3] & 0xff);
 				points.raw_y = buf[i*8+7] & 0x0f;
 				points.z = buf[i*8+5];
-				if( points.z > 0) {
+				if(((obj_attention&0x03FF) >> i )&0x01){
 #ifdef TYPE_B_PROTOCOL
 /*
 		 * Each 2-bit finger status field represents the following:
@@ -1280,8 +1291,10 @@ static void int_touch(struct synaptics_ts_data *ts)
 		}
 	}else{
 #ifdef TYPE_B_PROTOCOL
-		input_mt_slot(ts->input_dev, i);
-		input_mt_report_slot_state(ts->input_dev,MT_TOOL_FINGER, 0);
+		for (i = 0; i < ts->max_num; i++) {
+			input_mt_slot(ts->input_dev, i);
+			input_mt_report_slot_state(ts->input_dev,MT_TOOL_FINGER, 0);
+		}
 #endif
 		tpd_up(ts, points.raw_x, points.raw_y, points.x, points.y, points.z);
 	}
@@ -1290,8 +1303,14 @@ static void int_touch(struct synaptics_ts_data *ts)
 	ts->pre_finger_state = finger_state;
 
 #ifdef SUPPORT_GESTURE
-	if (ts->gesture_enable == 1) {
-		gesture_judge(ts);
+	if( ts->gesture_enable == 1) {
+		if(ts->is_suspended == 1) {
+			gesture_judge(ts);
+		} else {
+			TPD_ERR("synaptics touchpanel only goes this for get in gesture mode after resume\n");
+			ts->gesture_enable = 0;
+			int_state(ts);
+		}
 	}
 	#endif
 }
@@ -1460,38 +1479,39 @@ static ssize_t tp_double_write_func(struct file *file, const char __user *buffer
 	sscanf(buf, "%d", &ret);
 	if(!ts)
 		return count;
+
+	TPD_ERR("%s: ret=%d is_suspended=%d\n",__func__,ret,ts->is_suspended);
+	mutex_lock(&ts->mutex);
 	if( (ret == 0 )||(ret == 1) )
 			ts->double_enable = ret;
 
 	if(ts->is_suspended == 1)	{
 		switch(ret) {
 			case 0:
-				TPD_ERR("tp_guesture_func will be disable\n");
 				ret = synaptics_enable_interrupt_for_gesture(ts, 0);
 				if( ret<0 )
 					ret = synaptics_enable_interrupt_for_gesture(ts, 0);
 				ret = synaptics_enable_interrupt(ts, 0);
 				if(ret){
 					TPD_DEBUG("%s: cannot disable interrupt\n", __func__);
-					return -1;
+					break;
 				}
 				ret = i2c_smbus_write_byte_data(ts->client, F01_RMI_CTRL00, 0x01);
 				if( ret < 0 ){
 					TPD_ERR("write F01_RMI_CTRL00 failed\n");
-					return -1;
+					break;
 				}
 				break;
 			case 1:
-				TPD_ERR("tp_guesture_func will be enable\n");
 				ret = synaptics_rmi4_i2c_write_byte(ts->client, 0xff, 0x0);
 				if( ret < 0 ) {
 					TPD_ERR("%s: select page failed ret = %d\n", __func__, ret);
-					return -1;
+					break;
 				}
 				ret = i2c_smbus_write_byte_data(ts->client, F01_RMI_CTRL00, 0x80);
 				if( ret < 0 ){
 					TPD_ERR("write F01_RMI_CTRL00 failed\n");
-					return -1;
+					break;
 				}
 				ret = synaptics_enable_interrupt_for_gesture(ts, 1);
 				if( ret<0 )
@@ -1499,13 +1519,15 @@ static ssize_t tp_double_write_func(struct file *file, const char __user *buffer
                 ret = synaptics_enable_interrupt(ts, 1);
 				if(ret){
 					TPD_DEBUG("%s: cannot enable interrupt\n", __func__);
-					return -1;
+					break;
 				}
 				break;
 			default:
 				TPD_ERR("Please enter 0 or 1 to open or close the double-tap function\n");
 		}
 	}
+	mutex_unlock(&ts->mutex);
+	TPD_ERR("%s: End\n",__func__);
 	return count;
 }
 
@@ -2311,6 +2333,27 @@ static int	synaptics_input_init(struct synaptics_ts_data *ts)
 	return 0;
 }
 
+static int synaptics_free_fingers(struct synaptics_ts_data *ts)
+{
+	int i = 0;
+
+#ifdef TYPE_B_PROTOCOL
+	for (i = 0; i < ts->max_num; i++) {
+		input_mt_slot(ts->input_dev, i);
+		input_mt_report_slot_state(ts->input_dev,MT_TOOL_FINGER, 0);
+	}
+	input_report_key(ts->input_dev,BTN_TOUCH, 0);
+	input_report_key(ts->input_dev,BTN_TOOL_FINGER, 0);
+	input_sync(ts->input_dev);
+#else
+	input_report_key(ts->input_dev,BTN_TOUCH, 0);
+	input_report_key(ts->input_dev,BTN_TOOL_FINGER, 0);
+	input_mt_sync(ts->input_dev);
+	input_sync(ts->input_dev);
+#endif
+
+	return 0;
+}
 /*********************FW Update Func******************************************/
 static int synatpitcs_fw_update(struct device *dev, bool force)
 {
@@ -2353,11 +2396,9 @@ static int synatpitcs_fw_update(struct device *dev, bool force)
 	#ifdef SUPPORT_GLOVES_MODE
 	synaptics_glove_mode_enable(ts);
 	#endif
+    synaptics_free_fingers(ts);
 	synaptics_init_panel(ts);
 	synaptics_enable_interrupt(ts,1);
-	input_report_key(ts->input_dev, BTN_TOUCH, 0);
-    input_mt_sync(ts->input_dev);
-	input_sync(ts->input_dev);
 	return 0;
 }
 
@@ -2994,8 +3035,8 @@ static int synapitcs_ts_update(struct i2c_client *client, const uint8_t *data, u
 
 static int charge_plug_status = 0 ;//0: no   1: slow  3:  quickly charge
 static int charge_plug_in_flag = 0 ;//0: no   1: slow  3:  quickly charge
-//extern void (*synaptics_chg_mode_enable)(int enable);
-/*static void synaptics_charge_mode_enable(int enable)
+extern void (*synaptics_chg_mode_enable)(int enable);
+static void synaptics_charge_mode_enable(int enable)
 {
 	int ret;
 	if(ts_g == NULL){
@@ -3012,23 +3053,26 @@ static int charge_plug_in_flag = 0 ;//0: no   1: slow  3:  quickly charge
 	charge_plug_status = enable ;
 	charge_plug_in_flag = enable;
 	TPD_ERR("%s, page 4  F51_CUSTOM_CTRL31=0x%x write charge_plug_status=%d \n",__func__,F51_CUSTOM_CTRL31,charge_plug_status);
-	ret = i2c_smbus_write_byte_data(ts_g->client, 0xff, 4);
+	mutex_lock(&ts_g->mutex);
+	ret = i2c_smbus_write_byte_data(ts_g->client, 0xff, 0x04);
 	if( ret < 0 ){
 		TPD_ERR("%s i2c error\n", __func__);
-		return ;
+		goto OUT;
 	}
 	ret = i2c_smbus_write_byte_data(ts_g->client, F51_CUSTOM_CTRL31&0x00ff, charge_plug_status);
 	if( ret < 0 ){
 		TPD_ERR("%s i2c error\n", __func__);
-		return;
+		goto OUT;
 	}
-       ret = i2c_smbus_write_byte_data(ts_g->client, 0xff, 0x0);
+    ret = i2c_smbus_write_byte_data(ts_g->client, 0xff, 0x0);
 	if( ret < 0 ){
 		TPDTM_DMESG("%s i2c error\n", __func__);
-              return;
+		goto OUT;
 	}
+OUT:
+	mutex_unlock(&ts_g->mutex);
 	return ;
-}*/
+}
 
 static  void get_tp_id(int TP_ID1,int TP_ID2,int TP_ID3, struct synaptics_ts_data *ts)
 {
@@ -3084,6 +3128,8 @@ static int synaptics_parse_dts(struct device *dev, struct synaptics_ts_data *ts)
 				"synaptics,glove-mode-enabled");
 	ts->black_gesture_support = of_property_read_bool(np,
 				"synaptics,black-gesture-enabled");
+	ts->charger_pump_support = of_property_read_bool(np,
+				"synaptics,charger-pump-support");
 	ts->irq_gpio = of_get_named_gpio_flags(np, "synaptics,irq-gpio", 0, &(ts->irq_flags));
 	if( ts->irq_gpio < 0 ){
 		TPD_DEBUG("ts->irq_gpio not specified\n");
@@ -3236,6 +3282,7 @@ static int synaptics_ts_probe(
 		ret = -ENOMEM;
 		goto err_alloc_data_failed;
 	}
+	memset(ts, 0, sizeof(*ts));
 
 	ts->client = client;
 	i2c_set_clientdata(client, ts);
@@ -3430,7 +3477,8 @@ static int synaptics_ts_probe(
 		goto exit_init_failed;
 	}
 	ts_g = ts;
-	//synaptics_chg_mode_enable = synaptics_charge_mode_enable;
+	if(ts->charger_pump_support)
+		synaptics_chg_mode_enable = synaptics_charge_mode_enable;
 #ifdef CONFIG_SYNAPTIC_RED
 	premote_data = remote_alloc_panel_data();
 	if(premote_data) {
@@ -3521,16 +3569,18 @@ static int synaptics_ts_suspend(struct device *dev)
 		input_sync(ts->kpd);
 	}
 	input_report_key(ts->input_dev, BTN_TOUCH, 0);
-
-#ifndef TYPE_B_PROTOCOL
-	input_mt_sync(ts->input_dev);
-#endif
-	input_sync(ts->input_dev);
+	synaptics_free_fingers(ts);
 
 #ifndef TPD_USE_EINT
 	hrtimer_cancel(&ts->timer);
 #endif
 
+	ret = i2c_smbus_write_byte_data(ts->client, 0xff, 0x00);
+	if (ret < 0){
+		TPD_ERR("%s page select failed\n", __func__);
+	}else{
+		ret = i2c_smbus_write_byte_data(ts_g->client, F01_RMI_CTRL02, 0x03);
+	}
 #ifdef SUPPORT_GLOVES_MODE
 	if( ts->glove_enable ){
 		/* page select = 0x4 */
@@ -3551,7 +3601,7 @@ static int synaptics_ts_suspend(struct device *dev)
 
 #ifdef SUPPORT_GESTURE
 	if( ts->double_enable ){
-		if( is_project(OPPO_15011) ){
+		if( is_project(OPPO_15011)||is_project(OPPO_15018) ){
 			ret = i2c_smbus_write_byte_data(ts_g->client, F01_RMI_CTRL02, 3);
 			if( ret < 0 ){
 				TPD_ERR("%s i2c error\n",__func__);
@@ -3581,6 +3631,7 @@ static int synaptics_ts_resume(struct device *dev)
 	struct synaptics_ts_data *ts = dev_get_drvdata(dev);
 	TPD_DEBUG("%s is called\n", __func__);
 	is_touch = 0;
+	ts->is_suspended = 0;
 	if(ts->loading_fw)
 		return 0;
 	queue_work(speedup_resume_wq, &ts->speed_up_work);
@@ -3600,11 +3651,7 @@ static void speedup_synaptics_resume(struct work_struct *work)
 	}
 
 	ts->is_suspended = 0;
-	input_report_key(ts->input_dev, BTN_TOUCH, 0);
-#ifndef TYPE_B_PROTOCOL
-    input_mt_sync(ts->input_dev);
-#endif
-	input_sync(ts->input_dev);
+	synaptics_free_fingers(ts);
 	ts->pre_btn_state = 0;
 
 	if( ts->reset_gpio > 0 ) {
@@ -3626,13 +3673,14 @@ static void speedup_synaptics_resume(struct work_struct *work)
 			TPD_ERR("%s: failed for page select try again later\n", __func__);
 		}
 	}
+	ret = i2c_smbus_write_byte_data(ts_g->client, F01_RMI_CTRL02, 0x01);
 	ret = i2c_smbus_read_byte_data(ts->client, F01_RMI_DATA_BASE);
 	ret = i2c_smbus_write_byte_data(ts->client, F01_RMI_CMD_BASE, 0x01);
 	msleep(50);
 	/*****Gesture Register********/
 #ifdef SUPPORT_GESTURE
 	if(ts->double_enable ){
-		if( is_project(OPPO_15011) ){
+		if( is_project(OPPO_15011)||is_project(OPPO_15018) ){
 			ret = i2c_smbus_write_byte_data(ts_g->client, F01_RMI_CTRL02, 1);
 			if( ret < 0 ){
 				TPD_ERR("%s i2c error\n",__func__);
@@ -3651,7 +3699,7 @@ static void speedup_synaptics_resume(struct work_struct *work)
 #endif
 
 //mingqiang.guo for charge pulg in ,open tp Finger Amplitude Thre and Finger Dbounce ,avoid charge disturb
-	if( is_project(OPPO_15018) ){
+	if(ts->charger_pump_support){
 	    if(charge_plug_in_flag){
 			TPD_ERR("%s, page 4 F51_CUSTOM_CTRL31=0x%x write charge_plug_status=%d \n",__func__,F51_CUSTOM_CTRL31,charge_plug_status);//0x0424
 			ret = i2c_smbus_write_byte_data(ts_g->client, 0xff, 4);
