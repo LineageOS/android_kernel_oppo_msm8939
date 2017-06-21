@@ -545,6 +545,8 @@ int opchg_get_bq2022_manufacture_id(void)
     }
     mutex_unlock(&bq2202a_access);
 
+	batt_manufac_id = BATTERY_2020MAH_SONY;
+
 	printk("manufac_id[0-6]:0x%x,0x%x,0x%x,0x%x,0x%x,0x%x,0x%x\n",manufac_id_buf[0],manufac_id_buf[1],
 		manufac_id_buf[2],manufac_id_buf[3],manufac_id_buf[4],manufac_id_buf[5],manufac_id_buf[6]);
 #else
