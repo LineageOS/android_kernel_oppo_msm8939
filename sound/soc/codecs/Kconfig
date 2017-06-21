@@ -383,6 +383,9 @@ config SND_SOC_TLV320AIC3X
 config SND_SOC_TLV320DAC33
 	tristate
 
+config SND_SOC_TS4621
+	tristate
+
 config SND_SOC_TWL4030
 	select MFD_TWL4030_AUDIO
 	tristate
