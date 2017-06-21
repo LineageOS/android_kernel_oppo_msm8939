@@ -30,7 +30,7 @@
 
 #include "ak4375.h"
 
-#define AK4375_DEBUG			//used at debug mode
+//#define AK4375_DEBUG			//used at debug mode
 //#define AK4375_CONTIF_DEBUG		//used at debug mode
 
 #ifdef AK4375_DEBUG
@@ -821,24 +821,31 @@ static int ak4375_set_pllblock(struct snd_soc_codec *codec, int fs)
 	PLDbit--;
 	PLMbit--;
 	MDIVbit--;
-/*
+
+	/*OPPO 2015-07-15 qiujianfeng enable for dynamic set*/
 	//PLD15-0
 	snd_soc_write(codec, AK4375_0F_PLL_REF_CLK_DIVIDER1, ((PLDbit & 0xFF00) >> 8));
 	snd_soc_write(codec, AK4375_10_PLL_REF_CLK_DIVIDER2, ((PLDbit & 0x00FF) >> 0));
 	//PLM15-0
 	snd_soc_write(codec, AK4375_11_PLL_FB_CLK_DIVIDER1, ((PLMbit & 0xFF00) >> 8));
 	snd_soc_write(codec, AK4375_12_PLL_FB_CLK_DIVIDER2, ((PLMbit & 0x00FF) >> 0));
-*/
+	/*OPPO 2015-07-15 qiujianfeng enable for dynamic set end*/
+
 	//DIVbit
 	nTemp = snd_soc_read(codec, AK4375_13_SRC_CLK_SOURCE);
 	nTemp &= ~0x10;
 	nTemp |= ( DIVbit << 4 );
 	snd_soc_write(codec, AK4375_13_SRC_CLK_SOURCE, (nTemp|0x01));		//DIV=0or1,SRCCKS=1(SRC Clock Select=PLL) set
+	snd_soc_write(codec, AK4375_0E_PLL_CLK_SOURCE_SELECT, 0x01);	//PLS=1(BCLK)//2015-07-15 qiujianfeng add for set BCLK
+/*OPPO 2015-07-15 qiujianfeng delete for dynamic set*/
+#if 0
 	snd_soc_write(codec, AK4375_0E_PLL_CLK_SOURCE_SELECT, 0x00);	//PLS=0(MCLK)//zhzhyon mark
 	snd_soc_write(codec, AK4375_0F_PLL_REF_CLK_DIVIDER1, 0x00);
 	snd_soc_write(codec, AK4375_10_PLL_REF_CLK_DIVIDER2, 0x04);
 	snd_soc_write(codec, AK4375_11_PLL_FB_CLK_DIVIDER1, 0x00);
 	snd_soc_write(codec, AK4375_12_PLL_FB_CLK_DIVIDER2, 0x3F);
+#endif
+/*OPPO 2015-07-15 qiujianfeng delete for dynamic set end*/
 
 	//MDIV7-0
 	snd_soc_write(codec, AK4375_14_DAC_CLK_DIVIDER, MDIVbit);
@@ -1288,7 +1295,7 @@ static int ak4375_init_reg(struct snd_soc_codec *codec)
 
 #ifdef PLL_BICK_MODE
 		ak4375_writeMask(codec, AK4375_13_SRC_CLK_SOURCE, 0x01, 0x01);			//SRCCKS=1(SRC Clock Select=PLL)
-		//ak4375_writeMask(codec, AK4375_0E_PLL_CLK_SOURCE_SELECT, 0x01, 0x01);	//PLS=1(BICK)
+		ak4375_writeMask(codec, AK4375_0E_PLL_CLK_SOURCE_SELECT, 0x01, 0x01);	//PLS=1(BICK)
 #endif
 
 	return 0;
