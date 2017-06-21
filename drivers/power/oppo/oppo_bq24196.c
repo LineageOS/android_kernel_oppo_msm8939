@@ -556,7 +556,7 @@ int bq24196_set_input_chg_current(struct opchg_charger *chip, int iusbin_mA, boo
 		iusbmax = min(iusbin_mA, chip->aicl_current);
 		bq24196_iusbmax_set_noaicl(chip, iusbmax);
 		chip->aicl_working = false;
-		pr_err("%s aicl end 1500ma_1,iusbmax:%d\n",__func__,iusbmax);
+		pr_err("%s aicl end 1500ma_1,iusbmax:%d set input current is end\n",__func__,iusbmax);
 		chip->is_charger_det = 0;
 		return 0;
 	}
@@ -1002,7 +1002,7 @@ int bq24196_safety_timeout(struct opchg_charger *chip, u8 status)
     return 0;
 }
 
-#if 0
+#if 1//for 15029
 void bq24196_chg_irq_handler(int irq, struct opchg_charger *chip)
 {
 	int rc;

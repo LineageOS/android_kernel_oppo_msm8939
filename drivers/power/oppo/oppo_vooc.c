@@ -436,6 +436,7 @@ update_fw:
 		rc = pic16f_fw_write(chip,Pic16F_firmware_data,0,sizeof(Pic16F_firmware_data) - 34);
 	}
 	if (rc < 0) {
+		pr_err("%s fw write error\n",__func__);
 		goto update_fw_err;
 	}
 

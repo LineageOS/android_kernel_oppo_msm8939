@@ -977,7 +977,7 @@ int smb358_chg_term(struct opchg_charger *chip, u8 status)
 	if(term_status)
 	chip->batt_pre_full = term_status;//chip->batt_full = !!status;
     //power_supply_changed(&chip->batt_psy);
-
+    chip->batt_pre_full_smb358 = term_status;
     dev_dbg(chip->dev, "%s status:%d\n", __func__, status);
     return 0;
 }
