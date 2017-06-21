@@ -1034,7 +1034,6 @@ EXPORT_SYMBOL(opchg_check_earphone_off);
 
 void opchg_check_lcd_onoff(struct opchg_charger *chip)
 {
-	//if((chip->is_lcd_on==true)&&(chip->temperature >= 400))
 	if(chip->is_lcd_on==true)
 	{
 		if (is_project(OPPO_15109))
@@ -1047,8 +1046,8 @@ void opchg_check_lcd_onoff(struct opchg_charger *chip)
 		else if(is_project(OPPO_15011)){
 			if((chip->charging_total_time > 4)||(chip->batt_full == true))
 			{
-			opchg_config_input_chg_current(chip, INPUT_CURRENT_LCD, LCD_ON_CHARGING_INPUT_CURRENT_15011);
-			opchg_config_fast_current(chip, FAST_CURRENT_LCD, LCD_ON_CHARGING_FAST_CURRENT_15011);
+				opchg_config_input_chg_current(chip, INPUT_CURRENT_LCD, LCD_ON_CHARGING_INPUT_CURRENT_15011);
+				opchg_config_fast_current(chip, FAST_CURRENT_LCD, LCD_ON_CHARGING_FAST_CURRENT_15011);
 			}
 		}
 		else
@@ -1205,28 +1204,28 @@ void opchg_check_recharging_voltage(struct opchg_charger *chip)
 	if(recharger_statu_pre == RECHARGER_ENABLE)
 	{
 		//-3~0
-			if(chip->charging_opchg_temp_statu == OPCHG_CHG_TEMP_COOL)
-			{
-				if(chip->bat_instant_vol < 3700 * 1000)
-					vol_low_count++;
-				else
-					vol_low_count = 0;
+		if(chip->charging_opchg_temp_statu == OPCHG_CHG_TEMP_COOL)
+		{
+			if(chip->bat_instant_vol < 3700 * 1000)
+				vol_low_count++;
+			else
+				vol_low_count = 0;
 
-				if(vol_low_count < 5){
-					opchg_config_charging_disable(chip, CHAGER_RECHARGER_DISABLE, 1); // disable charging
-				} else {
-					vol_low_count = 0;
-					opchg_config_charging_disable(chip, CHAGER_RECHARGER_DISABLE, 0); // enable charging
-					recharger_statu_pre = RECHARGER_STATUS;
-				}
+			if(vol_low_count < 5){
+				opchg_config_charging_disable(chip, CHAGER_RECHARGER_DISABLE, 1); // disable charging
+			} else {
+				vol_low_count = 0;
+				opchg_config_charging_disable(chip, CHAGER_RECHARGER_DISABLE, 0); // enable charging
+				recharger_statu_pre = RECHARGER_STATUS;
 			}
-			//0~5
-			else if(chip->charging_opchg_temp_statu == OPCHG_CHG_TEMP_PRE_COOL1)
-			{
-				if(chip->bat_instant_vol < 4100 * 1000)
-					vol_low_count++;
-				else
-					vol_low_count = 0;
+		}
+		//0~5
+		else if(chip->charging_opchg_temp_statu == OPCHG_CHG_TEMP_PRE_COOL1)
+		{
+			if(chip->bat_instant_vol < 4100 * 1000)
+				vol_low_count++;
+			else
+				vol_low_count = 0;
 
 			if(vol_low_count < 5){
 				opchg_config_charging_disable(chip, CHAGER_RECHARGER_DISABLE, 1); // disable charging
@@ -1757,17 +1756,14 @@ void opchg_delayed_wakeup_thread(struct work_struct *work)
 void opchg_modify_tp_param(struct work_struct *work)
 {
 	struct opchg_charger *chip = container_of(work, struct opchg_charger, opchg_modify_tp_param_work);
-
-	if(is_project(OPPO_15018)||is_project(OPPO_15011)){
-		if(synaptics_chg_mode_enable){
-			if (chip->chg_present && is_oppo_fast_charger) {
-			    synaptics_chg_mode_enable(3); // fast charger
-			} else if (chip->chg_present) {
-			    synaptics_chg_mode_enable(1);
-			} else {
-				synaptics_chg_mode_enable(0);
-				is_oppo_fast_charger = 0;
-			}
+	if(synaptics_chg_mode_enable){
+		if (chip->chg_present && is_oppo_fast_charger) {
+			synaptics_chg_mode_enable(3); // fast charger
+		} else if (chip->chg_present) {
+			synaptics_chg_mode_enable(1);
+		} else {
+			synaptics_chg_mode_enable(0);
+			is_oppo_fast_charger = 0;
 		}
 	}
 }

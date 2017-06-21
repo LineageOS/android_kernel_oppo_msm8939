@@ -674,6 +674,19 @@ static int opcharger_resume(struct device *dev)
     return 0;
 }
 
+static void opcharger_charger_shutdown(struct i2c_client *client)
+{
+    struct opchg_charger *chip = i2c_get_clientdata(client);
+
+	if(is_project(OPPO_15109)&&(get_PCB_Version() == HW_VERSION__11||get_PCB_Version() == HW_VERSION__13)){
+		if(chip->driver_id == OPCHG_BQ24188_ID){
+			opchg_get_charging_status(chip);
+			msleep(20);
+			pr_err("%s 15005 read i2c\n",__func__);
+		}
+	}
+}
+
 static const struct dev_pm_ops opcharger_pm_ops = {
     .suspend	= opcharger_suspend,
     .resume		= opcharger_resume,
@@ -707,6 +720,7 @@ static struct i2c_driver opcharger_charger_driver = {
     },
     .probe		= opcharger_charger_probe,
     .remove		= opcharger_charger_remove,
+    .shutdown	= opcharger_charger_shutdown,
     .id_table	= opcharger_charger_id,
 };
 

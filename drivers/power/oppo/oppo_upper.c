@@ -396,14 +396,11 @@ int opchg_battery_set_property(struct power_supply *psy,
 		chip->is_factory_mode= val->intval;
 		if(chip->is_factory_mode == true)
 		{
-			if(is_project(OPPO_15011) || is_project(OPPO_15018) || is_project(OPPO_15022))
-			{
 				opchg_config_charging_disable(chip, FACTORY_MODE_DISABLE, 0);
-			}
 		}
 		else
 		{
-			if(is_project(OPPO_15011) || is_project(OPPO_15018) || is_project(OPPO_15022))
+			if(is_project(OPPO_15018) || is_project(OPPO_15022))
 			{
 				opchg_set_switch_mode(NORMAL_CHARGER_MODE);
 			}

@@ -1119,7 +1119,6 @@ irqreturn_t opchg_chg_irq_handler(int irq, void *dev_id)
 		break;
 
 	case OPCHG_BQ24196_ID:
-		//bq24196_chg_irq_handler(irq, chip);
 		break;
 
     default:
@@ -1131,6 +1130,7 @@ irqreturn_t opchg_chg_irq_handler(int irq, void *dev_id)
 
 void opchg_usbin_valid_irq_handler(bool usb_present)
 {
+	is_gt1x_tp_charger =usb_present;
 	if(!opchg_chip){
 		pr_err("%s opchg_chip is NULL,return\n",__func__);
 		return;
