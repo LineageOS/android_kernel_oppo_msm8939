@@ -36,6 +36,9 @@ extern int pic_fw_ver_count_15018;
 extern unsigned char Pic16F_firmware_data_15022[];
 extern int pic_fw_ver_count_15022;
 
+extern unsigned char stm8s_firmware_data_15022[];
+extern int st_fw_ver_count_15022;
+
 extern unsigned char Pic16F_firmware_data[];
 extern int pic_fw_ver_count;
 */
@@ -1607,7 +1610,7 @@ static void fastcg_work_func(struct work_struct *work)
 		if((i == 2) && (data != 0x50) && (!fw_ver_info)){	//data recvd not start from "101"
 			pr_err("%s data err:0x%x\n",__func__,data);
 
-			if(is_project(OPPO_15011) || is_project(OPPO_15018))
+			if(is_project(OPPO_15011) || is_project(OPPO_15018) || is_project(OPPO_15022))
 			{
 				#ifdef OPPO_USE_FAST_CHARGER_RESET_MCU
 				if(opchg_chip != NULL)
@@ -1725,7 +1728,7 @@ static void fastcg_work_func(struct work_struct *work)
 					if (opchg_chip->chg_present == true) {
 						opchg_chip->chg_present = false;
 						pr_debug("oppo_debug check fastcharger is out\n");
-					rc = bq24196_chg_uv(opchg_chip, 1);
+						rc = bq24196_chg_uv(opchg_chip, 1);
 					}
 				}
 			}
@@ -2587,6 +2590,7 @@ int opchg_set_switch_fast_charger(void)
 		#ifndef OPCHG_VOOC_WATCHDOG
 		mutex_lock(&bq27541_di->work_irq_lock);
 		#endif
+		if (!IS_ERR_OR_NULL(bq27541_di->pinctrl) && !IS_ERR_OR_NULL(bq27541_di->gpio_switch1_act_switch2_act))
 		rc = pinctrl_select_state(bq27541_di->pinctrl,bq27541_di->gpio_switch1_act_switch2_act);	// PULL_up
 		#ifndef OPCHG_VOOC_WATCHDOG
 		mutex_unlock(&bq27541_di->work_irq_lock);
@@ -3035,7 +3039,9 @@ static int bq27541_battery_resume(struct i2c_client *client)
 	if(opchg_chip != NULL && qpnp_batt_gauge && qpnp_batt_gauge->get_battery_soc)
 	{
 		pr_debug("oppo_check_rtc_time suspend_time=%d\n",suspend_time);
-		opchg_chip->bat_volt_check_point=bq27541_battery_soc(bq27541_di, suspend_time);
+		opchg_chip->bat_volt_check_point = bq27541_battery_soc(bq27541_di, suspend_time);
+		if (opchg_chip->bat_volt_check_point == 0 && bq27541_battery_voltage(bq27541_di) > LOW_POWER_VOLTAGE_3400MV)
+			opchg_chip->bat_volt_check_point = 1;
 		power_supply_changed(&opchg_chip->batt_psy);
 	}
 
