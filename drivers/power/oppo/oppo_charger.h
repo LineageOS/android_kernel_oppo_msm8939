@@ -143,4 +143,5 @@ OPPO_CHARGER_EXT int opchg_get_otg_enable(void);
 OPPO_CHARGER_EXT void opchg_set_vindpm_vol(struct opchg_charger *chip, int mV);
 
 extern int opchg_get_charger_inout(void);
+extern int opchg_get_charger_inout_cblpwr(void);
 #endif /*_OPPO_CHARGER_H_*/
