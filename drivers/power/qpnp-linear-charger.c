@@ -3303,6 +3303,7 @@ static int qpnp_lbc_main_probe(struct spmi_device *spmi)
 		goto fail_chg_enable;
 	}
 
+#ifndef CONFIG_MACH_OPPO
 	if (chip->cfg_use_external_charger) {
 		pr_warn("Disabling Linear Charger (e-external-charger = 1)\n");
 		rc = qpnp_disable_lbc_charger(chip);
@@ -3310,6 +3311,7 @@ static int qpnp_lbc_main_probe(struct spmi_device *spmi)
 			pr_err("Unable to disable charger rc=%d\n", rc);
 		return -ENODEV;
 	}
+#endif
 
 	chip->vadc_dev = qpnp_get_vadc(chip->dev, "chg");
 	if (IS_ERR(chip->vadc_dev)) {
