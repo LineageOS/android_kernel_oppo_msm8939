@@ -330,9 +330,7 @@
 			ti,pwm-active = <0>;
 			ti,pwm-ctrl = <0>;
 			ti,pwm-period = <255>;
-			bl_i2c_1v8-supply = <&pm8916_l6>;
-			ti,bl-enable-gpio69 = <&msm_gpio 69 0x00>;
-			ti,bl-enable-gpio115 = <&msm_gpio 115 0x00>;
+			ti,bl-enable-gpio = <&msm_gpio 115 0x00>;
 		};
 	};
 
