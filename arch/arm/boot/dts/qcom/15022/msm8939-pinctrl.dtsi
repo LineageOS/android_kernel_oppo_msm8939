@@ -14,40 +14,6 @@
 
 &soc {
 	tlmm_pinmux: pinctrl@1000000 {
-		hw_sub_gpio1_config {
-			qcom,pins = <&gp 51>;
-			qcom,num-grp-pins = <1>;
-			qcom,pin-func = <0>;
-			label = "hw_sub_gpio1_config";
-
-			hw_sub_gpio1_active: active {
-				drive-strength = <2>;
-				bias-pull-up;
-			};
-
-			hw_sub_gpio1_sleep: sleep {
-				drive-strength = <2>;
-				bias-pull-down;
-			};
-		};
-
-		hw_sub_gpio2_config {
-			qcom,pins = <&gp 97>;
-			qcom,num-grp-pins = <1>;
-			qcom,pin-func = <0>;
-			label = "hw_sub_gpio2_config";
-
-			hw_sub_gpio2_active: active {
-				drive-strength = <2>;
-				bias-pull-up;
-			};
-
-			hw_sub_gpio2_sleep: sleep {
-				drive-strength = <2>;
-				bias-pull-down;
-			};
-		};
-
 		charging_switch1 {
 			qcom,pins = <&gp 1>;
 			qcom,num-grp-pins = <1>;

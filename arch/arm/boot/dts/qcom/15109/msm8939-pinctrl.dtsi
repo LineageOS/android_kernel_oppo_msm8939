@@ -133,23 +133,6 @@
 			};
 		};
 
-		pmx_i2c_3 {
-			qcom,pins = <&gp 11>, <&gp 10>;
-			qcom,num-grp-pins = <2>;
-			qcom,pin-func = <2>;
-			label = "pmx_i2c_3";
-
-			i2c_3_active: i2c_3_active {
-				drive-strength = <2>;
-				bias-disable;
-			};
-
-			i2c_3_sleep: i2c_3_sleep {
-				drive-strength = <2>;
-				bias-disable;
-			};
-		};
-
 		usb-id-pin {
 			qcom,pins = <&gp 98>;
 
@@ -157,10 +140,6 @@
 				drive-strength = <8>;
 				bias-disable = <0>;
 			};
-		};
-
-		apds99xx_int_pin {
-			qcom,pins = <&gp 9>;
 		};
 
 		lis3dh_int1_pin {
@@ -178,59 +157,5 @@
 				bias-pull-down;
 			};
 		};
-
-		/delete-property/ mpu6050_int_pin;
-
-		cdc-ext-pa-lines {
-			qcom,pins = <&gp 113>, <&gp 114>,
-					<&gp 115>;
-			qcom,num-grp-pins = <3>;
-			qcom,pin-func = <1>;
-			label = "cdc-ext-pa-lines";
-
-			cdc_ext_pa_act: ext_pa_on {
-				drive-strength = <8>;
-				bias-pull-none;
-			};
-
-			cdc_ext_pa_sus: ext_pa_off {
-				drive-strength = <2>;
-				bias-disable;
-			};
-		};
-
-		cdc-ext-pa-ws-line {
-			qcom,pins = <&gp 110>;
-			qcom,num-grp-pins = <1>;
-			qcom,pin-func = <2>;
-			label = "cdc-ext-pa-ws-line";
-
-			cdc_ext_pa_ws_act: ext_pa_on {
-				drive-strength = <8>;
-				bias-pull-none;
-			};
-
-			cdc_ext_pa_ws_sus: ext_pa_off {
-				drive-strength = <2>;
-				bias-disable;
-			};
-		};
-
-		audio-vdd-enable {
-			qcom,pins = <&gp 102>;
-			qcom,num-grp-pins = <1>;
-			qcom,pin-func = <0>;
-			label = "audio-vdd-en";
-			audio_vdd_enable_act: audio_vdd_on {
-				drive-strength = <16>;
-				bias-pull-none;
-			};
-			audio_vdd_enable_sus: audio_vdd_off {
-				drive-strength = <2>;
-				bias-disable;
-			};
-		};
-
-		/delete-property/ tpiu_seta_1;
 	};
 };
