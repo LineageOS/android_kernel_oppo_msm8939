@@ -46,7 +46,7 @@
 &soc {
 	usb@78d9000 {
 		qcom,hsusb-otg-phy-init-seq =
-			<0x74 0x80 0x6B 0x81 0x24 0x82 0x13 0x83 0xffffffff>;
+			<0x74 0x80 0x66 0x81 0x3F 0x82 0x37 0x83 0xffffffff>;
 		qcom,hsusb-otg-mode = <3>;
 		qcom,usbid-gpio = <&msm_gpio 98 0>;
 		pinctrl-names = "default", "active", "sleep";
@@ -82,7 +82,8 @@
 	};
 
 	i2c@78b6000 { /* BLSP1 QUP2 */
-		qcom,clk-freq-out = <400000>;
+		qcom,high-time-clk-div = <80>;
+		qcom,fs-clk-div = <106>;
 	};
 
 	spi@78b7000 { /* BLSP1 QUP3 */
@@ -114,10 +115,6 @@
 			<&dma_blsp1 9 32 0x20000020 0x20>;
 		dma-names = "tx", "rx";
 		qcom,master-id = <86>;
-	};
-
-	i2c@78b9000 { /* BLSP1 QUP5 */
-		qcom,clk-freq-out = <400000>;
 	};
 
 	i2c@78ba000 { /* BLSP1 QUP6 */
