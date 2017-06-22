@@ -233,6 +233,13 @@ struct msm8916_asoc_mach_data {
 	void __iomem *vaddr_gpio_mux_pcm_ctl;
 	struct on_demand_supply wsa_switch_supply;
 	struct snd_info_entry *codec_root;
+#ifdef CONFIG_MACH_OPPO
+	/*xiang.fei@Multimedia, 2014/09/10, Add for yda145*/
+	int spk_pa_en;
+	/*xiang.fei@Multimedia, 2014/09/10, Add end*/
+	//John.Xu@PhoneSw.AudioDriver, 2015/01/09, Add for 15005 yda145 boost
+	int yda145_boost_en;
+#endif
 };
 
 struct msm8x16_wcd_pdata {
@@ -271,6 +278,14 @@ struct msm8x16_wcd {
 	int num_irqs;
 	u32 mclk_rate;
 	char __iomem *dig_base;
+#ifdef CONFIG_MACH_OPPO
+	/*xiang.fei@Multimedia, 2014/09/19, Add for compatible audio*/
+	int pcb_ver_flag0;
+	int pcb_ver_flag1;
+	int pcb_ver_flag2;
+	char pcb_ver_string[10]; //add by John.Xu for pcb_ver used in codec
+	/*xiang.fei@Multimedia, 2014/09/19, Add end*/
+#endif
 };
 
 struct msm8x16_wcd_priv {
