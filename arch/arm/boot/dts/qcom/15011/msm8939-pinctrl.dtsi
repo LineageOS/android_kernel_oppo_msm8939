@@ -243,6 +243,22 @@
 			};
 		};
 
+		mclk-lines {
+			qcom,pins = <&gp 116>;
+			qcom,num-grp-pins = <1>;
+			qcom,pin-func = <2>;
+			label = "mclk-lines";
+
+			mclk_lines_act: mclk_lines_on {
+				drive-strength = <8>;
+			};
+
+			mclk_lines_sus: mclk_lines_off {
+				drive-strength = <2>;
+				bias-disable;
+			};
+		};
+
 		audio-vdd-enable {
 			qcom,pins = <&gp 102>;
 			qcom,num-grp-pins = <1>;
@@ -257,6 +273,25 @@
 			audio_vdd_enable_sus: audio_vdd_off {
 				drive-strength = <2>;
 				bias-disable;
+			};
+		};
+
+		sdhc2_vdd_pin {
+			qcom,pins = <&gp 121>;
+			qcom,num-grp-pins = <1>;
+			qcom,pin-func = <0>;
+			label = "vdd-gpio-en";
+		};
+
+		cci0_pinmux {
+			cci0_default: default {
+				drive-strength = <8>; /* 8 MA */
+			};
+		};
+
+		cam_sensor_mclk0 {
+			cam_sensor_mclk0_default: default {
+				drive-strength = <8>; /* 8 MA */
 			};
 		};
 
