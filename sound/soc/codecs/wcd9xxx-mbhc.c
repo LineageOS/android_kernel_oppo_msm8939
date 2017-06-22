@@ -37,6 +37,11 @@
 #include <linux/gpio.h>
 #include <linux/input.h>
 #include <soc/oppo/oppo_project.h>
+#ifdef CONFIG_MACH_OPPO
+/*OPPO 2014-09-01 zhzhyon Add for headset detect*/
+#include <linux/wakelock.h>
+/*OPPO 2014-09-01 zhzhyon Add end*/
+#endif
 #include "wcd9320.h"
 #include "wcd9306.h"
 #include "wcd9xxx-mbhc.h"
@@ -199,6 +204,18 @@ enum wcd9xxx_current_v_idx {
 	WCD9XXX_CURRENT_V_B1_HU,
 	WCD9XXX_CURRENT_V_BR_H,
 };
+
+#ifdef CONFIG_MACH_OPPO
+/*OPPO 2014-09-01 zhzhyon Add for headset detect*/
+static int headset_detect_inited = 0;
+static struct wake_lock headset_detect;
+/*OPPO 2014-09-01 zhzhyon Add end*/
+
+/*OPPO 2014-09-01 zhzhyon Add for headset key*/
+static int headset_key_inited = 0;
+static struct wake_lock headset_key;
+/*OPPO 2014-09-01 zhzhyon Add end*/
+#endif
 
 static struct wcd9xxx_mbhc *oppo_mbhc;
 
@@ -4302,6 +4319,24 @@ static int wcd9xxx_setup_jack_detect_irq(struct wcd9xxx_mbhc *mbhc)
 {
 	int ret = 0;
 	void *core_res = mbhc->resmgr->core_res;
+
+#ifdef CONFIG_MACH_OPPO
+	/*OPPO 2014-09-01 zhzhyon Add for headset detect*/
+	if (!headset_detect_inited) {
+		headset_detect_inited = 1;
+		wake_lock_init(&headset_detect, WAKE_LOCK_SUSPEND,
+				"headset_detect");
+	}
+	/*OPPO 2014-09-01 zhzhyon Add end*/
+
+	/*OPPO 2014-09-01 zhzhyon Add for reason*/
+	if (!headset_key_inited) {
+		headset_key_inited = 1;
+		wake_lock_init(&headset_key, WAKE_LOCK_SUSPEND,
+				"headset_key");
+	}
+	/*OPPO 2014-09-01 zhzhyon Add end*/
+#endif
 
 	if (mbhc->mbhc_cfg->gpio) {
 		ret = request_threaded_irq(mbhc->mbhc_cfg->gpio_irq, NULL,
