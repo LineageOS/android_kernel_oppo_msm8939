@@ -207,25 +207,21 @@
 			qcom,input-current-max-ma = <2000>;
 			qcom,float-voltage-mv = <4320>;
 
-			qcom,hot_bat_decidegc = <530>;
+			qcom,hot_bat_decidegc = <550>;
 			qcom,temp_hot_vfloat_mv = <4100>;
-			qcom,temp_hot_fastchg_current_ma = <900>;
+			qcom,temp_hot_fastchg_current_ma = <1050>;
 
 			qcom,warm_bat_decidegc = <450>;
 			qcom,temp_warm_vfloat_mv = <4320>;
 			qcom,temp_warm_fastchg_current_ma = <2000>;
 
-			qcom,pre_normal_bat_decidegc = <160>;
+			qcom,pre_normal_bat_decidegc = <150>;
 			qcom,temp_pre_normal_vfloat_mv = <4320>;
 			qcom,temp_pre_normal_fastchg_current_ma = <1050>;
 
-			qcom,pre_cool_bat_decidegc = <120>;
-			qcom,temp_pre_cool_vfloat_mv = <4320>;
-			qcom,temp_pre_cool_fastchg_current_ma = <500>;
-
-			qcom,pre_cool1_bat_decidegc = <50>;
-			qcom,temp_pre_cool1_vfloat_mv = <4320>;
-			qcom,temp_pre_cool1_fastchg_current_ma = <300>;
+			qcom,pre_cool_bat_decidegc = <100>;
+			qcom,temp_pre_cool_vfloat_mv = <4200>;
+			qcom,temp_pre_cool_fastchg_current_ma = <620>;
 
 			qcom,cool_bat_decidegc = <0>;
 			qcom,temp_cool_vfloat_mv = <4000>;
@@ -394,6 +390,7 @@
 
 &pm8916_bms {
 	status = "ok";
+	qcom,disable-bms;
 };
 
 &qcom_tzlog {
