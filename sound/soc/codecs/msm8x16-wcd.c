@@ -44,6 +44,9 @@
 #include "wcd-mbhc-v2.h"
 #include "msm8916-wcd-irq.h"
 #include "msm8x16_wcd_registers.h"
+#ifdef CONFIG_MACH_OPPO
+#include <soc/oppo/oppo_project.h>
+#endif
 
 #define MSM8X16_WCD_RATES (SNDRV_PCM_RATE_8000 | SNDRV_PCM_RATE_16000 |\
 			SNDRV_PCM_RATE_32000 | SNDRV_PCM_RATE_48000)
@@ -131,12 +134,69 @@ enum {
 static const DECLARE_TLV_DB_SCALE(digital_gain, 0, 1, 0);
 static const DECLARE_TLV_DB_SCALE(analog_gain, 0, 25, 1);
 static struct snd_soc_dai_driver msm8x16_wcd_i2s_dai[];
+#ifdef CONFIG_MACH_OPPO
+/*xiang.fei@Multimedia, 2014/11/30, Add for pop noise*/
+static int ext_hph_pa_count = 0;
+//John.Xu@PhoneSw.AudioDriver, 2015/04/21, Add for MMI test
+static int ext_hphl_pa_count = 0;
+static int ext_hphr_pa_count = 0;
+/*xiang.fei@Multimedia, 2014/11/30, Add for pop noise end*/
+/*xiang.fei@Multimedia, 2014/09/19, Add for compatible audio*/
+static char const *pcb_ver_text[] = {
+		"pcb_ver1.0",
+		"pcb_ver1.1",
+		"pcb_ver1.2",
+		"pcb_ver1.3",
+		"pcb_ver1.4" };
+/*xiang.fei@Multimedia, 2014/09/19, Add end*/
+#endif
 
 #define MSM8X16_WCD_ACQUIRE_LOCK(x) \
 	mutex_lock_nested(&x, SINGLE_DEPTH_NESTING);
 
 #define MSM8X16_WCD_RELEASE_LOCK(x) mutex_unlock(&x);
 
+#ifdef CONFIG_MACH_OPPO
+//John.Xu@PhoneSw.AudioDriver, 2014/12/10, Add for reduce hp volume when playing ringtone
+static u8 ts4621_gain_value;
+extern void  ts4621_set_gain(u8 value);
+extern u8  ts4621_get_gain(u8 *value);
+extern int ts4621_reg_write(u8 reg, u8 value);
+extern int ts4621_reg_read(u8 reg, u8 *value);
+
+/*xiang.fei@Multimedia, 2014/11/30, Add for pop noise*/
+struct ext_pa_enable_work {
+	struct msm8x16_wcd_priv *msm8x16_wcd;
+	struct delayed_work ext_spk_pa_enable_work;
+	struct delayed_work ext_hph_pa_enable_work;
+	struct delayed_work ext_hphl_pa_enable_work;
+	struct delayed_work ext_hphr_pa_enable_work;
+};
+
+static struct ext_pa_enable_work msm8x16_ext_pa_enable_work;
+
+extern void ts4621_amp_on(int on, int gain);
+//John.Xu@PhoneSw.AudioDriver, 2015/04/21, Add for MMI test
+extern void ts4621_amp_on_l(int on, int gain);
+extern void ts4621_amp_on_r(int on, int gain);
+/*OPPO 2015-06-12 zhangping Add for short sound clear*/
+extern void ts4621_amp_on_hph_speaker(int on, int gain);
+/*OPPO 2015-06-12 zhangping Add for short sound clear end*/
+extern int hp_pa_get(struct snd_kcontrol *kcontrol,
+		struct snd_ctl_elem_value *ucontrol);
+extern int hp_pa_put(struct snd_kcontrol *kcontrol,
+		struct snd_ctl_elem_value *ucontrol);
+/*xiang.fei@Multimedia, 2014/11/30, Add for pop noise end*/
+
+/*OPPO 2015-05-23 zhzhyon Add for pop*/
+static unsigned long jiffies_yda145 = 0;
+#define YDA145_BETWEEN_TS4621 300
+/*OPPO 2015-05-15 zhzhyon Add end*/
+/*OPPO 2015-11-04 zhangping Add for pop*/
+static unsigned long jiffies_ts4621_end = 0;
+#define TS4621_END_BETWEEN_TS4621_START 400
+/*OPPO 2015-11-04 zhangping Add end*/
+#endif
 
 /* Codec supports 2 IIR filters */
 enum {
@@ -161,6 +221,14 @@ struct hpf_work {
 	u8 tx_hpf_cut_of_freq;
 	struct delayed_work dwork;
 };
+
+#ifdef CONFIG_MACH_OPPO
+/*xiang.fei@Multimedia, 2014/09/19, Add for compatible audio*/
+static int pcb_ver0 = 0;
+static int pcb_ver1 = 0;
+static int pcb_ver2 = 0;
+/*xiang.fei@Multimedia, 2014/09/19, Add end*/
+#endif
 
 static struct hpf_work tx_hpf_work[NUM_DECIMATORS];
 
@@ -499,6 +567,98 @@ static void msm8x16_wcd_compute_impedance(struct snd_soc_codec *codec, s16 l,
 	*zl = rl;
 	*zr = rr;
 }
+
+#ifdef CONFIG_MACH_OPPO
+//John.Xu@PhoneSw.AudioDriver, 2015/02/11, Add for clear code
+static int inter_boost_for_ext_pa(void) {
+	int ret = 0;
+	return ret;
+}
+
+/*xiang.fei@Multimedia, 2014/09/19, Add for compatible audio*/
+int pcb_ver(void)
+{
+	int ret = 0;
+
+	if (1 == pcb_ver0 && 1 == pcb_ver1 && 1 == pcb_ver2)
+		ret = 0;
+	else if (0 == pcb_ver0 && 1 == pcb_ver1 && 1 == pcb_ver2)
+		ret = 1;
+	else if (1 == pcb_ver0 && 0 == pcb_ver1 && 1 == pcb_ver2)
+		ret = 2;
+	else if (0 == pcb_ver0 && 0 == pcb_ver1 && 1 == pcb_ver2)
+		ret = 3;
+	else
+		ret = 4;
+
+	return ret;
+}
+EXPORT_SYMBOL(pcb_ver);
+
+static int oppo_codec_version_init(struct msm8x16_wcd *msm8x16)
+{
+	int i;
+
+	/*xiang.fei@Multimedia, 2014/09/10, Add for yda145*/
+	if (is_project(OPPO_15109)) {
+		/*xiang.fei@Multimedia, 2014/09/19, Add for compatible audio*/
+		msm8x16->pcb_ver_flag0 = of_get_named_gpio(
+				msm8x16->dev->of_node, "pcb-ver-flag0", 0);
+		if (msm8x16->pcb_ver_flag0 < 0)
+			dev_err(msm8x16->dev,
+					"property %s in node %s not found %d\n",
+					"pcb-ver-flag0",
+					msm8x16->dev->of_node->full_name,
+					msm8x16->pcb_ver_flag0);
+
+		msm8x16->pcb_ver_flag1 = of_get_named_gpio(
+				msm8x16->dev->of_node, "pcb-ver-flag1", 0);
+		if (msm8x16->pcb_ver_flag1 < 0)
+			dev_err(msm8x16->dev,
+					"property %s in node %s not found %d\n",
+					"pcb-ver-flag1",
+					msm8x16->dev->of_node->full_name,
+					msm8x16->pcb_ver_flag1);
+
+		msm8x16->pcb_ver_flag2 = of_get_named_gpio(
+				msm8x16->dev->of_node, "pcb-ver-flag2", 0);
+		if (msm8x16->pcb_ver_flag2 < 0)
+			dev_err(msm8x16->dev,
+					"property %s in node %s not found %d\n",
+					"pcb-ver-flag2",
+					msm8x16->dev->of_node->full_name,
+					msm8x16->pcb_ver_flag2);
+
+		if (gpio_is_valid(msm8x16->pcb_ver_flag0)) {
+			gpio_request(msm8x16->pcb_ver_flag0, "pcb_ver_flag0");
+			pcb_ver0 = gpio_get_value_cansleep(
+					msm8x16->pcb_ver_flag0);
+			pr_info("pcb_ver0 gpio value is %d\n", pcb_ver0);
+		}
+
+		if (gpio_is_valid(msm8x16->pcb_ver_flag1)) {
+			gpio_request(msm8x16->pcb_ver_flag1, "pcb_ver_flag1");
+			pcb_ver1 = gpio_get_value_cansleep(
+					msm8x16->pcb_ver_flag1);
+			pr_info("pcb_ver1 gpio value is %d\n", pcb_ver1);
+		}
+
+		if (gpio_is_valid(msm8x16->pcb_ver_flag2)) {
+			gpio_request(msm8x16->pcb_ver_flag2, "pcb_ver_flag2");
+			pcb_ver2 = gpio_get_value_cansleep(
+					msm8x16->pcb_ver_flag2);
+			pr_info("pcb_ver2 gpio value is %d\n", pcb_ver2);
+		}
+
+		i = pcb_ver();
+		strcpy(msm8x16->pcb_ver_string, pcb_ver_text[i]);
+		/*xiang.fei@Multimedia, 2014/09/19, Add end*/
+	}
+	/*xiang.fei@Multimedia, 2014/09/10, Add end*/
+
+	return 0;
+}
+#endif
 
 static struct firmware_cal *msm8x16_wcd_get_hwdep_fw_cal(
 		struct snd_soc_codec *codec,
@@ -1004,6 +1164,74 @@ void msm8x16_notifier_call(struct snd_soc_codec *codec,
 	blocking_notifier_call_chain(&msm8x16_wcd->notifier, event,
 				     &msm8x16_wcd->mbhc);
 }
+
+#ifdef CONFIG_MACH_OPPO
+/*xiang.fei@Multimedia, 2014/11/30, Add for pop noise*/
+static void msm8x16_ext_spk_pa_enable(struct work_struct *work)
+{
+	struct msm8x16_wcd_priv *msm8x16_wcd;
+	int err = 0;
+
+	msm8x16_wcd = msm8x16_ext_pa_enable_work.msm8x16_wcd;
+
+	pr_info("%s: External speaker PA callback \n", __func__);
+	if (gpio_is_valid(msm8x16_wcd->mbhc.mbhc_cfg->gpio_spk_pa_en)) {
+		err = gpio_request(msm8x16_wcd->mbhc.mbhc_cfg->gpio_spk_pa_en,
+				"YDA_GPIO");
+		pr_info("%s, Line = %d, err = %d\n", __func__, __LINE__, err);
+		err = gpio_direction_output(
+				msm8x16_wcd->mbhc.mbhc_cfg->gpio_spk_pa_en, 1);
+		pr_info("%s, Line = %d, err = %d\n", __func__, __LINE__, err);
+	}
+	msm8x16_wcd->mbhc.mbhc_cfg->spk_pa_en_state = 1;
+	pr_info("%s: yda145 enable\n", __func__);
+
+	if (inter_boost_for_ext_pa()) {
+	//John.Xu@PhoneSw.AudioDriver, 2014/12/20, Add for Qcom pmic patch
+	/*The below line should come in the delayed work
+	 function of customer code*/
+		 snd_soc_update_bits(msm8x16_wcd->codec,
+				MSM8X16_WCD_A_CDC_RX1_B6_CTL, 0x01, 0x00);
+	}//John.Xu@Audio.Driver Add end */
+
+	return;
+}
+
+static void msm8x16_ext_hph_pa_enable(struct work_struct *work)
+{
+	pr_info("%s: External headphone PA callback\n", __func__);
+
+	ts4621_amp_on(1, ts4621_gain_value);
+	pr_info("%s: ts4621 enable ts4621_gain_value = %x\n", __func__,
+			ts4621_gain_value);
+
+	return;
+}
+
+//John.Xu@PhoneSw.AudioDriver, 2015/04/21, Add for MMI test
+static void msm8x16_ext_hphl_pa_enable(struct work_struct *work)
+{
+	pr_info("%s: External headphone PA callback\n", __func__);
+
+	ts4621_amp_on_l(1, ts4621_gain_value);
+	pr_info("%s: ts4621 enable ts4621_gain_value = %x\n", __func__,
+			ts4621_gain_value);
+
+	return;
+}
+
+static void msm8x16_ext_hphr_pa_enable(struct work_struct *work)
+{
+	pr_info("%s: External headphone PA callback\n", __func__);
+
+	ts4621_amp_on_r(1, ts4621_gain_value);
+	pr_info("%s: ts4621 enable ts4621_gain_value = %x\n", __func__,
+			ts4621_gain_value);
+
+	return;
+}
+/*xiang.fei@Multimedia, 2014/11/30, Add for pop noise end*/
+#endif
 
 static int get_spmi_msm8x16_wcd_device_info(u16 *reg,
 			struct msm8x16_wcd_spmi **msm8x16_wcd)
@@ -2050,6 +2278,62 @@ static int msm8x16_wcd_loopback_mode_put(struct snd_kcontrol *kcontrol,
 	return 0;
 }
 
+#ifdef CONFIG_MACH_OPPO
+/*OPPO 2015-05-23 zhzhyon Add for pop*/
+static int hph_state = 0;
+static int hph_mode_track_get(struct snd_kcontrol *kcontrol,
+		struct snd_ctl_elem_value *ucontrol)
+{
+	ucontrol->value.integer.value[0] = hph_state;
+	return 0;
+}
+
+static int hph_mode_track_put(struct snd_kcontrol *kcontrol,
+		struct snd_ctl_elem_value *ucontrol)
+{
+	hph_state = ucontrol->value.integer.value[0];
+	pr_info("hph_state = %d\n", hph_state);
+	return 0;
+}
+/*OPPO 2015-05-23 zhzhyon Add end*/
+
+/*OPPO 2015-06-12 zhangping Add for short sound clear*/
+static int hph_speaker_state = 0;
+static int hph_speaker_mode_track_get(struct snd_kcontrol *kcontrol,
+		struct snd_ctl_elem_value *ucontrol)
+{
+	ucontrol->value.integer.value[0] = hph_speaker_state;
+	return 0;
+}
+
+static int hph_speaker_mode_track_put(struct snd_kcontrol *kcontrol,
+		struct snd_ctl_elem_value *ucontrol)
+{
+	hph_speaker_state = ucontrol->value.integer.value[0];
+	pr_info("hph_speaker_state = %d\n", hph_speaker_state);
+	return 0;
+}
+/*OPPO 2015-06-12 zhangping Add for short sound clear end*/
+
+/*OPPO 2015-11-04 zhangping Add for pop*/
+static int hph_speaker_ring_state = 0;
+static int hph_speaker_ring_mode_track_get(struct snd_kcontrol *kcontrol,
+		struct snd_ctl_elem_value *ucontrol)
+{
+	ucontrol->value.integer.value[0] = hph_speaker_ring_state;
+	return 0;
+}
+
+static int hph_speaker_ring_mode_track_put(struct snd_kcontrol *kcontrol,
+		struct snd_ctl_elem_value *ucontrol)
+{
+	hph_speaker_ring_state = ucontrol->value.integer.value[0];
+	pr_info("hph_speaker_state = %d\n", hph_speaker_ring_state);
+	return 0;
+}
+/*OPPO 2015-06-12 zhangping Add for pop*/
+#endif
+
 static int msm8x16_wcd_pa_gain_put(struct snd_kcontrol *kcontrol,
 				struct snd_ctl_elem_value *ucontrol)
 {
@@ -2134,6 +2418,59 @@ static int msm8x16_wcd_boost_option_set(struct snd_kcontrol *kcontrol,
 		__func__, msm8x16_wcd->boost_option);
 	return 0;
 }
+
+#ifdef CONFIG_MACH_OPPO
+//John.Xu@PhoneSw.AudioDriver, 2014/12/10, Add for reduce hp volume when playing ringtone
+static int ts4621_pa_gain_put(struct snd_kcontrol *kcontrol,
+				struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
+	u8 reg_value;
+
+	dev_dbg(codec->dev, "%s: ucontrol->value.integer.value[0] = %ld\n",
+		__func__, ucontrol->value.integer.value[0]);
+
+	switch (ucontrol->value.integer.value[0]) {
+	case 0:
+		ts4621_gain_value = 0x2c; // -4dB
+		break;
+	case 1:
+		ts4621_gain_value = 0x3A; // 2dB
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	pr_err("%s, change ts4621_gain_value as %x", __func__,
+			ts4621_gain_value);
+	ts4621_get_gain(&reg_value);
+	if (reg_value & 0xC0) {
+		ts4621_reg_write(0x02,
+				((reg_value & (~0x3C)) | ts4621_gain_value));
+	}
+	return 0;
+}
+
+static int ts4621_pa_gain_get(struct snd_kcontrol *kcontrol,
+				struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
+	u8 reg_value;
+
+	dev_dbg(codec->dev, "%s: ucontrol->value.integer.value[0] = %ld\n",
+		__func__, ucontrol->value.integer.value[0]);
+
+	ts4621_get_gain(&reg_value);
+	if (reg_value == 0x30) {
+		ucontrol->value.integer.value[0] = 0;
+		dev_err(codec->dev, "%s: supported HP Gain = 0x%x\n",
+			__func__, reg_value);
+	} else {
+		ucontrol->value.integer.value[0] = 1;
+	}
+	return 0;
+}
+#endif
 
 static int msm8x16_wcd_spk_boost_get(struct snd_kcontrol *kcontrol,
 				struct snd_ctl_elem_value *ucontrol)
@@ -2422,6 +2759,32 @@ static const struct soc_enum msm8x16_wcd_loopback_mode_ctl_enum[] = {
 		SOC_ENUM_SINGLE_EXT(2, msm8x16_wcd_loopback_mode_ctrl_text),
 };
 
+#ifdef CONFIG_MACH_OPPO
+/*OPPO 2015-05-23 zhzhyon Add for pop*/
+static const char * const msm8x16_hph_track[] = {
+		"DISABLE", "ENABLE"};
+static const struct soc_enum msm8x16_wcd_hph_track_enum[] = {
+		SOC_ENUM_SINGLE_EXT(2, msm8x16_hph_track),
+};
+/*OPPO 2015-05-23 zhzhyon Add end*/
+
+/*OPPO 2015-06-12 zhangping Add for short sound clear*/
+static const char * const msm8x16_hph_speaker_track[] = {
+		"DISABLE", "ENABLE"};
+static const struct soc_enum msm8x16_wcd_hph_speaker_track_enum[] = {
+		SOC_ENUM_SINGLE_EXT(2, msm8x16_hph_speaker_track),
+};
+/*OPPO 2015-06-12 zhangping Add for short sound clear end*/
+
+/*OPPO 2015-11-04 zhangping Add for pop*/
+static const char * const msm8x16_hph_speaker_ring_track[] = {
+		"DISABLE", "ENABLE"};
+static const struct soc_enum msm8x16_wcd_hph_speaker_ring_track_enum[] = {
+		SOC_ENUM_SINGLE_EXT(2, msm8x16_hph_speaker_ring_track),
+};
+/*OPPO 2015-06-12 zhangping Add for pop*/
+#endif
+
 static const char * const msm8x16_wcd_ear_pa_boost_ctrl_text[] = {
 		"DISABLE", "ENABLE"};
 static const struct soc_enum msm8x16_wcd_ear_pa_boost_ctl_enum[] = {
@@ -2440,6 +2803,22 @@ static const char * const msm8x16_wcd_boost_option_ctrl_text[] = {
 static const struct soc_enum msm8x16_wcd_boost_option_ctl_enum[] = {
 		SOC_ENUM_SINGLE_EXT(4, msm8x16_wcd_boost_option_ctrl_text),
 };
+
+#ifdef CONFIG_MACH_OPPO
+//John.Xu@PhoneSw.AudioDriver, 2014/12/10, Add for reduce hp volume when playing ringtone
+static const char * const ts4621_pa_gain_text[] = {
+		"NEG_3_DB", "POS_1_DB"};
+static const struct soc_enum ts4621_pa_gain_enum[] = {
+		SOC_ENUM_SINGLE_EXT(2, ts4621_pa_gain_text),
+};
+
+/*xiang.fei@Multimedia, 2014/09/19, Add for compatible audio*/
+static const struct soc_enum pcb_ver_enum[] = {
+		SOC_ENUM_SINGLE_EXT(5, pcb_ver_text),
+};
+/*xiang.fei@Multimedia, 2014/09/19, Add end*/
+#endif
+
 static const char * const msm8x16_wcd_spk_boost_ctrl_text[] = {
 		"DISABLE", "ENABLE"};
 static const struct soc_enum msm8x16_wcd_spk_boost_ctl_enum[] = {
@@ -2482,6 +2861,17 @@ static const struct snd_kcontrol_new msm8x16_wcd_snd_controls[] = {
 
 	SOC_ENUM_EXT("EAR PA Gain", msm8x16_wcd_ear_pa_gain_enum[0],
 		msm8x16_wcd_pa_gain_get, msm8x16_wcd_pa_gain_put),
+
+#ifdef CONFIG_MACH_OPPO
+/* OPPO 2014-10-25 John.Xu@Audio.Driver Add begin for ts4621 */
+	SOC_SINGLE_EXT("HP PA Enable", 0, 0, 1, 0,
+		hp_pa_get, hp_pa_put),
+/* OPPO 2014-10-25 John.Xu@Audio.Driver Add end */
+
+//John.Xu@PhoneSw.AudioDriver, 2014/12/10, Add for reduce hp volume when playing ringtone
+	SOC_ENUM_EXT("HP PA Gain", ts4621_pa_gain_enum[0],
+		ts4621_pa_gain_get, ts4621_pa_gain_put),
+#endif
 
 	SOC_ENUM_EXT("Speaker Boost", msm8x16_wcd_spk_boost_ctl_enum[0],
 		msm8x16_wcd_spk_boost_get, msm8x16_wcd_spk_boost_set),
@@ -2613,6 +3003,25 @@ static const struct snd_kcontrol_new msm8x16_wcd_snd_controls[] = {
 	msm8x16_wcd_get_iir_band_audio_mixer,
 	msm8x16_wcd_put_iir_band_audio_mixer),
 
+#ifdef CONFIG_MACH_OPPO
+	/*OPPO 2015-05-23 zhzhyon Add for pop*/
+	SOC_ENUM_EXT("HPH_MODE_TRACK",
+			msm8x16_wcd_hph_track_enum[0],
+			hph_mode_track_get, hph_mode_track_put),
+	/*OPPO 2015-05-23 zhzhyon Add end*/
+	/*OPPO 2015-06-12 zhangping Add for short sound clear*/
+	SOC_ENUM_EXT("HPH_SPEAKER_MODE_TRACK",
+			msm8x16_wcd_hph_speaker_track_enum[0],
+			hph_speaker_mode_track_get,
+			hph_speaker_mode_track_put),
+	/*OPPO 2015-06-12 zhangping Add for short sound clear end*/
+	/*OPPO 2015-11-04 zhangping Add for pop*/
+	SOC_ENUM_EXT("HPH_SPEAKER_RING_MODE_TRACK",
+			msm8x16_wcd_hph_speaker_ring_track_enum[0],
+			hph_speaker_ring_mode_track_get,
+			hph_speaker_ring_mode_track_put),
+	/*OPPO 2015-11-04 zhangping Add for pop*/
+#endif
 };
 
 static int tombak_hph_impedance_get(struct snd_kcontrol *kcontrol,
@@ -2702,6 +3111,14 @@ static const char * const ext_spk_text[] = {
 	"Off", "On"
 };
 
+#ifdef CONFIG_MACH_OPPO
+/*xiang.fei@Multimedia, 2014/11/26, Add for pop noise*/
+static const char * const ext_hp_text[] = {
+	"Off", "On"
+};
+/*xiang.fei@Multimedia, 2014/11/26, Add for pop noise*/
+#endif
+
 static const char * const wsa_spk_text[] = {
 	"ZERO", "WSA"
 };
@@ -2719,6 +3136,13 @@ static const struct soc_enum adc2_enum =
 
 static const struct soc_enum ext_spk_enum =
 	SOC_ENUM_SINGLE(0, 0, ARRAY_SIZE(ext_spk_text), ext_spk_text);
+
+#ifdef CONFIG_MACH_OPPO
+/*xiang.fei@Multimedia, 2014/11/26, Add for pop noise*/
+static const struct soc_enum ext_hp_enum =
+	SOC_ENUM_SINGLE(0, 0, ARRAY_SIZE(ext_hp_text), ext_hp_text);
+/*xiang.fei@Multimedia, 2014/11/26, Add for pop noise end*/
+#endif
 
 static const struct soc_enum wsa_spk_enum =
 	SOC_ENUM_SINGLE(0, 0, ARRAY_SIZE(wsa_spk_text), wsa_spk_text);
@@ -2987,6 +3411,21 @@ static const struct snd_kcontrol_new spkr_switch[] = {
 	SOC_DAPM_SINGLE("Switch",
 		MSM8X16_WCD_A_ANALOG_SPKR_DAC_CTL, 7, 1, 0)
 };
+
+#ifdef CONFIG_MACH_OPPO
+/*xiang.fei@Multimedia, 2014/11/26, Add for pop noise*/
+static const struct snd_kcontrol_new ext_hphl_mux =
+	SOC_DAPM_ENUM_VIRT("Ext Hphl Switch Mux", ext_hp_enum);
+static const struct snd_kcontrol_new ext_hphr_mux =
+	SOC_DAPM_ENUM_VIRT("Ext Hphr Switch Mux", ext_hp_enum);
+/*oppo 2015-08-18 zhangping add for MMI*/
+static const struct snd_kcontrol_new ext_hphl_mmi_mux =
+	SOC_DAPM_ENUM_VIRT("Ext Hphl mmi Switch Mux", ext_hp_enum);
+static const struct snd_kcontrol_new ext_hphr_mmi_mux =
+	SOC_DAPM_ENUM_VIRT("Ext Hphr mmi Switch Mux", ext_hp_enum);
+/*oppo 2015-08-18 zhangping add for MMI end*/
+/*xiang.fei@Multimedia, 2014/11/26, Add for pop noise end*/
+#endif
 
 static void msm8x16_wcd_codec_enable_adc_block(struct snd_soc_codec *codec,
 					 int enable)
@@ -3490,6 +3929,14 @@ static int msm8x16_wcd_codec_enable_micbias(struct snd_soc_dapm_widget *w,
 			 */
 			msm8x16_notifier_call(codec,
 					WCD_EVENT_POST_MICBIAS_2_OFF);
+#ifdef CONFIG_MACH_OPPO
+			/*OPPO 2015-06-24 zhangping Add for headphone detect incorrect in phone*/
+			if (is_project(OPPO_15109))
+				snd_soc_update_bits(codec,
+						MSM8X16_WCD_A_ANALOG_MICB_2_EN,
+						0xC0, 0x00);
+			/*OPPO 2015-06-24 zhangping Add for headphone detect incorrect in phone end*/
+#endif
 			break;
 		}
 		if (w->reg == MSM8X16_WCD_A_ANALOG_MICB_1_EN)
@@ -3945,6 +4392,169 @@ void wcd_imped_config(struct snd_soc_codec *codec,
 	pr_debug("%s: Exit\n", __func__);
 }
 
+#ifdef CONFIG_MACH_OPPO
+/*xiang.fei@Multimedia, 2014/11/26, Add for pop noise*/
+static int msm8x16_wcd_ext_hp_event(struct snd_soc_dapm_widget *w,
+				       struct snd_kcontrol *kcontrol, int event)
+{
+	struct snd_soc_codec *codec = w->codec;
+
+	/*OPPO 2015-05-23 zhzhyon Add for pop*/
+	unsigned long msec_val = 0;
+	/*OPPO 2015-05-23 zhzhyon Add end*/
+	/*OPPO 2015-11-04 zhangping Add for pop*/
+	unsigned long msec_val_ts4621 = 0;
+	/*OPPO 2015-05-23 zhangping Add end*/
+
+	dev_err(codec->dev, "%s: %s %d\n", __func__, w->name, event);
+	switch (event) {
+	case SND_SOC_DAPM_POST_PMU:
+		if (ext_hph_pa_count == 0) {
+			ext_hph_pa_count++;
+			break;
+		}
+		/*OPPO 2015-05-23 zhzhyon Add for pop*/
+		msec_val = jiffies_to_msecs(jiffies - jiffies_yda145);
+		msec_val_ts4621 = jiffies_to_msecs(jiffies - jiffies_ts4621_end);
+		if((msec_val <= YDA145_BETWEEN_TS4621) && (hph_state == 1))
+		{
+			printk("ts4621 wille be opened after 150ms\n");
+			schedule_delayed_work(&msm8x16_ext_pa_enable_work.ext_hph_pa_enable_work,
+				msecs_to_jiffies(180));
+
+		}
+		/*OPPO 2015-11-04 zhangping Add for pop*/
+		else if((hph_speaker_ring_state == 1) && (msec_val_ts4621 <= TS4621_END_BETWEEN_TS4621_START))
+		{
+			printk("msec_val_ts4621 <= TS4621_END_BETWEEN_TS4621_START\n");
+			schedule_delayed_work(&msm8x16_ext_pa_enable_work.ext_hph_pa_enable_work,
+				msecs_to_jiffies(90));
+
+		}
+		/*OPPO 2015-11-04 zhangping Add for pop end*/
+		/*OPPO 2015-06-12 zhangping Add for short sound clear*/
+		else if(hph_speaker_state == 1)
+		{
+		    printk("ts4621_amp_on_hph_speaker\n");
+			ts4621_amp_on_hph_speaker(1, ts4621_gain_value);
+
+		}
+		/*OPPO 2015-06-12 zhangping Add for short sound clear end*/
+		else
+		{
+			printk("ts4621 wille be opened soon\n");
+			schedule_delayed_work(&msm8x16_ext_pa_enable_work.ext_hph_pa_enable_work,
+				msecs_to_jiffies(0));
+
+		}
+		/*OPPO 2015-05-23 zhzhyon Add end*/
+		dev_err(codec->dev, "hp enable\n");
+		break;
+	case SND_SOC_DAPM_PRE_PMD:
+		if (ext_hph_pa_count == 0)
+		{
+		/*OPPO 2015-11-04 zhangping Add for pop*/
+			jiffies_ts4621_end = jiffies;
+		/*OPPO 2015-11-04 zhangping Add for pop end*/
+			break;
+		}
+		cancel_delayed_work_sync(&msm8x16_ext_pa_enable_work.ext_hph_pa_enable_work);
+		ts4621_amp_on(0, ts4621_gain_value);
+		dev_err(codec->dev, "hp disable\n");
+		ext_hph_pa_count--;
+		break;
+	}
+
+	return 0;
+}
+
+//John.Xu@PhoneSw.AudioDriver, 2015/04/21, Add for ts4621 MMI test
+static int msm8x16_wcd_ext_hpl_event(struct snd_soc_dapm_widget *w,
+				       struct snd_kcontrol *kcontrol, int event)
+{
+	struct snd_soc_codec *codec = w->codec;
+
+	dev_err(codec->dev, "%s: %s %d\n", __func__, w->name, event);
+	switch (event) {
+	case SND_SOC_DAPM_POST_PMU:
+	    if (ext_hphr_pa_count == 1 && ext_hphl_pa_count == 0) {
+		    cancel_delayed_work_sync(&msm8x16_ext_pa_enable_work.ext_hphr_pa_enable_work);
+	        ext_hphr_pa_count--;
+		schedule_delayed_work(&msm8x16_ext_pa_enable_work.ext_hph_pa_enable_work,
+				msecs_to_jiffies(60));
+	        ext_hph_pa_count++;
+		dev_err(codec->dev, "hp enable in msm8x16_wcd_ext_hpl_event\n");
+	    } else if (ext_hphl_pa_count == 0) {
+		schedule_delayed_work(&msm8x16_ext_pa_enable_work.ext_hphl_pa_enable_work,
+				msecs_to_jiffies(60));
+		ext_hphl_pa_count++;
+		dev_err(codec->dev, "hpl enable\n");
+		}
+		break;
+	case SND_SOC_DAPM_PRE_PMD:
+		if (ext_hphl_pa_count == 0 && ext_hph_pa_count == 0)
+			break;
+		if(ext_hphl_pa_count == 1){
+		    cancel_delayed_work_sync(&msm8x16_ext_pa_enable_work.ext_hphl_pa_enable_work);
+		    ts4621_amp_on_l(0, ts4621_gain_value);
+		    ext_hphl_pa_count--;
+		} else {
+		    cancel_delayed_work_sync(&msm8x16_ext_pa_enable_work.ext_hph_pa_enable_work);
+		    ts4621_amp_on(0, ts4621_gain_value);
+		    ext_hph_pa_count--;
+		}
+		dev_err(codec->dev, "hpl disable\n");
+
+		break;
+	}
+
+	return 0;
+}
+
+static int msm8x16_wcd_ext_hpr_event(struct snd_soc_dapm_widget *w,
+				       struct snd_kcontrol *kcontrol, int event)
+{
+	struct snd_soc_codec *codec = w->codec;
+
+	dev_err(codec->dev, "%s: %s %d\n", __func__, w->name, event);
+	switch (event) {
+	case SND_SOC_DAPM_POST_PMU:
+	    if (ext_hphl_pa_count == 1 && ext_hphr_pa_count == 0) {
+		    cancel_delayed_work_sync(&msm8x16_ext_pa_enable_work.ext_hphl_pa_enable_work);
+	        ext_hphl_pa_count--;
+		schedule_delayed_work(&msm8x16_ext_pa_enable_work.ext_hph_pa_enable_work,
+				msecs_to_jiffies(60));
+		ext_hph_pa_count++;
+		dev_err(codec->dev, "hp enable in msm8x16_wcd_ext_hpr_event\n");
+	    } else  if (ext_hphr_pa_count == 0) {
+		schedule_delayed_work(&msm8x16_ext_pa_enable_work.ext_hphr_pa_enable_work,
+				msecs_to_jiffies(60));
+		ext_hphr_pa_count++;
+		dev_err(codec->dev, "hpr enable\n");
+		}
+		break;
+	case SND_SOC_DAPM_PRE_PMD:
+		if (ext_hphr_pa_count == 0 && ext_hph_pa_count == 0)
+			break;
+		dev_err(codec->dev, "hpr disable\n");
+		if(ext_hphr_pa_count == 1){
+		    cancel_delayed_work_sync(&msm8x16_ext_pa_enable_work.ext_hphr_pa_enable_work);
+		    ts4621_amp_on_r(0, ts4621_gain_value);
+		    ext_hphr_pa_count--;
+		} else {
+		    cancel_delayed_work_sync(&msm8x16_ext_pa_enable_work.ext_hph_pa_enable_work);
+		    ts4621_amp_on(0, ts4621_gain_value);
+		    ext_hph_pa_count--;
+		}
+
+		break;
+	}
+
+	return 0;
+}
+/*xiang.fei@Multimedia, 2014/11/26, Add for pop noise*/
+#endif
+
 static int msm8x16_wcd_hphl_dac_event(struct snd_soc_dapm_widget *w,
 	struct snd_kcontrol *kcontrol, int event)
 {
@@ -4037,17 +4647,46 @@ static int msm8x16_wcd_hph_pa_event(struct snd_soc_dapm_widget *w,
 {
 	struct snd_soc_codec *codec = w->codec;
 	struct msm8x16_wcd_priv *msm8x16_wcd = snd_soc_codec_get_drvdata(codec);
+#ifdef CONFIG_MACH_OPPO
+	/*OPPO	2015-05-08, zhangping add for  pop noise*/
+	struct wcd_mbhc *mbhc = &msm8x16_wcd->mbhc;
+	/*OPPO	2015-05-08, zhangping add for  end*/
+#endif
 
 	dev_dbg(codec->dev, "%s: %s event = %d\n", __func__, w->name, event);
 
 	switch (event) {
 	case SND_SOC_DAPM_PRE_PMU:
-		if (w->shift == 5)
+		if (w->shift == 5) {
+#ifdef CONFIG_MACH_OPPO
+			snd_soc_update_bits(codec,
+				MSM8X16_WCD_A_ANALOG_RX_HPH_L_TEST, 0x04, 0x04);
+		/*OPPO	2015-05-08, zhangping add for  pop noise*/
+			if(!(is_project(OPPO_15109)))
+				msm8x16_notifier_call(codec,
+						WCD_EVENT_PRE_HPHL_PA_ON);
+		/*OPPO	2015-05-08, zhangping add for  end*/
+#else
 			msm8x16_notifier_call(codec,
 					WCD_EVENT_PRE_HPHL_PA_ON);
-		else if (w->shift == 4)
+#endif
+		} else if (w->shift == 4) {
+#ifdef CONFIG_MACH_OPPO
+			snd_soc_update_bits(codec,
+				MSM8X16_WCD_A_ANALOG_RX_HPH_R_TEST, 0x04, 0x04);
+		/*OPPO	2015-05-08, zhangping add for  pop noise*/
+			if(!(is_project(OPPO_15109)))
+				msm8x16_notifier_call(codec,
+						WCD_EVENT_PRE_HPHR_PA_ON);
+			else
+				set_bit(WCD_MBHC_EVENT_PA_HPHR,
+						&mbhc->event_state);
+		/*OPPO	2015-05-08, zhangping add for  end*/
+#else
 			msm8x16_notifier_call(codec,
 					WCD_EVENT_PRE_HPHR_PA_ON);
+#endif
+		}
 		snd_soc_update_bits(codec,
 				MSM8X16_WCD_A_ANALOG_NCP_FBCTRL, 0x20, 0x20);
 		break;
@@ -4097,13 +4736,36 @@ static int msm8x16_wcd_hph_pa_event(struct snd_soc_dapm_widget *w,
 		if (w->shift == 5) {
 			clear_bit(WCD_MBHC_HPHL_PA_OFF_ACK,
 				&msm8x16_wcd->mbhc.hph_pa_dac_state);
+#ifdef CONFIG_MACH_OPPO
+			snd_soc_update_bits(codec,
+				MSM8X16_WCD_A_ANALOG_RX_HPH_L_TEST, 0x04, 0x00);
+	/*OPPO	2015-05-08, zhangping add for  pop noise*/
+			if(!(is_project(OPPO_15109)))
+				msm8x16_notifier_call(codec,
+						WCD_EVENT_POST_HPHL_PA_OFF);
+	/*OPPO	2015-05-08, zhangping add for  end*/
+#else
 			msm8x16_notifier_call(codec,
 					WCD_EVENT_POST_HPHL_PA_OFF);
+#endif
 		} else if (w->shift == 4) {
 			clear_bit(WCD_MBHC_HPHR_PA_OFF_ACK,
 				&msm8x16_wcd->mbhc.hph_pa_dac_state);
+#ifdef CONFIG_MACH_OPPO
+			snd_soc_update_bits(codec,
+				MSM8X16_WCD_A_ANALOG_RX_HPH_R_TEST, 0x04, 0x00);
+	/*OPPO	2015-05-08, zhangping add for  pop noise*/
+			if (!(is_project(OPPO_15109)))
+				msm8x16_notifier_call(codec,
+						WCD_EVENT_POST_HPHR_PA_OFF);
+			else
+				clear_bit(WCD_MBHC_EVENT_PA_HPHR,
+						&mbhc->event_state);
+	/*OPPO	2015-05-08, zhangping add for  end*/
+#else
 			msm8x16_notifier_call(codec,
 					WCD_EVENT_POST_HPHR_PA_OFF);
+#endif
 		}
 		usleep_range(4000, 4100);
 
@@ -4168,6 +4830,21 @@ static const struct snd_soc_dapm_route audio_map[] = {
 	{"HPHR PA", NULL, "CP"},
 	{"HPHR PA", NULL, "RX_BIAS"},
 	{"HPHL DAC", NULL, "RX1 CHAIN"},
+
+#ifdef CONFIG_MACH_OPPO
+	/*xiang.fei@Multimedia, 2014/11/26, Add for pop noise*/
+	{"Ext Hphl", NULL, "Ext Hphl Switch"},
+	{"Ext Hphl Switch", "On", "HPHL PA"},
+	{"Ext Hphr", NULL, "Ext Hphr Switch"},
+	{"Ext Hphr Switch", "On", "HPHR PA"},
+	/*oppo 2015-08-18 zhangping add for MMI*/
+	{"Ext Hphl mmi", NULL, "Ext Hphl mmi Switch"},
+	{"Ext Hphl mmi Switch", "On", "HPHL PA"},
+	{"Ext Hphr mmi", NULL, "Ext Hphr mmi Switch"},
+	{"Ext Hphr mmi Switch", "On", "HPHR PA"},
+	/*oppo 2015-08-18 zhangping add for MMI end*/
+	/*xiang.fei@Multimedia, 2014/11/26, Add for pop noise*/
+#endif
 
 	{"SPK_OUT", NULL, "SPK PA"},
 	{"SPK PA", NULL, "SPK_RX_BIAS"},
@@ -4595,20 +5272,79 @@ static int msm8x16_wcd_codec_enable_spk_ext_pa(struct snd_soc_dapm_widget *w,
 {
 	struct snd_soc_codec *codec = w->codec;
 	struct msm8x16_wcd_priv *msm8x16_wcd = snd_soc_codec_get_drvdata(codec);
+#ifdef CONFIG_MACH_OPPO
+	int err = 0;
+#endif
 
 	dev_dbg(codec->dev, "%s: %s event = %d\n", __func__, w->name, event);
 	switch (event) {
 	case SND_SOC_DAPM_POST_PMU:
 		dev_dbg(w->codec->dev,
 			"%s: enable external speaker PA\n", __func__);
+#ifdef CONFIG_MACH_OPPO
+		//John.Xu@PhoneSw.AudioDriver, 2015/01/09, Add for yda145 boost
+		if (is_project(OPPO_15109)) {
+			if (gpio_is_valid(msm8x16_wcd->mbhc.mbhc_cfg->gpio_yda145_boost_en)) {
+				err = gpio_request(msm8x16_wcd->mbhc.mbhc_cfg->gpio_yda145_boost_en,"YDA_BOOST");
+				pr_err("%s, Line = %d, err = %d\n", __func__, __LINE__, err);
+
+				err = gpio_direction_output(msm8x16_wcd->mbhc.mbhc_cfg->gpio_yda145_boost_en, 1);
+				pr_err("%s, Line = %d, err = %d\n", __func__, __LINE__, err);
+			}
+		}
+		/*OPPO 2015-06-12 zhangping Add for short sound clear*/
+		if (hph_speaker_state == 1) {
+			pr_err("%s: msecs_to_jiffies(0) \n", __func__);
+			schedule_delayed_work(&msm8x16_ext_pa_enable_work.ext_spk_pa_enable_work,
+					msecs_to_jiffies(0));
+		} else {
+			pr_err("%s: msecs_to_jiffies(10) \n", __func__);
+			schedule_delayed_work(&msm8x16_ext_pa_enable_work.ext_spk_pa_enable_work,
+					msecs_to_jiffies(10));
+		}
+		dev_err(codec->dev, "yda145 enable\n");
+		/*OPPO 2015-06-12 zhangping Add for short sound clear end*/
+#else
 		if (msm8x16_wcd->codec_spk_ext_pa_cb)
 			msm8x16_wcd->codec_spk_ext_pa_cb(codec, 1);
+#endif
 		break;
 	case SND_SOC_DAPM_PRE_PMD:
 		dev_dbg(w->codec->dev,
 			"%s: enable external speaker PA\n", __func__);
+#ifdef CONFIG_MACH_OPPO
+		if (inter_boost_for_ext_pa()) {
+		//John.Xu 2014-12.19 add for pmic destroy QCOM 's recomment.
+			pr_err("%s, disable boost then gpio!", __func__);
+			if (msm8x16_wcd->spk_boost_set) {
+				snd_soc_update_bits(codec,
+						MSM8X16_WCD_A_ANALOG_BOOST_EN_CTL,
+						0xDF, 0x5F);
+				snd_soc_update_bits(codec,
+						MSM8X16_WCD_A_DIGITAL_CDC_DIG_CLK_CTL,
+						0x20, 0x00);
+				msleep(40);
+			}
+			//John.Xu@PhoneSw.AudioDriver, 2014/12/20, Add for Qcom pmic patch
+			snd_soc_update_bits(codec,
+					MSM8X16_WCD_A_CDC_RX1_B6_CTL, 0x01, 0x01);
+			usleep_range(1000, 1100);
+		}
+		cancel_delayed_work_sync(&msm8x16_ext_pa_enable_work.ext_spk_pa_enable_work);
+	//John.Xu@PhoneSw.AudioDriver, 2015/01/09, Add for yda145 boost
+		if (is_project(OPPO_15109)) {
+			gpio_direction_output(msm8x16_wcd->mbhc.mbhc_cfg->gpio_yda145_boost_en, 0);
+		}
+		gpio_direction_output(msm8x16_wcd->mbhc.mbhc_cfg->gpio_spk_pa_en, 0);
+		/*OPPO 2015-05-23 zhzhyon Add for pop*/
+		jiffies_yda145 = jiffies;
+		/*OPPO 2015-05-23 zhzhyon Add end*/
+		msm8x16_wcd->mbhc.mbhc_cfg->spk_pa_en_state = 0;
+		dev_err(codec->dev, "yda145 disable\n");
+#else
 		if (msm8x16_wcd->codec_spk_ext_pa_cb)
 			msm8x16_wcd->codec_spk_ext_pa_cb(codec, 0);
+#endif
 		break;
 	}
 	return 0;
@@ -4733,6 +5469,30 @@ static const struct snd_soc_dapm_widget msm8x16_wcd_dapm_widgets[] = {
 	SND_SOC_DAPM_MIXER("SPK DAC", SND_SOC_NOPM, 0, 0,
 		spkr_switch, ARRAY_SIZE(spkr_switch)),
 
+#ifdef CONFIG_MACH_OPPO
+	/*zhangping@Multimedia, 2015-03-12, Add for pop noise*/
+	SND_SOC_DAPM_SPK("Ext Hphl", msm8x16_wcd_ext_hp_event),
+	SND_SOC_DAPM_SPK("Ext Hphr", msm8x16_wcd_ext_hp_event),
+	/*oppo 2015-08-18 zhangping add for MMI*/
+	SND_SOC_DAPM_SPK("Ext Hphl mmi", msm8x16_wcd_ext_hpl_event),
+	SND_SOC_DAPM_SPK("Ext Hphr mmi", msm8x16_wcd_ext_hpr_event),
+	/*oppo 2015-08-18 zhangping add for MMI end*/
+	/*zhangping@Multimedia, 2015-03-12, Add for pop noise*/
+
+	/*xiang.fei@Multimedia, 2014/11/26, Add for pop noise*/
+	SND_SOC_DAPM_VIRT_MUX("Ext Hphl Switch", SND_SOC_NOPM, 0, 0,
+			&ext_hphl_mux),
+	SND_SOC_DAPM_VIRT_MUX("Ext Hphr Switch", SND_SOC_NOPM, 0, 0,
+			&ext_hphr_mux),
+	/*oppo 2015-08-18 zhangping add for MMI*/
+	SND_SOC_DAPM_VIRT_MUX("Ext Hphl mmi Switch", SND_SOC_NOPM, 0, 0,
+			&ext_hphl_mmi_mux),
+	SND_SOC_DAPM_VIRT_MUX("Ext Hphr mmi Switch", SND_SOC_NOPM, 0, 0,
+			&ext_hphr_mmi_mux),
+	/*oppo 2015-08-18 zhangping add for MMI end*/
+	/*xiang.fei@Multimedia, 2014/11/26, Add for pop noise*/
+#endif
+
 	/* Speaker */
 	SND_SOC_DAPM_OUTPUT("SPK_OUT"),
 
@@ -4764,8 +5524,16 @@ static const struct snd_soc_dapm_widget msm8x16_wcd_dapm_widgets[] = {
 		0, msm8x16_wcd_codec_enable_interpolator,
 		SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_POST_PMD),
 
+#ifdef CONFIG_MACH_OPPO
+/*xiang.fei@Multimedia, 2014/11/25, Modify for BOOST_VREG_4P5(YDA145)*/
+	SND_SOC_DAPM_SUPPLY("RX1 CLK", MSM8X16_WCD_A_DIGITAL_CDC_DIG_CLK_CTL,
+			0, 0, msm8x16_wcd_codec_enable_dig_clk,
+			SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMD),
+/*xiang.fei@Multimedia, 2014/11/25, Modify for BOOST_VREG_4P5(YDA145) end*/
+#else
 	SND_SOC_DAPM_SUPPLY("RX1 CLK", MSM8X16_WCD_A_DIGITAL_CDC_DIG_CLK_CTL,
 		0, 0, NULL, 0),
+#endif
 	SND_SOC_DAPM_SUPPLY("RX2 CLK", MSM8X16_WCD_A_DIGITAL_CDC_DIG_CLK_CTL,
 		1, 0, NULL, 0),
 	SND_SOC_DAPM_SUPPLY("RX3 CLK", MSM8X16_WCD_A_DIGITAL_CDC_DIG_CLK_CTL,
@@ -5080,6 +5848,12 @@ static void msm8x16_wcd_codec_init_reg(struct snd_soc_codec *codec)
 
 static int msm8x16_wcd_bringup(struct snd_soc_codec *codec)
 {
+#ifdef CONFIG_MACH_OPPO
+	/*xiang.fei@Multimedia, 2014/11/30, Add for pop noise*/
+	ext_hph_pa_count = 0;
+	/*xiang.fei@Multimedia, 2014/11/30, Add for pop noise end*/
+#endif
+
 	snd_soc_write(codec,
 		MSM8X16_WCD_A_DIGITAL_SEC_ACCESS,
 		0xA5);
@@ -5382,6 +6156,24 @@ static int msm8x16_wcd_codec_probe(struct snd_soc_codec *codec)
 		INIT_DELAYED_WORK(&tx_hpf_work[i].dwork,
 			tx_hpf_corner_freq_callback);
 	}
+
+#ifdef CONFIG_MACH_OPPO
+	/* Ming.Liu@Multimedia.AudioDrv, 2015-07-28, Added begin for default HP PA gain */
+	ts4621_gain_value = 0x3A; // 2dB
+	/* Ming.Liu@Multimedia.AudioDrv, 2015-07-28, Added end for default HP PA gain */
+
+	/*xiang.fei@Multimedia, 2014/11/30, Add for pop noise*/
+	msm8x16_ext_pa_enable_work.msm8x16_wcd = msm8x16_wcd_priv;
+	INIT_DELAYED_WORK(&msm8x16_ext_pa_enable_work.ext_spk_pa_enable_work,
+			msm8x16_ext_spk_pa_enable);
+	INIT_DELAYED_WORK(&msm8x16_ext_pa_enable_work.ext_hphl_pa_enable_work,
+			msm8x16_ext_hphl_pa_enable);
+	INIT_DELAYED_WORK(&msm8x16_ext_pa_enable_work.ext_hphr_pa_enable_work,
+			msm8x16_ext_hphr_pa_enable);
+	INIT_DELAYED_WORK(&msm8x16_ext_pa_enable_work.ext_hph_pa_enable_work,
+			msm8x16_ext_hph_pa_enable);
+	/*xiang.fei@Multimedia, 2014/11/30, Add for pop noise end*/
+#endif
 
 	codec->control_data = dev_get_drvdata(codec->dev);
 	snd_soc_codec_set_drvdata(codec, msm8x16_wcd_priv);
@@ -5888,6 +6680,10 @@ static int msm8x16_wcd_spmi_probe(struct spmi_device *spmi)
 			__func__, ret);
 		goto err_supplies;
 	}
+#ifdef CONFIG_MACH_OPPO
+//John.Xu@PhoneSw.AudioDriver, 2015/01/07, Add for move pcb version to codec
+	oppo_codec_version_init(msm8x16);
+#endif
 	dev_set_drvdata(&spmi->dev, msm8x16);
 
 	ret = snd_soc_register_codec(&spmi->dev, &soc_codec_dev_msm8x16_wcd,
