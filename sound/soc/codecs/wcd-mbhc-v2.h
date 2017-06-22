@@ -245,6 +245,21 @@ struct wcd_mbhc_config {
 	uint32_t linein_th;
 	struct wcd_mbhc_moisture_cfg moist_cfg;
 	bool insert_detect;
+	/*xiang.fei@Multimedia, 2014/11/20, Add for no voice in calling*/
+    #ifdef VENDOR_EDIT
+    int spk_pa_en_state;
+    #endif
+    /*xiang.fei@Multimedia, 2014/11/20, Add end*/
+	/*xiang.fei@Multimedia, 2014/11/26, Add for pop noise*/
+    #ifdef VENDOR_EDIT
+    int gpio_spk_pa_en;
+    #endif
+    /*xiang.fei@Multimedia, 2014/11/26, Add for pop noise end*/
+
+#ifdef VENDOR_EDIT
+//John.Xu@PhoneSw.AudioDriver, 2015/01/09, Add for yda145 boost
+    int gpio_yda145_boost_en;
+#endif /* VENDOR_EDIT */
 };
 
 struct wcd_mbhc_intr {
