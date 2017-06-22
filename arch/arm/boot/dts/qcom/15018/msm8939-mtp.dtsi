@@ -233,15 +233,11 @@
 
 			qcom,pre_normal_bat_decidegc = <160>;
 			qcom,temp_pre_normal_vfloat_mv = <4320>;
-			qcom,temp_pre_normal_fastchg_current_ma = <1050>;
+			qcom,temp_pre_normal_fastchg_current_ma = <1500>;
 
 			qcom,pre_cool_bat_decidegc = <120>;
-			qcom,temp_pre_cool_vfloat_mv = <4320>;
-			qcom,temp_pre_cool_fastchg_current_ma = <500>;
-
-			qcom,pre_cool1_bat_decidegc = <50>;
-			qcom,temp_pre_cool1_vfloat_mv = <4320>;
-			qcom,temp_pre_cool1_fastchg_current_ma = <300>;
+			qcom,temp_pre_cool_vfloat_mv = <4200>;
+			qcom,temp_pre_cool_fastchg_current_ma = <900>;
 
 			qcom,cool_bat_decidegc = <0>;
 			qcom,temp_cool_vfloat_mv = <4000>;
@@ -412,6 +408,7 @@
 
 &pm8916_bms {
 	status = "ok";
+	qcom,disable-bms;
 };
 
 &qcom_tzlog {
