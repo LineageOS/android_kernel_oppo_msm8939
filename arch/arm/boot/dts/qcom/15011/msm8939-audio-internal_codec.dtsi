@@ -38,9 +38,11 @@
 				"cdc_lines_quat_sec_ext_act",
 				"cdc_lines_quat_sec_ext_sus";
 		pinctrl-2 = <&cdc_pdm_lines_act &cdc_ext_pa_act
-				&cdc_ext_pa_ws_act &ext_cdc_tlmm_lines_act>;
+				&cdc_ext_pa_ws_act &ext_cdc_tlmm_lines_act
+				&mclk_lines_act>;
 		pinctrl-3 = <&cdc_pdm_lines_sus &cdc_ext_pa_sus
-				&cdc_ext_pa_ws_sus &ext_cdc_tlmm_lines_sus>;
+				&cdc_ext_pa_ws_sus &ext_cdc_tlmm_lines_sus
+				&mclk_lines_sus>;
 		/delete-property/ qcom,cdc-us-euro-gpios;
 	};
 };
