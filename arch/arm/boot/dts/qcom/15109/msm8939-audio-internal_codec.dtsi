@@ -14,8 +14,7 @@
 
 &soc {
 	sound {
-		qcom,msm-snd-card-id = <3>;
-		qcom,msm-ext-pa = "secondary", "quaternary";
+		qcom,msm-mclk-freq = <9600000>;
 		qcom,msm-mbhc-hphl-swh = <1>;
 		qcom,msm-hs-micbias-type = "external";
 		qcom,msm-micbias2-ext-cap;
@@ -28,19 +27,9 @@
 			"MIC BIAS External", "Secondary Mic",
 			"AMIC1", "MIC BIAS External",
 			"AMIC2", "MIC BIAS External2",
-			"AMIC3", "MIC BIAS External",
-			"DMIC1", "MIC BIAS Internal1",
-			"MIC BIAS Internal1", "Digital Mic1",
-			"DMIC2", "MIC BIAS Internal1",
-			"MIC BIAS Internal1", "Digital Mic2";
-		pinctrl-names = "cdc_lines_act",
-				"cdc_lines_sus",
-				"cdc_lines_quat_sec_ext_act",
-				"cdc_lines_quat_sec_ext_sus";
-		pinctrl-2 = <&cdc_pdm_lines_act &cdc_ext_pa_act
-						&cdc_ext_pa_ws_act &ext_cdc_tlmm_lines_act>;
-		pinctrl-3 = <&cdc_pdm_lines_sus &cdc_ext_pa_sus
-						&cdc_ext_pa_ws_sus &ext_cdc_tlmm_lines_sus>;
+			"AMIC3", "MIC BIAS External";
 		/delete-property/ qcom,cdc-us-euro-gpios;
+		spk-pa-en = <&msm_gpio 16 0x00>;
+		yda145_boost-en = <&msm_gpio 17 0x00>;
 	};
 };
