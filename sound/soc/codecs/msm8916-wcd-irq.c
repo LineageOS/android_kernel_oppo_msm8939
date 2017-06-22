@@ -30,7 +30,13 @@
 
 #define MAX_NUM_IRQS 14
 #define NUM_IRQ_REGS 2
+/*xiang.fei@Multimedia, 2014/11/18, Modify for resume time*/
+#ifndef CONFIG_MACH_OPPO
 #define WCD9XXX_SYSTEM_RESUME_TIMEOUT_MS 700
+#else
+#define WCD9XXX_SYSTEM_RESUME_TIMEOUT_MS 2000 //John.Xu@Multimedia 2015-06-03 modified for Headset detect
+#endif
+/*xiang.fei@Multimedia, 2014/11/18, Modify end*/
 
 #define BYTE_BIT_MASK(nr) (1UL << ((nr) % BITS_PER_BYTE))
 #define BIT_BYTE(nr) ((nr) / BITS_PER_BYTE)
