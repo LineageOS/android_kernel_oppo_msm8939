@@ -16,6 +16,8 @@
 #include "msm8939-pinctrl.dtsi"
 #include "msm8939-regulator.dtsi"
 #include "msm-pm8916.dtsi"
+#include "dsi-panel-hx8394d-720p-video.dtsi"
+#include "dsi-panel-hx8394h-720p-video.dtsi"
 #include "dsi-panel-oppo15109tm-nt35592-720p-video.dtsi"
 #include "dsi-panel-oppo15109truly-hx8394f-720p-video.dtsi"
 #include "dsi-panel-oppo15109boe-ili9881c-720p-video.dtsi"
@@ -145,12 +147,12 @@
 			qcom,temp_hot_fastchg_current_ma = <535>;
 
 			qcom,warm_bat_decidegc = <450>;
-			qcom,temp_warm_vfloat_mv = <4350>;
+			qcom,temp_warm_vfloat_mv = <4320>;
 			qcom,temp_warm_fastchg_current_ma = <1420>;
 
 			qcom,pre_normal_bat_decidegc = <220>;
 			qcom,temp_pre_normal_vfloat_mv = <4320>;
-			qcom,temp_pre_normal_fastchg_current_ma = <1055>;
+			qcom,temp_pre_normal_fastchg_current_ma = <1120>;
 
 			qcom,pre_cool_bat_decidegc = <120>;
 			qcom,temp_pre_cool_vfloat_mv = <4320>;
@@ -334,6 +336,14 @@
 		};
 	};
 
+	i2c@78ba000 { /* BLSP1 QUP6 */
+		ts4621@60 {
+			status = "okay";
+			compatible = "st,ts4621";
+			reg = <0x60>;
+		};
+	};
+
 	qcom,ipc_router_modem_xprt {
 		/delete-property/ qcom,disable-pil-loading;
 	};
@@ -342,30 +352,6 @@
 		qcom,smd-modem {
 			/delete-property/ qcom,not-loadable;
 		};
-	};
-};
-
-&pm8916_vadc {
-	chan@0 {
-		label = "usb_in";
-		reg = <0>;
-		qcom,decimation = <0>;
-		qcom,pre-div-channel-scaling = <7>;
-		qcom,calibration-type = "absolute";
-		qcom,scale-function = <0>;
-		qcom,hw-settle-time = <0>;
-		qcom,fast-avg-setup = <0>;
-	};
-
-	chan@13 {
-		label = "p_mux4_1_1";
-		reg = <0x13>;
-		qcom,decimation = <0>;
-		qcom,pre-div-channel-scaling = <0>;
-		qcom,calibration-type = "absolute";
-		qcom,scale-function = <0>;
-		qcom,hw-settle-time = <2>;
-		qcom,fast-avg-setup = <0>;
 	};
 };
 
@@ -454,7 +440,6 @@
 &pm8916_chg {
 	status = "ok";
 	qcom,charging-disabled;
-	qcom,disable-follow-on-reset;
 };
 
 / {
@@ -513,6 +498,24 @@
 
 &mdss_mdp {
 	qcom,mdss-pref-prim-intf = "dsi";
+};
+
+&dsi_hx8394d_720_vid {
+	qcom,mdss-dsi-bl-pmic-control-type = "bl_ctrl_pwm";
+	qcom,mdss-dsi-bl-pmic-pwm-frequency = <100>;
+	qcom,mdss-dsi-bl-pmic-bank-select = <0>;
+	qcom,mdss-dsi-pwm-gpio = <&pm8916_mpps 4 0>;
+	qcom,cont-splash-enabled;
+	qcom,esd-check-enabled;
+};
+
+&dsi_hx8394h_720_vid {
+	qcom,mdss-dsi-bl-pmic-control-type = "bl_ctrl_pwm";
+	qcom,mdss-dsi-bl-pmic-pwm-frequency = <100>;
+	qcom,mdss-dsi-bl-pmic-bank-select = <0>;
+	qcom,mdss-dsi-pwm-gpio = <&pm8916_mpps 4 0>;
+	qcom,cont-splash-enabled;
+	qcom,esd-check-enabled;
 };
 
 &dsi_oppo15109tm_nt35592_720p_video {
@@ -597,8 +600,10 @@
 		/* External regulator control for WTR */
 		status = "ok";
 		qcom,mode = <1>; /* QPNP_PIN_MODE_DIG_OUT */
-		qcom,pull = <5>; /* QPNP_PIN_PULL_NO */
-		qcom,vin-sel = <3>; /* QPNP_PIN_VIN3 */
+		qcom,vin-sel = <0>; /* VPH_PWR */
+		qcom,src-sel = <0>; /* QPNP_PIN_SEL_FUNC_CONSTANT */
+		qcom,out-strength = <2>; /* QPNP_PIN_OUT_STRENGTH_MED */
+		qcom,master-en = <1>;
 	};
 
 	gpio@c300 { /* GPIO 4 */
