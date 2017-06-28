@@ -7,10 +7,6 @@ config MSM_CAMERA_SENSOR
           data for camera support. The driver support V4L2
           subdev APIs.
 
-config MSM_CAMERA_SENSOR_OPPO_IOCTL_COMPAT
-	bool "Use legacy style of sensor configuration ioctls"
-	depends on MSM_CAMERA_SENSOR
-
 config MSM_CPP
         bool "Qualcomm MSM Camera Post Processing Engine support"
         depends on MSMB_CAMERA
@@ -201,6 +197,15 @@ config GC0339
 	---help---
 		gc0339 is a Galaxycore .3 MP Bayer Sensor.
 		It supports 1 or 2 mipi lanes.
+		Preview and snapshot resolution shall be 640*480 at 30 fps,
+		It does not support auto focus.
+
+config GC0310
+	bool "Sensor GC0310 (YUV .3M)"
+	depends on MSMB_CAMERA
+	---help---
+		0310 is a Galaxycore .3 MP YUV Sensor.
+		It supports 1 mipi lane.
 		Preview and snapshot resolution shall be 640*480 at 30 fps,
 		It does not support auto focus.
 
