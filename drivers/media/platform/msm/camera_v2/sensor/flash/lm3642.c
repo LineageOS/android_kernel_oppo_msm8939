@@ -30,8 +30,13 @@ static struct i2c_driver lm3642_i2c_driver;
 
 static struct msm_camera_i2c_reg_array lm3642_init_array[] = {
 	{0x0A, 0x00},
+#ifdef CONFIG_MACH_OPPO
+	{0x08, 0x04},
+	{0x09, 0x1A},
+#else
 	{0x08, 0x07},
 	{0x09, 0x19},
+#endif
 };
 
 static struct msm_camera_i2c_reg_array lm3642_off_array[] = {
@@ -43,11 +48,22 @@ static struct msm_camera_i2c_reg_array lm3642_release_array[] = {
 };
 
 static struct msm_camera_i2c_reg_array lm3642_low_array[] = {
+#ifdef CONFIG_MACH_OPPO
+	{0x0A, 0x12},
+	{0x08, 0x04},
+	{0x09, 0x1A},
+	{0x06, 0x00},
+#else
 	{0x0A, 0x22},
+#endif
 };
 
 static struct msm_camera_i2c_reg_array lm3642_high_array[] = {
 	{0x0A, 0x23},
+#ifdef CONFIG_MACH_OPPO
+	{0x08, 0x04},
+	{0x09, 0x1A},
+#endif
 };
 
 
@@ -309,15 +325,77 @@ static struct i2c_driver lm3642_i2c_driver = {
 	},
 };
 
+#ifdef CONFIG_MACH_OPPO
+static const struct of_device_id lm3642_trigger_dt_match[] =
+{
+	{.compatible = FLASH_NAME, .data = &fctrl},
+	{}
+};
+
+static int msm_flash_lm3642_platform_probe(struct platform_device *pdev)
+{
+	int rc;
+	const struct of_device_id *match;
+	struct msm_camera_power_ctrl_t *power_info = NULL;
+
+	LM3642_DBG("%s entry\n", __func__);
+
+	match = of_match_device(lm3642_trigger_dt_match, &pdev->dev);
+	if (!match) {
+		pr_err("%s, of_match_device failed!\n", __func__);
+		return -EFAULT;
+	}
+	LM3642_DBG("%s of_match_device success\n", __func__);
+
+	rc = msm_flash_probe(pdev, match->data);
+
+	power_info = &fctrl.flashdata->power_info;
+	rc = msm_camera_request_gpio_table(
+			power_info->gpio_conf->cam_gpio_req_tbl,
+			power_info->gpio_conf->cam_gpio_req_tbl_size, 1);
+	if (rc < 0)
+		pr_err("%s: request gpio failed\n", __func__);
+
+	rc = msm_camera_request_gpio_table(
+			power_info->gpio_conf->cam_gpio_req_tbl,
+			power_info->gpio_conf->cam_gpio_req_tbl_size, 0);
+	if (rc < 0)
+		pr_err("%s: request gpio failed\n", __func__);
+
+	return rc;
+}
+
+static struct platform_driver lm3642_platform_driver =
+{
+	.probe = msm_flash_lm3642_platform_probe,
+	.driver = {
+		.name = FLASH_NAME,
+		.owner = THIS_MODULE,
+		.of_match_table = lm3642_trigger_dt_match,
+	},
+};
+#endif
+
 static int __init msm_flash_lm3642_init(void)
 {
+#ifdef CONFIG_MACH_OPPO
+	int32_t rc = 0;
+#endif
 	LM3642_DBG("%s entry\n", __func__);
+#ifdef CONFIG_MACH_OPPO
+	rc = platform_driver_register(&lm3642_platform_driver);
+	if (!rc)
+		return rc;
+#endif
 	return i2c_add_driver(&lm3642_i2c_driver);
 }
 
 static void __exit msm_flash_lm3642_exit(void)
 {
 	LM3642_DBG("%s entry\n", __func__);
+#ifdef CONFIG_MACH_OPPO
+	platform_driver_unregister(&lm3642_platform_driver);
+#endif
 	i2c_del_driver(&lm3642_i2c_driver);
 	return;
 }
@@ -378,11 +456,19 @@ static struct msm_led_flash_reg_t lm3642_regs = {
 static struct msm_flash_fn_t lm3642_func_tbl = {
 	.flash_get_subdev_id = msm_led_i2c_trigger_get_subdev_id,
 	.flash_led_config = msm_led_i2c_trigger_config,
+#ifdef CONFIG_MACH_OPPO
+	.flash_led_init = msm_flash_led_init,
+	.flash_led_release = msm_flash_led_release,
+	.flash_led_off = msm_flash_led_off,
+	.flash_led_low = msm_flash_led_low,
+	.flash_led_high = msm_flash_led_high,
+#else
 	.flash_led_init = msm_flash_lm3642_led_init,
 	.flash_led_release = msm_flash_lm3642_led_release,
 	.flash_led_off = msm_flash_lm3642_led_off,
 	.flash_led_low = msm_flash_lm3642_led_low,
 	.flash_led_high = msm_flash_lm3642_led_high,
+#endif
 };
 
 static struct msm_led_flash_ctrl_t fctrl = {

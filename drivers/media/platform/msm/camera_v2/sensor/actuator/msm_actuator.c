@@ -95,7 +95,14 @@ static void msm_actuator_parse_i2c_params(struct msm_actuator_ctrl_t *a_ctrl,
 				i2c_byte1 = write_arr[i].reg_addr;
 				i2c_byte2 = value;
 				if (size != (i+1)) {
+#ifndef CONFIG_MACH_OPPO
 					i2c_byte2 = value & 0xFF;
+#else
+					if (size == 2)
+						i2c_byte2 = (value & 0xFF00) >> 8;
+					else
+						i2c_byte2 = value & 0xFF;
+#endif
 					CDBG("byte1:0x%x, byte2:0x%x\n",
 						i2c_byte1, i2c_byte2);
 					if (a_ctrl->i2c_tbl_index >
@@ -112,7 +119,14 @@ static void msm_actuator_parse_i2c_params(struct msm_actuator_ctrl_t *a_ctrl,
 					a_ctrl->i2c_tbl_index++;
 					i++;
 					i2c_byte1 = write_arr[i].reg_addr;
+#ifndef CONFIG_MACH_OPPO
 					i2c_byte2 = (value & 0xFF00) >> 8;
+#else
+					if (size == 2)
+						i2c_byte2 = value & 0xFF;
+					else
+						i2c_byte2 = (value & 0xFF00) >> 8;
+#endif
 				}
 			} else {
 				i2c_byte1 = (value & 0xFF00) >> 8;
@@ -374,12 +388,25 @@ static int32_t msm_actuator_move_focus(
 	reg_setting.reg_setting = a_ctrl->i2c_reg_tbl;
 	reg_setting.data_type = a_ctrl->i2c_data_type;
 	reg_setting.size = a_ctrl->i2c_tbl_index;
+#ifndef CONFIG_MACH_OPPO
 	rc = a_ctrl->i2c_client.i2c_func_tbl->i2c_write_table_w_microdelay(
 		&a_ctrl->i2c_client, &reg_setting);
 	if (rc < 0) {
 		pr_err("i2c write error:%d\n", rc);
 		return rc;
 	}
+#else
+	if (reg_setting.size > 0 && reg_setting.size < 8192) {
+		rc = a_ctrl->i2c_client.i2c_func_tbl->i2c_write_table_w_microdelay(
+			&a_ctrl->i2c_client, &reg_setting);
+		if (rc < 0) {
+			pr_err("i2c write error:%d\n", rc);
+			return rc;
+		}
+	} else {
+		pr_err("error, size %d\n", reg_setting.size);
+	}
+#endif
 	a_ctrl->i2c_tbl_index = 0;
 	CDBG("Exit\n");
 
@@ -559,11 +586,14 @@ static int32_t msm_actuator_set_default_focus(
 }
 
 static int32_t msm_actuator_vreg_control(struct msm_actuator_ctrl_t *a_ctrl,
-							int config)
+							bool config)
 {
 	int rc = 0, i, cnt;
 	struct msm_actuator_vreg *vreg_cfg;
 	struct device *dev = NULL;
+
+	if (config == a_ctrl->regulator_active)
+		return 0;
 
 	vreg_cfg = &a_ctrl->vreg_cfg;
 	cnt = vreg_cfg->num_vreg;
@@ -589,8 +619,12 @@ static int32_t msm_actuator_vreg_control(struct msm_actuator_ctrl_t *a_ctrl,
 		rc = msm_camera_config_single_vreg(dev,
 			&vreg_cfg->cam_vreg[i],
 			(struct regulator **)&vreg_cfg->data[i],
-			config);
+			config ? 1 : 0);
+		if (rc < 0)
+			break;
 	}
+	if (rc == 0)
+		a_ctrl->regulator_active = config;
 	return rc;
 }
 
@@ -795,6 +829,9 @@ static int32_t msm_actuator_set_param(struct msm_actuator_ctrl_t *a_ctrl,
 	/* Park lens data */
 	a_ctrl->park_lens = set_info->actuator_params.park_lens;
 	a_ctrl->initial_code = set_info->af_tuning_params.initial_code;
+#ifdef CONFIG_MACH_OPPO
+	a_ctrl->actuator_state = ACTUATOR_POWER_UP;
+#endif
 	if (a_ctrl->func_tbl->actuator_init_step_table)
 		rc = a_ctrl->func_tbl->
 			actuator_init_step_table(a_ctrl, set_info);
@@ -920,6 +957,9 @@ static struct msm_camera_i2c_fn_t msm_sensor_cci_func_tbl = {
 	.i2c_read = msm_camera_cci_i2c_read,
 	.i2c_read_seq = msm_camera_cci_i2c_read_seq,
 	.i2c_write = msm_camera_cci_i2c_write,
+#ifdef CONFIG_MACH_OPPO
+	.i2c_write_seq = msm_camera_cci_i2c_write_seq,
+#endif
 	.i2c_write_table = msm_camera_cci_i2c_write_table,
 	.i2c_write_seq_table = msm_camera_cci_i2c_write_seq_table,
 	.i2c_write_table_w_microdelay =

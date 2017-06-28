@@ -934,6 +934,71 @@ static long msm_eeprom_subdev_fops_ioctl32(struct file *file, unsigned int cmd,
 
 #endif
 
+#ifdef CONFIG_MACH_OPPO
+uint16_t s5k3m2_module = 0;
+extern bool pdaf_calibration_flag;
+static void msm_eeprom_s5k3m2_read_vendorInfo(struct msm_eeprom_ctrl_t *e_ctrl)
+{
+	int rc = 0;
+	uint16_t read_data = 0;
+
+	e_ctrl->i2c_client.addr_type = MSM_CAMERA_I2C_WORD_ADDR;
+
+	rc = e_ctrl->i2c_client.i2c_func_tbl->i2c_read(
+			&e_ctrl->i2c_client, 0x0031,
+			&read_data, MSM_CAMERA_I2C_BYTE_DATA);
+	if (rc < 0)
+		pr_err("%s read 0x0031 failed\n", __func__);
+
+	if (read_data == 0x01) {
+		int i;
+		uint16_t sum1 = 0, read_value = 0;
+
+		for (i = 0; i <= 0x1B; i++) {
+			rc = e_ctrl->i2c_client.i2c_func_tbl->i2c_read(
+					&e_ctrl->i2c_client, i,
+					&read_data, MSM_CAMERA_I2C_BYTE_DATA);
+			if (rc < 0)
+				pr_err("%s read 0x%x fail\n", __func__, i);
+			else {
+				if (i == 0)
+					read_value = read_data;
+				sum1 += read_data;
+			}
+		}
+		sum1 = sum1%255;
+
+		rc = e_ctrl->i2c_client.i2c_func_tbl->i2c_read(
+				&e_ctrl->i2c_client, 0x0032,
+				&read_data, MSM_CAMERA_I2C_BYTE_DATA);
+
+		if (sum1 == read_data)
+			s5k3m2_module = read_value;
+
+		//read PDAF calibration
+		read_data = 0;
+		read_value = 0;
+
+		//PDAF Gain Map Flag
+		rc = e_ctrl->i2c_client.i2c_func_tbl->i2c_read(
+				&e_ctrl->i2c_client, 0x0B08,
+				&read_data, MSM_CAMERA_I2C_BYTE_DATA);
+		if (rc < 0)
+			pr_err("%s read 0x0B08 failed\n", __func__);
+
+		//PDAF PCC Flag
+		rc = e_ctrl->i2c_client.i2c_func_tbl->i2c_read(
+				&e_ctrl->i2c_client, 0x0B0A,
+				&read_value, MSM_CAMERA_I2C_BYTE_DATA);
+		if (rc < 0)
+			pr_err("%s read 0x0B0A failed\n", __func__);
+
+		if (read_data == 1 && read_value == 1)
+			pdaf_calibration_flag = true;
+	}
+}
+#endif
+
 static int msm_eeprom_platform_probe(struct platform_device *pdev)
 {
 	int rc = 0;
@@ -1056,6 +1121,12 @@ static int msm_eeprom_platform_probe(struct platform_device *pdev)
 		pr_err("failed rc %d\n", rc);
 		goto memdata_free;
 	}
+
+#ifdef CONFIG_MACH_OPPO
+	if (strcmp(eb_info->eeprom_name, "sunny_f13s01l") == 0)
+		msm_eeprom_s5k3m2_read_vendorInfo(e_ctrl);
+#endif
+
 	rc = read_eeprom_memory(e_ctrl, &e_ctrl->cal_data);
 	if (rc < 0) {
 		pr_err("%s read_eeprom_memory failed\n", __func__);

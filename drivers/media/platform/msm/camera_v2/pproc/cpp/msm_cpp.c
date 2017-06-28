@@ -1432,6 +1432,9 @@ static void msm_cpp_do_timeout_work(struct work_struct *work)
 		pr_err("Delayed trigger, IRQ serviced\n");
 		return;
 	}
+#ifdef CONFIG_MACH_OPPO
+	msm_cpp_clear_timer(cpp_timer.data.cpp_dev);
+#endif
 	atomic_set(&cpp_timer.used, 0);
 	cpp_load_fw(cpp_timer.data.cpp_dev,
 		cpp_timer.data.cpp_dev->fw_name_bin);

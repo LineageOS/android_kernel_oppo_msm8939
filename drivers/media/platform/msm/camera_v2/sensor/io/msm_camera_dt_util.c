@@ -1046,7 +1046,11 @@ int msm_camera_get_dt_vreg_data(struct device_node *of_node,
 	struct camera_vreg_t **cam_vreg, int *num_vreg)
 {
 	int rc = 0, i = 0;
+#ifndef CONFIG_MACH_OPPO
 	uint32_t count = 0;
+#else
+	int32_t count = 0;
+#endif
 	uint32_t *vreg_array = NULL;
 	struct camera_vreg_t *vreg = NULL;
 	bool custom_vreg_name =  false;
@@ -1054,8 +1058,13 @@ int msm_camera_get_dt_vreg_data(struct device_node *of_node,
 	count = of_property_count_strings(of_node, "qcom,cam-vreg-name");
 	CDBG("%s qcom,cam-vreg-name count %d\n", __func__, count);
 
+#ifndef CONFIG_MACH_OPPO
 	if (!count)
 		return 0;
+#else
+	if (count <= 0)
+		return count;
+#endif
 
 	vreg = kzalloc(sizeof(*vreg) * count, GFP_KERNEL);
 	if (!vreg) {

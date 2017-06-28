@@ -21,6 +21,19 @@
 #undef CDBG
 #define CDBG(fmt, args...) pr_debug(fmt, ##args)
 
+#ifdef CONFIG_MACH_OPPO
+#include <soc/oppo/device_info.h>
+
+#define DEVICE_VERSION_S5K3M2_SUNNY	"s5k3m2_sunny"
+#define DEVICE_VERSION_S5K3M2_TRULY	"s5k3m2_truly"
+#define DEVICE_VERSION_S5K3M2_SEMCO	"s5k3m2_semco"
+#define DEVICE_VERSION_S5K3M2_LITEON	"s5k3m2_liteon"
+#define DEVICE_MANUFACTURER_S5K3M2	"Samsung"
+
+static uint8_t deviceInfo_register_value = 0x00;
+extern uint16_t s5k3m2_module;
+#endif
+
 static struct v4l2_file_operations msm_sensor_v4l2_subdev_fops;
 static void msm_sensor_adjust_mclk(struct msm_camera_power_ctrl_t *ctrl)
 {
@@ -485,6 +498,39 @@ int msm_sensor_power_up(struct msm_sensor_ctrl_t *s_ctrl)
 	return rc;
 }
 
+#ifdef CONFIG_MACH_OPPO
+static void register_device_info(struct msm_sensor_ctrl_t *s_ctrl)
+{
+	if ((strncmp(s_ctrl->sensordata->sensor_name, "s5k3m2", 6) == 0)
+		&& ((deviceInfo_register_value >> 4 & 0xF) == 0x1)) {
+		pr_err("%s: back device info already register\n", __func__);
+		return;
+	} else {
+		if (strncmp(s_ctrl->sensordata->sensor_name, "s5k3m2", 6) == 0) {
+			if (s5k3m2_module == 0x04)
+				register_device_proc("r_camera",
+						DEVICE_VERSION_S5K3M2_LITEON,
+						DEVICE_MANUFACTURER_S5K3M2);
+			else if (s5k3m2_module == 0x03)
+				register_device_proc("r_camera",
+						DEVICE_VERSION_S5K3M2_SEMCO,
+						DEVICE_MANUFACTURER_S5K3M2);
+			else if (s5k3m2_module == 0x02)
+				register_device_proc("r_camera",
+						DEVICE_VERSION_S5K3M2_TRULY,
+						DEVICE_MANUFACTURER_S5K3M2);
+			else
+				register_device_proc("r_camera",
+						DEVICE_VERSION_S5K3M2_SUNNY,
+						DEVICE_MANUFACTURER_S5K3M2);
+
+			deviceInfo_register_value = deviceInfo_register_value | 0x10;
+			return;
+		}
+	}
+}
+#endif
+
 int msm_sensor_match_id(struct msm_sensor_ctrl_t *s_ctrl)
 {
 	int rc = 0;
@@ -523,6 +569,9 @@ int msm_sensor_match_id(struct msm_sensor_ctrl_t *s_ctrl)
 		pr_err("msm_sensor_match_id chip id doesnot match\n");
 		return -ENODEV;
 	}
+#ifdef CONFIG_MACH_OPPO
+	register_device_info(s_ctrl);
+#endif
 	return rc;
 }
 

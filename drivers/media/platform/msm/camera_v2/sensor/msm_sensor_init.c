@@ -120,7 +120,11 @@ static long msm_sensor_init_subdev_ioctl(struct v4l2_subdev *sd,
 		break;
 	}
 
+#ifndef CONFIG_MACH_OPPO
 	return 0;
+#else
+	return rc;
+#endif
 }
 
 #ifdef CONFIG_COMPAT
