@@ -57,10 +57,6 @@ stmvl6180x_dev vl6180x_dev;
 #define VL6180_I2C_ADDRESS  (0x52>>1)
 static struct i2c_client *client;
 
-#ifdef CONFIG_MACH_OPPO
-/*zhengrong.zhang, 2015/07/08, add for laser*/
-extern bool is_laser_supported;
-#endif
 /*
  * Global data
  */
@@ -1153,10 +1149,6 @@ static int stmvl6180_init_client(struct stmvl6180_data *vl6180_data)
 	CDBG("read MODLE_ID: 0x%x\n", id);
 	if (id == 0xb4) {
 		pr_err("STM VL6180 Found\n");
-#ifdef CONFIG_MACH_OPPO
-/*zhengrong.zhang, 2015/07/08, add for laser*/
-		is_laser_supported = true;
-#endif
 	}
 	else if (id==0){
 		pr_err("Not found STM VL6180\n");
