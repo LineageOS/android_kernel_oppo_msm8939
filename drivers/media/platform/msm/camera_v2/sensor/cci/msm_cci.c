@@ -142,7 +142,6 @@ static int32_t msm_cci_validate_queue(struct cci_device *cci_dev,
 	int32_t rc = 0;
 	uint32_t read_val = 0;
 	uint32_t reg_offset = master * 0x200 + queue * 0x100;
-
 	read_val = msm_camera_io_r_mb(cci_dev->base +
 		CCI_I2C_M0_Q0_CUR_WORD_CNT_ADDR + reg_offset);
 	CDBG("%s line %d CCI_I2C_M0_Q0_CUR_WORD_CNT_ADDR %d len %d max %d\n",
@@ -703,7 +702,7 @@ static int32_t msm_cci_init(struct v4l2_subdev *sd,
 		return rc;
 	}
 	if (cci_dev->ref_count++) {
-		pr_err("%s ref_count %d\n", __func__, cci_dev->ref_count);
+		CDBG("%s ref_count %d\n", __func__, cci_dev->ref_count);
 		master = c_ctrl->cci_info->cci_i2c_master;
 		CDBG("%s:%d master %d\n", __func__, __LINE__, master);
 		rc = msm_cci_set_clk_param(cci_dev, c_ctrl);
@@ -728,22 +727,9 @@ static int32_t msm_cci_init(struct v4l2_subdev *sd,
 				&cci_dev->cci_master_info[master].
 				reset_complete,
 				CCI_TIMEOUT);
-#ifndef CONFIG_MACH_OPPO
 			if (rc <= 0)
 				pr_err("%s:%d wait failed %d\n", __func__,
 					__LINE__, rc);
-#else
-			if (rc <= 0) {
-				uint32_t irq_status = msm_camera_io_r_mb(cci_dev->base + CCI_IRQ_STATUS_0_ADDR);
-				if (irq_status & CCI_IRQ_STATUS_0_RST_DONE_ACK_BMSK) {
-					pr_err("%s %d:irq_status = 0x%X, consider as right\n",
-						__func__, __LINE__, irq_status);
-				} else {
-					pr_err("%s:%d wait failed %d\n", __func__,
-						__LINE__, rc);
-				}
-			}
-#endif
 			mutex_unlock(&cci_dev->cci_master_info[master].mutex);
 		}
 		return 0;
@@ -766,13 +752,13 @@ static int32_t msm_cci_init(struct v4l2_subdev *sd,
 				__func__, __LINE__);
 	}
 	if (rc < 0) {
-		pr_err("%s: request gpio failed\n", __func__);
+		CDBG("%s: request gpio failed\n", __func__);
 		goto request_gpio_failed;
 	}
 	cci_dev->reg_ptr = regulator_get(&(cci_dev->pdev->dev),
 					 "qcom,gdscr-vdd");
 	if (IS_ERR_OR_NULL(cci_dev->reg_ptr)) {
-		pr_err(" %s: Failed in getting TOP gdscr regulator handle\n",
+		pr_err(" %s: Failed in getting TOP gdscr regulator handle",
 			__func__);
 	} else {
 		rc = regulator_enable(cci_dev->reg_ptr);
@@ -785,7 +771,7 @@ static int32_t msm_cci_init(struct v4l2_subdev *sd,
 	rc = msm_cam_clk_enable(&cci_dev->pdev->dev, cci_clk_info,
 		cci_dev->cci_clk, cci_dev->num_clk, 1);
 	if (rc < 0) {
-		pr_err("%s: clk enable failed\n", __func__);
+		CDBG("%s: clk enable failed\n", __func__);
 		goto clk_enable_failed;
 	}
 	enable_irq(cci_dev->irq->start);
@@ -801,26 +787,11 @@ static int32_t msm_cci_init(struct v4l2_subdev *sd,
 		&cci_dev->cci_master_info[MASTER_0].reset_complete,
 		CCI_TIMEOUT);
 	if (rc <= 0) {
-#ifndef CONFIG_MACH_OPPO
 		pr_err("%s: wait_for_completion_timeout %d\n",
 			 __func__, __LINE__);
 		if (rc == 0)
 			rc = -ETIMEDOUT;
 		goto reset_complete_failed;
-#else
-		uint32_t irq_status = msm_camera_io_r_mb(cci_dev->base + CCI_IRQ_STATUS_0_ADDR);
-		if (irq_status & CCI_IRQ_STATUS_0_RST_DONE_ACK_BMSK) {
-			pr_err("%s %d:irq_status = 0x%X, consider as right\n",
-				__func__, __LINE__, irq_status);
-			rc = 0;
-		} else {
-			pr_err("%s: wait_for_completion_timeout %d\n",
-				 __func__, __LINE__);
-			if (rc == 0)
-				rc = -ETIMEDOUT;
-			goto reset_complete_failed;
-		}
-#endif
 	}
 	for (i = 0; i < MASTER_MAX; i++)
 		cci_dev->master_clk_init[i] = 0;
@@ -877,7 +848,7 @@ static int32_t msm_cci_release(struct v4l2_subdev *sd)
 		return -EINVAL;
 	}
 	if (--cci_dev->ref_count) {
-		pr_err("%s ref_count Exit %d\n", __func__, cci_dev->ref_count);
+		CDBG("%s ref_count Exit %d\n", __func__, cci_dev->ref_count);
 		return 0;
 	}
 	disable_irq(cci_dev->irq->start);
