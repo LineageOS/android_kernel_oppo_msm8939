@@ -1,0 +1,56 @@
+# OPPO configuration options
+
+config MACH_OPPO
+	bool "OPPO device"
+	depends on ARCH_MSM
+	help
+	  Support for OPPO products
+
+config MACH_OPPO_MSM8939
+	bool "OPPO MSM8939"
+	depends on ARCH_MSM8916
+	select MACH_OPPO
+	help
+	  Support for MSM8939 OPPO variants
+
+menu "OPPO board selection"
+
+config MACH_14005
+	bool "R5/R5s board"
+	select MACH_OPPO_MSM8939
+	select SND_SOC_TFA9890
+	help
+	  Support for the R5/R5s variants
+
+config MACH_15011
+	bool "R7f board"
+	select MACH_OPPO_MSM8939
+	select SND_SOC_AK4375
+	select SND_SOC_TFA9890
+	help
+	  Support for the R7f variant
+
+config MACH_15018
+	bool "R7plusf board"
+	select MACH_OPPO_MSM8939
+	select SND_SOC_AK4375
+	select SND_SOC_TFA9890
+	help
+	  Support for the R7plusf variant
+
+config MACH_15022
+	bool "R7sf board"
+	select MACH_OPPO_MSM8939
+	select SND_SOC_AK4375
+	select SND_SOC_TFA9890
+	help
+	  Support for the R7sf variant
+
+config MACH_15109
+	bool "F1f board"
+	select MACH_OPPO_MSM8939
+	select SND_SOC_TS4621
+	help
+	  Support for the F1f variant
+
+endmenu
