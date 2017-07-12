@@ -658,8 +658,7 @@ static int msm_be_hw_params_fixup(struct snd_soc_pcm_runtime *rtd,
 	return 0;
 }
 
-#if defined(CONFIG_MACH_14005) || defined(CONFIG_MACH_15011) || \
-    defined(CONFIG_MACH_15018) || defined(CONFIG_MACH_15022)
+#ifdef CONFIG_MACH_14005
 static int msm_be_tfa9890_hw_params_fixup(struct snd_soc_pcm_runtime *rtd,
 					  struct snd_pcm_hw_params *params)
 {
@@ -1546,26 +1545,21 @@ static int msm_mi2s_snd_hw_params(struct snd_pcm_substream *substream,
 	return 0;
 }
 
-#if defined(CONFIG_MACH_14005) || defined(CONFIG_MACH_15011) || \
-    defined(CONFIG_MACH_15018) || defined(CONFIG_MACH_15022)
+#ifdef CONFIG_MACH_14005
 static int msm_tfa9890_snd_hw_params(struct snd_pcm_substream *substream,
-				struct snd_pcm_hw_params *params)
+				     struct snd_pcm_hw_params *params)
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	struct snd_soc_dai *codec_dai = rtd->codec_dai;
 	int ret;
 
-	msm_mi2s_snd_hw_params(substream, params);
 	ret = snd_soc_dai_set_sysclk(codec_dai, 0,
-		Q6AFE_LPASS_IBIT_CLK_1_P536_MHZ,
-		SND_SOC_CLOCK_IN);
-
+			Q6AFE_LPASS_IBIT_CLK_1_P536_MHZ, SND_SOC_CLOCK_IN);
 	if (ret < 0)
-	    pr_err("can't set rx codec clk configuration\n");
+		pr_err("can't set rx codec clk configuration\n");
 
 	return ret;
 }
-
 
 static struct snd_soc_ops msm8x16_tfa9890_be_ops = {
 	.startup = msm_quat_mi2s_snd_startup,
@@ -2370,8 +2364,7 @@ static struct snd_soc_dai_link msm8x16_dai[] = {
 		.stream_name = "Quaternary MI2S Playback",
 		.cpu_dai_name = "msm-dai-q6-mi2s.3",
 		.platform_name = "msm-pcm-routing",
-#if defined(CONFIG_MACH_14005) || defined(CONFIG_MACH_15011) || \
-    defined(CONFIG_MACH_15018) || defined(CONFIG_MACH_15022)
+#ifdef CONFIG_MACH_14005
 		.codec_dai_name = "tfa9890_codec_left",
 		.codec_name = "tfa9890.3-0036",
 #else
@@ -2380,8 +2373,7 @@ static struct snd_soc_dai_link msm8x16_dai[] = {
 #endif
 		.no_pcm = 1,
 		.be_id = MSM_BACKEND_DAI_QUATERNARY_MI2S_RX,
-#if defined(CONFIG_MACH_14005) || defined(CONFIG_MACH_15011) || \
-    defined(CONFIG_MACH_15018) || defined(CONFIG_MACH_15022)
+#ifdef CONFIG_MACH_14005
 		.be_hw_params_fixup = msm_be_tfa9890_hw_params_fixup,
 		.ops = &msm8x16_tfa9890_be_ops,
 #else
