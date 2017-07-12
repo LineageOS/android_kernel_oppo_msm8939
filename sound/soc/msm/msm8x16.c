@@ -39,6 +39,7 @@
 #include "../codecs/wsa881x.h"
 #ifdef CONFIG_MACH_OPPO
 #include <soc/oppo/oppo_project.h>
+#include <linux/switch.h>
 #endif
 
 #define DRV_NAME "msm8x16-asoc-wcd"
@@ -98,6 +99,11 @@ static int msm8909_auxpcm_rate = 8000;
 static atomic_t quat_mi2s_clk_ref;
 static atomic_t auxpcm_mi2s_clk_ref;
 
+#ifdef CONFIG_MACH_OPPO
+//John.Xu@PhoneSw.AudioDriver, 2015/04/30, Add for 15025 headset compatible
+extern int pcb_ver(void);
+#endif /* CONFIG_MACH_OPPO */
+
 static int msm8x16_enable_codec_ext_clk(struct snd_soc_codec *codec, int enable,
 					bool dapm);
 static int msm8x16_enable_extcodec_ext_clk(struct snd_soc_codec *codec,
@@ -134,6 +140,14 @@ static struct wcd_mbhc_config mbhc_cfg = {
 	.linein_th = 0,
 #else
 	.linein_th = 5000,
+#endif
+#ifdef CONFIG_MACH_OPPO
+	/*xiang.fei@Multimedia, 2014/11/20, Add for no voice in calling*/
+	.spk_pa_en_state = 0,
+	/*xiang.fei@Multimedia, 2014/11/20, Add end*/
+	/*xiang.fei@Multimedia, 2014/11/26, Add for pop nosie*/
+	.gpio_spk_pa_en = 0,
+	/*xiang.fei@Multimedia, 2014/11/26, Add for pop nosie end*/
 #endif
 };
 
@@ -470,6 +484,11 @@ static char const *pri_rx_sample_rate_text[] = {"KHZ_48", "KHZ_96",
 static char const *mi2s_tx_sample_rate_text[] = {"KHZ_48", "KHZ_96",
 					"KHZ_192", "KHZ_8",
 					"KHZ_16", "KHZ_32"};
+#ifdef CONFIG_MACH_OPPO
+/*xiang.fei@Multimedia, 2014/09/10, Add for yda145*/
+static char const *spk_pa_text[] = {"DISABLE", "ENABLE"};
+/*xiang.fei@Multimedia, 2014/09/10, Add end*/
+#endif
 
 static int msm_auxpcm_be_params_fixup(struct snd_soc_pcm_runtime *rtd,
 					struct snd_pcm_hw_params *params)
@@ -583,7 +602,7 @@ static int msm_be_hw_params_fixup(struct snd_soc_pcm_runtime *rtd,
 	return 0;
 }
 
-#if defined(CONFIG_MACH_14005) || defined(CONFIG_MACH_15011) || \
+#if defined(CONFIG_MACH_15011) || \
     defined(CONFIG_MACH_15018) || defined(CONFIG_MACH_15022)
 static int msm_be_tfa9890_hw_params_fixup(struct snd_soc_pcm_runtime *rtd,
 					  struct snd_pcm_hw_params *params)
@@ -807,6 +826,49 @@ static int loopback_mclk_put(struct snd_kcontrol *kcontrol,
 	}
 	return ret;
 }
+
+#ifdef CONFIG_MACH_OPPO
+/*xiang.fei@Multimedia, 2014/09/10, Add for yda145*/
+static int speaker_pa_get(struct snd_kcontrol *kcontrol,
+	struct snd_ctl_elem_value *ucontrol)
+{
+	return 0;
+}
+
+static int speaker_pa_put(struct snd_kcontrol *kcontrol,
+	struct snd_ctl_elem_value *ucontrol)
+{
+	struct msm8916_asoc_mach_data *pdata = NULL;
+	struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
+
+	pdata = snd_soc_card_get_drvdata(codec->card);
+
+	switch (ucontrol->value.integer.value[0]) {
+	case 1:
+		pr_err("speaker_pa_put:enable yda145\n");
+		if (gpio_is_valid(pdata->spk_pa_en))
+			gpio_direction_output(pdata->spk_pa_en, 1);
+		break;
+	case 0:
+	default:
+		pr_err("speaker_pa_put:disable yda145\n");
+		if (gpio_is_valid(pdata->spk_pa_en))
+			gpio_direction_output(pdata->spk_pa_en, 0);
+		break;
+	}
+
+	if (gpio_is_valid(pdata->spk_pa_en)) {
+		gpio_request(pdata->spk_pa_en, "spk_pa_en");
+		mbhc_cfg.spk_pa_en_state = gpio_get_value_cansleep(
+				pdata->spk_pa_en);
+		pr_err("%s spk_pa_en_state gpio value is %d\n", __func__,
+				mbhc_cfg.spk_pa_en_state);
+	}
+
+	return 0;
+}
+/*xiang.fei@Multimedia, 2014/09/10, Add end*/
+#endif
 
 static int msm_btsco_be_hw_params_fixup(struct snd_soc_pcm_runtime *rtd,
 					struct snd_pcm_hw_params *params)
@@ -1052,7 +1114,7 @@ static int msm_mi2s_snd_hw_params(struct snd_pcm_substream *substream,
 	return 0;
 }
 
-#if defined(CONFIG_MACH_14005) || defined(CONFIG_MACH_15011) || \
+#if defined(CONFIG_MACH_15011) || \
     defined(CONFIG_MACH_15018) || defined(CONFIG_MACH_15022)
 static int msm_tfa9890_snd_hw_params(struct snd_pcm_substream *substream,
 				     struct snd_pcm_hw_params *params)
@@ -1336,6 +1398,11 @@ static const struct soc_enum msm_snd_enum[] = {
 	SOC_ENUM_SINGLE_EXT(6, pri_rx_sample_rate_text),
 	SOC_ENUM_SINGLE_EXT(6, mi2s_tx_sample_rate_text),
 	SOC_ENUM_SINGLE_EXT(2, mi2s_rx_sample_rate_text),
+#ifdef CONFIG_MACH_OPPO
+	/*xiang.fei@Multimedia, 2014/09/10, Add for yda145*/
+	SOC_ENUM_SINGLE_EXT(2, spk_pa_text),
+	/*xiang.fei@Multimedia, 2014/09/10, Add end*/
+#endif
 };
 
 static const char *const btsco_rate_text[] = {"BTSCO_RATE_8KHZ",
@@ -1361,6 +1428,12 @@ static const struct snd_kcontrol_new msm_snd_controls[] = {
 			mi2s_tx_sample_rate_get, mi2s_tx_sample_rate_put),
 	SOC_ENUM_EXT("MI2S_RX SampleRate", msm_snd_enum[3],
 			mi2s_rx_sample_rate_get, mi2s_rx_sample_rate_put),
+#ifdef CONFIG_MACH_OPPO
+	/*xiang.fei@Multimedia, 2014/09/10, Add for yda145*/
+	SOC_ENUM_EXT("SPK_PA_EN", msm_snd_enum[4],
+			speaker_pa_get, speaker_pa_put),
+	/*xiang.fei@Multimedia, 2014/09/10, Add end*/
+#endif
 };
 
 static int msm8x16_mclk_event(struct snd_soc_dapm_widget *w,
@@ -1909,12 +1982,15 @@ static void *def_msm8x16_wcd_mbhc_cal(void)
 	btn_high[2] = 139;
 	btn_low[3] = 139;
 	btn_high[3] = 140;
-	if (is_project(OPPO_15011) || is_project(OPPO_15018) ||
-	    is_project(OPPO_15022)) {
+/*ping.zhang@Multimedia, 2015/06/10, Modify for selfiestick*/
+	if (is_project(OPPO_15109))
 		btn_low[4] = 175;
-	} else {
+	else if (is_project(OPPO_15018) || is_project(OPPO_15011))
+		btn_low[4] = 240;
+	else if (is_project(OPPO_15022))
+		btn_low[4] = 300;/*yuanyan@Multimedia, 2015/08/25, Modify for selfiestick*/
+	else
 		btn_low[4] = 140;
-	}
 	btn_high[4] = 315;
 #else
 	btn_low[0] = 75;
@@ -2039,7 +2115,7 @@ static int msm_audrx_init_wcd(struct snd_soc_pcm_runtime *rtd)
 	return ret;
 }
 
-#if defined(CONFIG_MACH_14005) || defined(CONFIG_MACH_15011) || \
+#if defined(CONFIG_MACH_15011) || \
     defined(CONFIG_MACH_15018) || defined(CONFIG_MACH_15022)
 static struct snd_soc_ops msm8x16_tfa9890_be_ops = {
 	.startup = msm_quat_mi2s_snd_startup,
@@ -2176,7 +2252,7 @@ static struct snd_soc_dai_link msm8x16_wcd_dai[] = {
 		.stream_name = "Quaternary MI2S Playback",
 		.cpu_dai_name = "msm-dai-q6-mi2s.3",
 		.platform_name = "msm-pcm-routing",
-#if defined(CONFIG_MACH_14005) || defined(CONFIG_MACH_15011) || \
+#if defined(CONFIG_MACH_15011) || \
     defined(CONFIG_MACH_15018) || defined(CONFIG_MACH_15022)
 		.codec_dai_name = "tfa9890_codec_left",
 		.codec_name = "tfa9890.3-0036",
@@ -2186,7 +2262,7 @@ static struct snd_soc_dai_link msm8x16_wcd_dai[] = {
 #endif
 		.no_pcm = 1,
 		.be_id = MSM_BACKEND_DAI_QUATERNARY_MI2S_RX,
-#if defined(CONFIG_MACH_14005) || defined(CONFIG_MACH_15011) || \
+#if defined(CONFIG_MACH_15011) || \
     defined(CONFIG_MACH_15018) || defined(CONFIG_MACH_15022)
 		.be_hw_params_fixup = msm_be_tfa9890_hw_params_fixup,
 		.ops = &msm8x16_tfa9890_be_ops,
@@ -3036,6 +3112,16 @@ static void msm8x16_dt_parse_cap_info(struct platform_device *pdev,
 		(of_property_read_bool(pdev->dev.of_node, ext2_cap) ?
 		MICBIAS_EXT_BYP_CAP : MICBIAS_NO_EXT_BYP_CAP);
 
+#ifdef CONFIG_MACH_OPPO
+//John.Xu@PhoneSw.AudioDriver, 2015/04/30, Add for 15025 headset compatible
+	if (is_project(OPPO_15109)) {
+		if (pcb_ver() != 0 && pcb_ver() != 1) {
+			pr_err("%s: 15009 hw version after EVT2, set MICBIAS_EXT_BYP_CAP mode\n", __func__);
+			pdata->micbias2_cap_mode = MICBIAS_EXT_BYP_CAP;
+		}
+	}
+#endif
+
 	return;
 }
 
@@ -3536,6 +3622,14 @@ static int msm8x16_asoc_machine_probe(struct platform_device *pdev)
 		mbhc_cfg.hs_ext_micbias = false;
 	}
 
+#ifdef CONFIG_MACH_OPPO
+//John.Xu@PhoneSw.AudioDriver, 2015/04/30, Add for 15009 headset compatible
+	if (is_project(OPPO_15109)) {
+		mbhc_cfg.hs_ext_micbias = true;
+		pr_err("%s: 15037 hw version after EVT2, hs use external micbias\n", __func__);
+	}
+#endif
+
 	/* initialize the mclk */
 	pdata->digital_cdc_clk.i2s_cfg_minor_version =
 					AFE_API_VERSION_I2S_CONFIG;
@@ -3584,6 +3678,30 @@ static int msm8x16_asoc_machine_probe(struct platform_device *pdev)
 		ret = -EPROBE_DEFER;
 		goto err;
 	}
+
+#ifdef CONFIG_MACH_OPPO
+	if (is_project(OPPO_15109)) {
+		pdata->spk_pa_en = of_get_named_gpio(pdev->dev.of_node,
+				"spk-pa-en", 0);
+		pr_err("pdata->spk_pa_en = %d\n",pdata->spk_pa_en);
+		if (pdata->spk_pa_en < 0)
+			dev_err(&pdev->dev,
+				"property %s in node %s not found %d\n",
+				"spk-pa-en", pdev->dev.of_node->full_name,
+				pdata->spk_pa_en);
+		mbhc_cfg.gpio_spk_pa_en = pdata->spk_pa_en;
+
+		pdata->yda145_boost_en = of_get_named_gpio(pdev->dev.of_node,
+				"yda145_boost-en", 0);
+		pr_err("pdata->yda145_boost_en = %d\n",pdata->yda145_boost_en);
+		if (pdata->yda145_boost_en < 0)
+			dev_err(&pdev->dev,
+				"property %s in node %s not found %d\n",
+				"yda145_boost-en", pdev->dev.of_node->full_name,
+				pdata->yda145_boost_en);
+		mbhc_cfg.gpio_yda145_boost_en = pdata->yda145_boost_en;
+	}
+#endif
 
 	ret = snd_soc_register_card(card);
 	if (ret) {
