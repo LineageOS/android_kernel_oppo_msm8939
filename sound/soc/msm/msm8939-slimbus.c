@@ -1547,23 +1547,19 @@ static int msm_mi2s_snd_hw_params(struct snd_pcm_substream *substream,
 
 #ifdef CONFIG_MACH_14005
 static int msm_tfa9890_snd_hw_params(struct snd_pcm_substream *substream,
-				struct snd_pcm_hw_params *params)
+				     struct snd_pcm_hw_params *params)
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	struct snd_soc_dai *codec_dai = rtd->codec_dai;
 	int ret;
 
-	msm_mi2s_snd_hw_params(substream, params);
 	ret = snd_soc_dai_set_sysclk(codec_dai, 0,
-		Q6AFE_LPASS_IBIT_CLK_1_P536_MHZ,
-		SND_SOC_CLOCK_IN);
-
+			Q6AFE_LPASS_IBIT_CLK_1_P536_MHZ, SND_SOC_CLOCK_IN);
 	if (ret < 0)
-	    pr_err("can't set rx codec clk configuration\n");
+		pr_err("can't set rx codec clk configuration\n");
 
 	return ret;
 }
-
 
 static struct snd_soc_ops msm8x16_tfa9890_be_ops = {
 	.startup = msm_quat_mi2s_snd_startup,
