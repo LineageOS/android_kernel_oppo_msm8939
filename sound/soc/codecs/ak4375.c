@@ -1504,7 +1504,7 @@ static int __init ak4375_modinit(void)
 
 	akdbgprt("\t[AK4375] %s(%d)\n", __FUNCTION__,__LINE__);
 	/*OPPO 2014-08-22 zhzhyon Add for reason*/
-	if((is_project(OPPO_15018)) || (is_project(OPPO_15011)) || (is_project(OPPO_15022)))
+	if((is_project(OPPO_15018)) || (is_project(OPPO_15011)) || (is_project(OPPO_14045)) || (is_project(OPPO_15022)))
 	{
 		return i2c_add_driver(&ak4375_i2c_driver);
 	}
@@ -1521,7 +1521,7 @@ module_init(ak4375_modinit);
 static void __exit ak4375_exit(void)
 {
 	/*OPPO 2014-08-22 zhzhyon Add for reason*/
-	if((is_project(OPPO_15018)) || (is_project(OPPO_15011)) || (is_project(OPPO_15022)))
+	if((is_project(OPPO_15018)) || (is_project(OPPO_15011)) || (is_project(OPPO_14045)) || (is_project(OPPO_15022)))
 	{
 		i2c_del_driver(&ak4375_i2c_driver);
 	}

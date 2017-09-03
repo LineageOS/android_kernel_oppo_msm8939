@@ -17,6 +17,12 @@ config MACH_14005
 	help
 	  Support for the R5/R5s variants
 
+config MACH_14045
+	select MACH_OPPO_MSM8916
+	bool "R1C"
+	help
+	  Support for the R1C variants
+
 config MACH_15011
 	select MACH_OPPO_MSM8916
 	bool "R7f"

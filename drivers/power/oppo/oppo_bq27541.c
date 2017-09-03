@@ -2675,6 +2675,9 @@ int opchg_set_switch_mode(u8 mode)
 #ifdef OPPO_USE_FAST_CHARGER
 	int rc=0;
 
+	if(is_project(OPPO_14045)) //14045 does not support fastcg
+		return 0;
+
 	// check GPIO23 and GPIO38 is  undeclared, prevent the  Invalid use for earphone
 	//if(opchg_pinctrl_chip == NULL)
 	if((bq27541_di == NULL)||(opchg_chip == NULL))
