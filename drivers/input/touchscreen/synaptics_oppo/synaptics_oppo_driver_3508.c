@@ -3319,6 +3319,7 @@ static int synaptics_ts_probe(
 		strcpy(ts->test_limit_name,"tp/15011/15011_Limit_Tpk.img");
 	}
 	if(is_project(OPPO_14045)) {
+		tp_info.manufacture = ts->manu_name;
 		if(tp_dev == TP_TRULY) {
 			strcpy(ts->fw_name,"tp/14045/14045_Firmware_Truly.img");
 			strcpy(ts->test_limit_name,"tp/14045/14045_Limit_Truly.img");
