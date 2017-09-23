@@ -583,7 +583,7 @@ static int msm_be_hw_params_fixup(struct snd_soc_pcm_runtime *rtd,
 	return 0;
 }
 
-#if defined(CONFIG_MACH_14005) || defined(CONFIG_MACH_15011) || \
+#if defined(CONFIG_MACH_14005) || defined(CONFIG_MACH_14045) || defined(CONFIG_MACH_15011) || \
     defined(CONFIG_MACH_15018) || defined(CONFIG_MACH_15022)
 static int msm_be_tfa9890_hw_params_fixup(struct snd_soc_pcm_runtime *rtd,
 					  struct snd_pcm_hw_params *params)
@@ -1052,7 +1052,7 @@ static int msm_mi2s_snd_hw_params(struct snd_pcm_substream *substream,
 	return 0;
 }
 
-#if defined(CONFIG_MACH_14005) || defined(CONFIG_MACH_15011) || \
+#if defined(CONFIG_MACH_14005) || defined(CONFIG_MACH_14045) || defined(CONFIG_MACH_15011) || \
     defined(CONFIG_MACH_15018) || defined(CONFIG_MACH_15022)
 static int msm_tfa9890_snd_hw_params(struct snd_pcm_substream *substream,
 				     struct snd_pcm_hw_params *params)
@@ -1521,8 +1521,8 @@ static int msm_sec_mi2s_snd_startup(struct snd_pcm_substream *substream)
 	struct snd_soc_codec *codec = rtd->codec;
 	struct msm8916_asoc_mach_data *pdata =
 			snd_soc_card_get_drvdata(card);
-#if defined(CONFIG_MACH_15011) || defined(CONFIG_MACH_15018) || \
-    defined(CONFIG_MACH_15022)
+#if defined(CONFIG_MACH_14045) || defined(CONFIG_MACH_15011) || \
+    defined(CONFIG_MACH_15018) || defined(CONFIG_MACH_15022)
 	struct snd_soc_dai *codec_dai = rtd->codec_dai;
 #endif
 
@@ -1566,8 +1566,8 @@ static int msm_sec_mi2s_snd_startup(struct snd_pcm_substream *substream)
 	if (ret < 0)
 		pr_debug("%s: set fmt cpu dai failed\n", __func__);
 
-#if defined(CONFIG_MACH_15011) || defined(CONFIG_MACH_15018) || \
-    defined(CONFIG_MACH_15022)
+#if defined(CONFIG_MACH_14045) || defined(CONFIG_MACH_15011) || \
+    defined(CONFIG_MACH_15018) || defined(CONFIG_MACH_15022)
 	snd_soc_dai_set_sysclk(codec_dai, 0, 12288000, SND_SOC_CLOCK_IN);
 
 	ret = snd_soc_dai_set_fmt(codec_dai,
@@ -1909,8 +1909,8 @@ static void *def_msm8x16_wcd_mbhc_cal(void)
 	btn_high[2] = 139;
 	btn_low[3] = 139;
 	btn_high[3] = 140;
-	if (is_project(OPPO_15011) || is_project(OPPO_15018) ||
-	    is_project(OPPO_15022)) {
+	if (is_project(OPPO_14045) || is_project(OPPO_15011) ||
+	    is_project(OPPO_15018) || is_project(OPPO_15022)) {
 		btn_low[4] = 175;
 	} else {
 		btn_low[4] = 140;
@@ -2039,7 +2039,7 @@ static int msm_audrx_init_wcd(struct snd_soc_pcm_runtime *rtd)
 	return ret;
 }
 
-#if defined(CONFIG_MACH_14005) || defined(CONFIG_MACH_15011) || \
+#if defined(CONFIG_MACH_14005) || defined(CONFIG_MACH_14045) || defined(CONFIG_MACH_15011) || \
     defined(CONFIG_MACH_15018) || defined(CONFIG_MACH_15022)
 static struct snd_soc_ops msm8x16_tfa9890_be_ops = {
 	.startup = msm_quat_mi2s_snd_startup,
@@ -2153,8 +2153,8 @@ static struct snd_soc_codec_conf msm8909_codec_conf[] = {
 	},
 };
 
-#if defined(CONFIG_MACH_15011) || defined(CONFIG_MACH_15018) || \
-    defined(CONFIG_MACH_15022)
+#if defined(CONFIG_MACH_14045) || defined(CONFIG_MACH_15011) || \
+    defined(CONFIG_MACH_15018) || defined(CONFIG_MACH_15022)
 static int ak4375_audrx_init(struct snd_soc_pcm_runtime *rtd)
 {
 	struct snd_soc_codec *codec = rtd->codec;
@@ -2176,7 +2176,7 @@ static struct snd_soc_dai_link msm8x16_wcd_dai[] = {
 		.stream_name = "Quaternary MI2S Playback",
 		.cpu_dai_name = "msm-dai-q6-mi2s.3",
 		.platform_name = "msm-pcm-routing",
-#if defined(CONFIG_MACH_14005) || defined(CONFIG_MACH_15011) || \
+#if defined(CONFIG_MACH_14005) || defined(CONFIG_MACH_14045) || defined(CONFIG_MACH_15011) || \
     defined(CONFIG_MACH_15018) || defined(CONFIG_MACH_15022)
 		.codec_dai_name = "tfa9890_codec_left",
 		.codec_name = "tfa9890.3-0036",
@@ -2186,7 +2186,7 @@ static struct snd_soc_dai_link msm8x16_wcd_dai[] = {
 #endif
 		.no_pcm = 1,
 		.be_id = MSM_BACKEND_DAI_QUATERNARY_MI2S_RX,
-#if defined(CONFIG_MACH_14005) || defined(CONFIG_MACH_15011) || \
+#if defined(CONFIG_MACH_14005) || defined(CONFIG_MACH_14045) || defined(CONFIG_MACH_15011) || \
     defined(CONFIG_MACH_15018) || defined(CONFIG_MACH_15022)
 		.be_hw_params_fixup = msm_be_tfa9890_hw_params_fixup,
 		.ops = &msm8x16_tfa9890_be_ops,
@@ -2229,8 +2229,8 @@ static struct snd_soc_dai_link msm8x16_wcd_dai[] = {
 		.stream_name = "Secondary MI2S Playback",
 		.cpu_dai_name = "msm-dai-q6-mi2s.1",
 		.platform_name = "msm-pcm-routing",
-#if defined(CONFIG_MACH_15011) || defined(CONFIG_MACH_15018) || \
-    defined(CONFIG_MACH_15022)
+#if defined(CONFIG_MACH_14045) || defined(CONFIG_MACH_15011) || \
+    defined(CONFIG_MACH_15018) || defined(CONFIG_MACH_15022)
 		.codec_name = "ak4375.3-0010",
 		.codec_dai_name = "ak4375-AIF1",
 #else
@@ -2239,8 +2239,8 @@ static struct snd_soc_dai_link msm8x16_wcd_dai[] = {
 #endif
 		.no_pcm = 1,
 		.be_id = MSM_BACKEND_DAI_SECONDARY_MI2S_RX,
-#if defined(CONFIG_MACH_15011) || defined(CONFIG_MACH_15018) || \
-    defined(CONFIG_MACH_15022)
+#if defined(CONFIG_MACH_14045) || defined(CONFIG_MACH_15011) || \
+    defined(CONFIG_MACH_15018) || defined(CONFIG_MACH_15022)
 		.init = ak4375_audrx_init,
 #endif
 		.be_hw_params_fixup = msm_be_hw_params_fixup,
