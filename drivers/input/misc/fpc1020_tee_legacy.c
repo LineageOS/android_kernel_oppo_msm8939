@@ -128,7 +128,6 @@ static int fpc1020_device_count;
 
 #define FPC1020_CLASS_NAME	"fpsensor"
 #define FPC1020_DEV_NAME	"fpc1020"
-#define FPC1020_MAJOR		230
 
 static int fpc1020_gpio_reset(fpc1020_data_t *fpc1020)
 {
@@ -686,24 +685,14 @@ static int fpc1020_create_device(fpc1020_data_t *fpc1020)
 
 	dev_dbg(&fpc1020->spi->dev, "%s\n", __func__);
 
-	if (FPC1020_MAJOR > 0) {
-		fpc1020->devno = MKDEV(FPC1020_MAJOR, fpc1020_device_count++);
-
-		error = register_chrdev_region(fpc1020->devno,
-						1,
-						FPC1020_DEV_NAME);
-	} else {
-		error = alloc_chrdev_region(&fpc1020->devno,
-					fpc1020_device_count++,
-					1,
-					FPC1020_DEV_NAME);
-	}
-
+	error = alloc_chrdev_region(&fpc1020->devno,
+				fpc1020_device_count++,
+				1,
+				FPC1020_DEV_NAME);
 	if (error < 0) {
 		dev_err(&fpc1020->spi->dev,
 				"%s: FAILED %d.\n", __func__, error);
 		goto out;
-
 	} else {
 		dev_info(&fpc1020->spi->dev, "%s: major=%d, minor=%d\n",
 						__func__,
