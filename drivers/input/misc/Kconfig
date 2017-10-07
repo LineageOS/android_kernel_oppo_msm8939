@@ -905,9 +905,15 @@ config SENSORS_APDS9921
 	  To compile this driver as a module, choose M here: the
 	  module will be called apds9921.
 
-config BTP_FPC1140
-	default n
-	tristate "FPC_BTP fingerprint sensor support"
+config INPUT_FPC1020_LEGACY
+	tristate "FPC_BTP fingerprint sensor support (Legacy)"
 	depends on SPI_MASTER
+	default n
+
+config INPUT_FPC1020_QSEE4
+	tristate "FPC_BTP fingerprint sensor support (QSEE4)"
+	depends on SPI_MASTER
+	default n
+
 endif
 
