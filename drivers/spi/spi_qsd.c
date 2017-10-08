@@ -2964,7 +2964,11 @@ static int __init msm_spi_init(void)
 {
 	return platform_driver_register(&msm_spi_driver);
 }
+#ifdef CONFIG_MACH_15018
+deferred_module_init(msm_spi_init);
+#else
 module_init(msm_spi_init);
+#endif
 
 static void __exit msm_spi_exit(void)
 {
