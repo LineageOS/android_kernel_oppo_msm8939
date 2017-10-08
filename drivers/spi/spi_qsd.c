@@ -2964,7 +2964,7 @@ static int __init msm_spi_init(void)
 {
 	return platform_driver_register(&msm_spi_driver);
 }
-module_init(msm_spi_init);
+deferred_module_init(msm_spi_init);
 
 static void __exit msm_spi_exit(void)
 {
