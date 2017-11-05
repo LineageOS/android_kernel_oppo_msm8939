@@ -1315,9 +1315,15 @@ static void int_key_report(struct synaptics_ts_data *ts)
 		}
 	}else{
 		static const int key_mapping[][2] = {
+#if defined(CONFIG_MACH_14045)
+			{ 0x01, KEY_BACK },
+			{ 0x02, KEY_HOME },
+			{ 0x04, KEY_MENU }
+#else
 			{ 0x01, KEY_MENU },
 			{ 0x02, KEY_HOME },
 			{ 0x04, KEY_BACK }
+#endif
 		};
 
 		i2c_smbus_write_byte_data(ts->client, 0xff, 0x02);
@@ -3322,6 +3328,16 @@ static int synaptics_ts_probe(
 		strcpy(ts->fw_name,"tp/15011/15011_FW_S3508_Tpk.img");
 		strcpy(ts->test_limit_name,"tp/15011/15011_Limit_Tpk.img");
 	}
+	if(is_project(OPPO_14045)) {
+		tp_info.manufacture = ts->manu_name;
+		if(tp_dev == TP_TRULY) {
+			strcpy(ts->fw_name,"tp/14045/14045_Firmware_Truly.img");
+			strcpy(ts->test_limit_name,"tp/14045/14045_Limit_Truly.img");
+		}else{
+			strcpy(ts->fw_name,"tp/14045/14045_FW_S4291_Tpk.img");
+			strcpy(ts->test_limit_name,"tp/14045/14045_Limit_Tpk.img");
+		}
+	}
 	if (is_project(OPPO_14005)) {
 		tp_info.manufacture = "SAMSUNG";
 		strcpy(ts->fw_name,"tp/14005/14005_FW_S3508_Tpk.img");
@@ -3358,7 +3374,7 @@ static int synaptics_ts_probe(
 	if(ret < 0) {
 		TPD_ERR("synaptics_input_init failed!\n");
 	}
-	if (is_project(OPPO_15011) || is_project(OPPO_14005)) {
+	if (is_project(OPPO_15011) || is_project(OPPO_14045) || is_project(OPPO_14005)) {
 		ret = synaptics_tpd_button_init(ts);
 		if(ret < 0) {
 			TPD_ERR("synaptics_tpd_button_init failed!\n");

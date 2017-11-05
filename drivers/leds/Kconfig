@@ -407,6 +407,15 @@ config LEDS_KTD2026
 	  This option enabled support for KTD2026 RGB LED driver chips
 	  accessed via I2C bus.
 
+config LEDS_SN3193
+	tristate "LED driver for the SN3193"
+	depends on LEDS_CLASS
+	depends on I2C
+	default n
+	help
+	  This option enabled support for SN3193 RGB LED driver chips
+	  accessed via I2C bus.
+
 config LEDS_LT3593
 	tristate "LED driver for LT3593 controllers"
 	depends on LEDS_CLASS

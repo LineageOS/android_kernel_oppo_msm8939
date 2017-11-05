@@ -391,6 +391,11 @@ static void mainboard_verify(struct devinfo_data *devinfo_data)
 			sprintf(mainboard_info.manufacture, "%d-(T3-T4)",
 				hw_operator_version);
 			break;
+		case HW_VERSION__16:
+			mainboard_info.version = "16";
+			sprintf(mainboard_info.manufacture, "%d-(T4-T5)",
+				hw_operator_version);
+			break;
 		default:
 			mainboard_info.version = "UNKNOWN";
 			sprintf(mainboard_info.manufacture, "%d-UNKNOWN",
