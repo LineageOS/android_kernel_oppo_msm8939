@@ -1,3 +1,7 @@
+#ifdef CONFIG_OPPO_CAMERA_51
+#include <media/msm_cam_sensor_oppo_51.h>
+#else
+
 #ifndef __LINUX_MSM_CAM_SENSOR_H
 #define __LINUX_MSM_CAM_SENSOR_H
 
@@ -777,3 +781,5 @@ struct msm_flash_cfg_data_t32 {
 #endif
 
 #endif /* __LINUX_MSM_CAM_SENSOR_H */
+
+#endif

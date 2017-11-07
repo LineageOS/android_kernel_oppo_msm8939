@@ -1,3 +1,7 @@
+#ifdef CONFIG_OPPO_CAMERA_51
+#include <media/msmb_camera_oppo_51.h>
+#else
+
 #ifndef __LINUX_MSMB_CAMERA_H
 #define __LINUX_MSMB_CAMERA_H
 
@@ -202,3 +206,5 @@ struct msm_camera_smmu_attach_type {
 };
 
 #endif /* __LINUX_MSMB_CAMERA_H */
+
+#endif
