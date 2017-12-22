@@ -1371,9 +1371,16 @@ fail_cmd:
 	return ret;
 }
 
-static void remap_cal_data(struct cal_block_data *cal_block, int cal_index)
+static int remap_cal_data(struct cal_block_data *cal_block, int cal_index)
 {
 	int ret = 0;
+
+	if (cal_block->map_data.ion_client == NULL) {
+		pr_err("%s: No ION allocation for cal index %d!\n",
+			__func__, cal_index);
+		ret = -EINVAL;
+		goto done;
+	}
 
 	if ((cal_block->map_data.map_size > 0) &&
 		(cal_block->map_data.q6map_handle == 0)) {
@@ -1394,7 +1401,7 @@ static void remap_cal_data(struct cal_block_data *cal_block, int cal_index)
 			mem_map_handles[cal_index]);
 	}
 done:
-	return;
+	return ret;
 }
 
 static void send_adm_custom_topology(void)
@@ -1418,7 +1425,13 @@ static void send_adm_custom_topology(void)
 
 	pr_debug("%s: Sending cal_index %d\n", __func__, cal_index);
 
-	remap_cal_data(cal_block, cal_index);
+	result = remap_cal_data(cal_block, cal_index);
+	if (result) {
+		pr_err("%s: Remap_cal_data failed for cal %d!\n",
+		__func__, cal_index);
+		goto unlock;
+	}
+
 	atomic_set(&this_adm.mem_map_index, cal_index);
 	atomic_set(&this_adm.mem_map_handles[cal_index],
 		cal_block->map_data.q6map_handle);
@@ -2576,6 +2589,18 @@ static int adm_unmap_cal_data(int32_t cal_type,
 		pr_err("%s: could not get cal index %d!\n",
 			__func__, cal_index);
 		ret = -EINVAL;
+		goto done;
+	}
+
+	if (cal_block == NULL) {
+		pr_err("%s: Cal block is NULL!\n",
+						__func__);
+		goto done;
+	}
+
+	if (cal_block->map_data.q6map_handle == 0) {
+		pr_err("%s: Map handle is NULL, nothing to unmap\n",
+				__func__);
 		goto done;
 	}
 
