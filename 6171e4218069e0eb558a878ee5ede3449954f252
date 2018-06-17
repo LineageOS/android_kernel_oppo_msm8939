@@ -1,0 +1,27 @@
+{
+  "comments": [
+    {
+      "key": {
+        "uuid": "39f3065d_d29b880d",
+        "filename": "sound/soc/codecs/msm8x16-wcd.c",
+        "patchSetId": 2
+      },
+      "lineNbr": 4746,
+      "author": {
+        "id": 4550
+      },
+      "writtenOn": "2018-06-17T13:30:35Z",
+      "side": 1,
+      "message": "Actually you can #endif here instead, the code is the same as below",
+      "range": {
+        "startLine": 4742,
+        "startChar": 0,
+        "endLine": 4746,
+        "endChar": 5
+      },
+      "revId": "6171e4218069e0eb558a878ee5ede3449954f252",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71",
+      "unresolved": false
+    }
+  ]
+}
