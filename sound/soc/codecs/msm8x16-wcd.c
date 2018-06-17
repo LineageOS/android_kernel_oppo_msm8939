@@ -4740,9 +4740,8 @@ static int msm8x16_wcd_hph_pa_event(struct snd_soc_dapm_widget *w,
 			snd_soc_update_bits(codec,
 				MSM8X16_WCD_A_ANALOG_RX_HPH_L_TEST, 0x04, 0x00);
 	/*OPPO	2015-05-08, zhangping add for  pop noise*/
-			if(!(is_project(OPPO_15109)))
-				msm8x16_notifier_call(codec,
-						WCD_EVENT_POST_HPHL_PA_OFF);
+			msm8x16_notifier_call(codec,
+				WCD_EVENT_POST_HPHL_PA_OFF);
 	/*OPPO	2015-05-08, zhangping add for  end*/
 #else
 			msm8x16_notifier_call(codec,
