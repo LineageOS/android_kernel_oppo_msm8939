@@ -1,0 +1,27 @@
+{
+  "comments": [
+    {
+      "key": {
+        "uuid": "f949ecba_47e6f75a",
+        "filename": "sound/soc/codecs/msm8x16-wcd.c",
+        "patchSetId": 1
+      },
+      "lineNbr": 4762,
+      "author": {
+        "id": 4550
+      },
+      "writtenOn": "2018-06-17T09:05:43Z",
+      "side": 1,
+      "message": "Shouldn\u0027t you do the same here?",
+      "range": {
+        "startLine": 4757,
+        "startChar": 0,
+        "endLine": 4762,
+        "endChar": 26
+      },
+      "revId": "be9cd41cc895d28f9bcbf019195ea545170bc404",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71",
+      "unresolved": false
+    }
+  ]
+}
