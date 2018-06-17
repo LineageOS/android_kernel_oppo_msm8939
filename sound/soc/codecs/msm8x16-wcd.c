@@ -4739,15 +4739,9 @@ static int msm8x16_wcd_hph_pa_event(struct snd_soc_dapm_widget *w,
 #ifdef CONFIG_MACH_OPPO
 			snd_soc_update_bits(codec,
 				MSM8X16_WCD_A_ANALOG_RX_HPH_L_TEST, 0x04, 0x00);
-	/*OPPO	2015-05-08, zhangping add for  pop noise*/
-			if(!(is_project(OPPO_15109)))
-				msm8x16_notifier_call(codec,
-						WCD_EVENT_POST_HPHL_PA_OFF);
-	/*OPPO	2015-05-08, zhangping add for  end*/
-#else
+#endif
 			msm8x16_notifier_call(codec,
 					WCD_EVENT_POST_HPHL_PA_OFF);
-#endif
 		} else if (w->shift == 4) {
 			clear_bit(WCD_MBHC_HPHR_PA_OFF_ACK,
 				&msm8x16_wcd->mbhc.hph_pa_dac_state);
@@ -4755,17 +4749,13 @@ static int msm8x16_wcd_hph_pa_event(struct snd_soc_dapm_widget *w,
 			snd_soc_update_bits(codec,
 				MSM8X16_WCD_A_ANALOG_RX_HPH_R_TEST, 0x04, 0x00);
 	/*OPPO	2015-05-08, zhangping add for  pop noise*/
-			if (!(is_project(OPPO_15109)))
-				msm8x16_notifier_call(codec,
-						WCD_EVENT_POST_HPHR_PA_OFF);
-			else
+			if(is_project(OPPO_15109))
 				clear_bit(WCD_MBHC_EVENT_PA_HPHR,
-						&mbhc->event_state);
+					&mbhc->event_state);
 	/*OPPO	2015-05-08, zhangping add for  end*/
-#else
+#endif
 			msm8x16_notifier_call(codec,
 					WCD_EVENT_POST_HPHR_PA_OFF);
-#endif
 		}
 		usleep_range(4000, 4100);
 
