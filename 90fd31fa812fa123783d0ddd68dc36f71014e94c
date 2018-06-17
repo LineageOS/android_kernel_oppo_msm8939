@@ -1,0 +1,27 @@
+{
+  "comments": [
+    {
+      "key": {
+        "uuid": "7c4b251c_f5fb6bc7",
+        "filename": "sound/soc/codecs/msm8x16-wcd.c",
+        "patchSetId": 3
+      },
+      "lineNbr": 4753,
+      "author": {
+        "id": 4550
+      },
+      "writtenOn": "2018-06-17T14:29:24Z",
+      "side": 1,
+      "message": "This only ran for 15109 before",
+      "range": {
+        "startLine": 4752,
+        "startChar": 0,
+        "endLine": 4753,
+        "endChar": 24
+      },
+      "revId": "90fd31fa812fa123783d0ddd68dc36f71014e94c",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71",
+      "unresolved": false
+    }
+  ]
+}
