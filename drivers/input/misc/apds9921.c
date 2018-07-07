@@ -284,7 +284,7 @@ typedef enum
 	APDS9921_DD_PRX_RES_11BIT = 3
 } apds9921_dd_prx_res_e;
 
-#define APDS9921_DD_LUX_FACTOR					30
+#define APDS9921_DD_LUX_FACTOR					30U
 
 #define APDS9921_DD_ALS_DEFAULT_RES				APDS9921_DD_ALS_MEAS_RES_18_BIT
 #define APDS9921_DD_ALS_DEFAULT_MEAS_RATE		APDS9921_DD_ALS_MEAS_RATE_100_MS
@@ -562,6 +562,7 @@ static int Lux_original(struct i2c_client *client, int als_data)
 static int LuxCalculation(struct i2c_client *client, int clr_data, int als_data)
 {
 	struct apds9921_data *data = i2c_get_clientdata(client);
+	unsigned long long scaled_lux_value, divider;
 	unsigned int luxValue=0;
 	int status1, status2;
 
@@ -581,11 +582,10 @@ static int LuxCalculation(struct i2c_client *client, int clr_data, int als_data)
 	// Apply als calibration gain
 	als_data = als_data * pdev_data->als_gain / 1000;
 
-	luxValue = ((als_data*APDS9921_DD_LUX_FACTOR*1000))/((apds9921_als_meas_rate_tb[data->als_res_index])*apds9921_als_gain_tb[data->als_gain_index]);
-
-	//printk(KERN_ERR"%s,  before %d\n", __func__, luxValue);
-	// Apply calibration factor
-	luxValue = (luxValue*data->als_cal_factor)/100/1000;
+	scaled_lux_value = (unsigned long long) als_data * APDS9921_DD_LUX_FACTOR * 1000U * data->als_cal_factor;
+	divider = (unsigned long long) (apds9921_als_meas_rate_tb[data->als_res_index]*apds9921_als_gain_tb[data->als_gain_index] * 100 * 1000);
+	luxValue = (unsigned int) (scaled_lux_value / divider);
+	//printk(KERN_ERR"%s,  after %u\n", __func__, luxValue);
 
 	return (int)luxValue;
 }
