@@ -1,0 +1,21 @@
+{
+  "comments": [
+    {
+      "key": {
+        "uuid": "737144f8_958eeb99",
+        "filename": "drivers/input/misc/apds9921.c",
+        "patchSetId": 1
+      },
+      "lineNbr": 584,
+      "author": {
+        "id": 1063
+      },
+      "writtenOn": "2018-07-10T07:11:04Z",
+      "side": 0,
+      "message": "65535 * 5 * 30 * 1000 \u003e INT_MAX",
+      "revId": "bb0a1bd8d16037e1d9eeacbffacbdd89fbb1513c",
+      "serverId": "1ec6b3db-b2c1-4fa4-84a2-4c7efe89ba71",
+      "unresolved": false
+    }
+  ]
+}
